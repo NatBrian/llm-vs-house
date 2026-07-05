@@ -22,6 +22,7 @@ export interface LlmConfig {
 
 const OLLAMA_DEFAULT_BASE = 'http://localhost:11434/v1';
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
+const KILOCODE_BASE = 'https://api.kilo.ai/api/gateway';
 
 export const PROVIDER_PRESETS: Record<ProviderId, { label: string; needsKey: boolean; needsBaseURL: boolean; exampleModel: string }> = {
   anthropic: { label: 'Anthropic (Claude)', needsKey: true, needsBaseURL: false, exampleModel: 'claude-sonnet-5' },
@@ -29,9 +30,12 @@ export const PROVIDER_PRESETS: Record<ProviderId, { label: string; needsKey: boo
   google: { label: 'Google Gemini', needsKey: true, needsBaseURL: false, exampleModel: 'gemini-2.5-pro' },
   ollama: { label: 'Ollama (local)', needsKey: false, needsBaseURL: false, exampleModel: 'gemma3:12b' },
   openrouter: { label: 'OpenRouter', needsKey: true, needsBaseURL: false, exampleModel: 'anthropic/claude-sonnet-5' },
-  kilocode: { label: 'KiloCode', needsKey: true, needsBaseURL: true, exampleModel: 'gpt-5' },
+  kilocode: { label: 'KiloCode', needsKey: true, needsBaseURL: false, exampleModel: 'kilo-auto/free' },
   'openai-compatible': { label: 'Custom (OpenAI-compatible)', needsKey: false, needsBaseURL: true, exampleModel: '' },
 };
+
+/** Providers whose structured output goes through a generic gateway; prefer JSON mode. */
+export const GATEWAY_PROVIDERS: ReadonlySet<ProviderId> = new Set(['ollama', 'openrouter', 'kilocode', 'openai-compatible']);
 
 function requireBaseURL(cfg: LlmConfig): string {
   if (!cfg.baseURL) throw new Error(`provider '${cfg.provider}' requires a baseURL`);
@@ -51,7 +55,7 @@ export function resolveModel(cfg: LlmConfig): LanguageModel {
     case 'openrouter':
       return createOpenAICompatible({ name: 'openrouter', baseURL: cfg.baseURL ?? OPENROUTER_BASE, apiKey: cfg.apiKey ?? '' })(cfg.model);
     case 'kilocode':
-      return createOpenAICompatible({ name: 'kilocode', baseURL: requireBaseURL(cfg), apiKey: cfg.apiKey ?? '' })(cfg.model);
+      return createOpenAICompatible({ name: 'kilocode', baseURL: cfg.baseURL ?? KILOCODE_BASE, apiKey: cfg.apiKey ?? '' })(cfg.model);
     case 'openai-compatible':
       return createOpenAICompatible({ name: 'custom', baseURL: requireBaseURL(cfg), apiKey: cfg.apiKey ?? '' })(cfg.model);
   }

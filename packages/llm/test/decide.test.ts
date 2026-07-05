@@ -14,10 +14,10 @@ describe('provider resolution (offline — construction only)', () => {
     expect(() => resolveModel({ provider: 'google', model: 'm', apiKey: 'k' })).not.toThrow();
     expect(() => resolveModel({ provider: 'ollama', model: 'm' })).not.toThrow();
     expect(() => resolveModel({ provider: 'openrouter', model: 'm', apiKey: 'k' })).not.toThrow();
-    expect(() => resolveModel({ provider: 'kilocode', model: 'm', apiKey: 'k', baseURL: 'https://x/v1' })).not.toThrow();
+    expect(() => resolveModel({ provider: 'kilocode', model: 'm', apiKey: 'k' })).not.toThrow(); // has a default base URL
   });
   it('throws when a base-URL-required provider is missing it', () => {
-    expect(() => resolveModel({ provider: 'kilocode', model: 'm', apiKey: 'k' })).toThrow(/baseURL/);
+    expect(() => resolveModel({ provider: 'openai-compatible', model: 'm', apiKey: 'k' })).toThrow(/baseURL/);
   });
 });
 

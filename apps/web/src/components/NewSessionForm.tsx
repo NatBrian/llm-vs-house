@@ -21,6 +21,7 @@ export function NewSessionForm() {
   const run = useStore((s) => s.run);
   const running = useStore((s) => s.running);
   const progress = useStore((s) => s.progress);
+  const error = useStore((s) => s.error);
 
   const provider = PROVIDERS.find((p) => p.id === form.llm.provider)!;
 
@@ -114,6 +115,12 @@ export function NewSessionForm() {
       >
         {running ? (progress?.label ?? 'Running…') : '▶ Run session'}
       </button>
+
+      {error && !running && (
+        <p className="text-xs text-red-200 bg-chip-red/15 border border-chip-red/40 rounded-md px-2.5 py-2 leading-snug break-words">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

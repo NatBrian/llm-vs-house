@@ -50,12 +50,21 @@ export async function handleDecide(payload: DecidePayload): Promise<{ status: nu
   const envVar = ENV_KEY[payload.provider];
   const apiKey = payload.apiKey || (envVar ? process.env[envVar] : undefined);
 
-  const decide = createLlmDecide({
-    provider: payload.provider,
-    model: payload.model,
-    apiKey,
-    baseURL: payload.baseURL,
-  });
+  if (ENV_KEY[payload.provider] && !apiKey) {
+    return { status: 400, json: { error: `No API key for ${payload.provider}. Paste one in the UI or set ${envVar} on the server.` } };
+  }
+
+  let decide;
+  try {
+    decide = createLlmDecide({
+      provider: payload.provider,
+      model: payload.model,
+      apiKey,
+      baseURL: payload.baseURL,
+    });
+  } catch (err) {
+    return { status: 400, json: { error: `Invalid provider config: ${err instanceof Error ? err.message : String(err)}` } };
+  }
 
   const req: DecisionRequest = {
     kind: payload.kind,

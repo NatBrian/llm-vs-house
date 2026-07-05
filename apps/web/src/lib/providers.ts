@@ -17,7 +17,7 @@ export const PROVIDERS: ProviderPreset[] = [
   { id: 'google', label: 'Google Gemini', needsKey: true, needsBaseURL: false, exampleModel: 'gemini-2.5-pro' },
   { id: 'ollama', label: 'Ollama (local)', needsKey: false, needsBaseURL: false, exampleModel: 'gemma3:12b' },
   { id: 'openrouter', label: 'OpenRouter', needsKey: true, needsBaseURL: false, exampleModel: 'anthropic/claude-sonnet-5' },
-  { id: 'kilocode', label: 'KiloCode', needsKey: true, needsBaseURL: true, exampleModel: 'gpt-5' },
+  { id: 'kilocode', label: 'KiloCode', needsKey: true, needsBaseURL: false, exampleModel: 'kilo-auto/free' },
   { id: 'openai-compatible', label: 'Custom (OpenAI-compatible)', needsKey: false, needsBaseURL: true, exampleModel: '' },
 ];
 

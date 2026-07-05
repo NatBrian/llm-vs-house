@@ -4,7 +4,7 @@
 
 import { generateObject } from 'ai';
 import type { Decide, DecisionRequest } from '@casino/core';
-import { resolveModel, type LlmConfig } from './providers.js';
+import { resolveModel, GATEWAY_PROVIDERS, type LlmConfig } from './providers.js';
 
 const GAME_TITLES: Record<string, string> = {
   roulette: 'Roulette', blackjack: 'Blackjack', baccarat: 'Baccarat',
@@ -45,6 +45,8 @@ export function createLlmDecide(cfg: LlmConfig, deps: LlmDecideDeps = {}): Decid
   const gen = deps.generateObject ?? ((args: any) => generateObject({ ...args, model }));
   const retries = deps.retries ?? 2;
   const now = deps.now ?? (() => Date.now());
+  // Native providers negotiate structured output; generic gateways are more reliable in JSON mode.
+  const mode = GATEWAY_PROVIDERS.has(cfg.provider) ? 'json' : 'auto';
 
   return async (req) => {
     const { system, prompt } = buildPrompt(req);
@@ -52,7 +54,7 @@ export function createLlmDecide(cfg: LlmConfig, deps: LlmDecideDeps = {}): Decid
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const start = now();
-        const result = await gen({ model, schema: req.schema, system, prompt });
+        const result = await gen({ model, schema: req.schema, system, prompt, mode });
         const value = req.schema.parse(result.object); // defense in depth
         return {
           value,
