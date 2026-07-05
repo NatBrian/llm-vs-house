@@ -207,9 +207,13 @@ const sicboAdapter: GameAdapter = {
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
         houseEdgePct: {
-          small: 2.78, big: 2.78, odd: 2.78, even: 2.78,
-          single: 3.7, combo: 2.78, double: 11.11, triple: 16.2, anytriple: 11.11,
+          small: 2.78, big: 2.78, odd: 2.78, even: 2.78, combo: 2.78,
+          single: 3.70, double: 11.11, anytriple: 11.11, triple: 16.20,
           doubleAny: 29.17, threeSingleCombo: 13.89, threeFromFour: 11.11,
+          total: {
+            4: 12.5, 5: 11.11, 6: 12.04, 7: 9.72, 8: 12.5, 9: 7.41, 10: 12.5,
+            11: 12.5, 12: 7.41, 13: 12.5, 14: 9.72, 15: 12.04, 16: 11.11, 17: 12.5,
+          },
         },
         tableMinimums: SICBO_MIN_BET, // even-money bets (small/big/odd/even) cost 50; inside bets 10
         payouts: {
@@ -219,10 +223,12 @@ const sicboAdapter: GameAdapter = {
           doubleAny: SICBO_ODDS.doubleAny, threeSingleCombo: SICBO_ODDS.threeSingleCombo, threeFromFour: SICBO_ODDS.threeFromFour,
           total: SICBO_TOTAL_ODDS,
         },
-        note: 'Small/Big/Odd/Even (2.78%) and a matching single-number bet (3.70%, thanks to the 12:1 '
-          + 'triple-match payout) are the best bets on this table; the 50:1 doubleAny bet has the worst '
-          + 'edge (29.17%) despite the flashy payout. A stake below its minimum, or a bet that does not '
-          + "describe a real felt cell (e.g. an invented doubleAny pair), is refused.",
+        note: 'Small/Big/Odd/Even and the Two-Dice Combo all sit at 2.78% — the best bets at this table '
+          + '(GRA MBS rule 4.1 payouts) — with a matching single-number bet close behind at 3.70% thanks '
+          + 'to its 12:1 triple-match payout. Total 9/12 is the best proposition bet at 7.41%; the 50:1 '
+          + "doubleAny bet has the worst edge (29.17%) despite the flashy payout. A stake below its "
+          + "bet's minimum, or a bet that does not describe a real felt cell (e.g. an invented doubleAny "
+          + 'pair), is refused.',
       },
       schema: SicBoDecisionSchema, schemaName: 'SicBoDecision',
     };
