@@ -196,51 +196,117 @@ wagers stay "within the minimum and maximum" displayed at the table, no figures 
 simulation uses the same 50 (even-money outside: Small/Big/Odd/Even) / 10 (everything else inside)
 convention as Roulette/Baccarat. Enforced by the adapter.
 
-**Known simplification**: the real MBS felt (Appendix A/B) also offers three exotic side-bet
-families not implemented here — **Three Single Dice Combinations** (rule 3.5.10/4.1.4, pick one
-exact 3-distinct-face triple, 30:1), **Double Numbers With Single Dice Combinations** (rule
-3.5.11/4.1.5, pick one exact double+single-face combination, 50:1 — the printed felt omits exactly
-2 of the 30 possible double+single pairs, (1,2) and (6,5)), and **Three Dice From Four Possible
-Combinations** (rule 3.5.13/4.1.7, four fixed 4-number windows — 1234/2345/2356/3456 — win if the
-three dice are a 3-subset of the chosen window, 7:1). These are rare novelty bets real players
-mostly ignore; out of scope for this engine by deliberate choice, not oversight.
+**Three exotic side-bet families** from the real MBS felt (Appendix A/B) are also implemented,
+each a single exact-match wager (not a group-of-cells OR-bet — verified by house-edge math, since
+treating a printed row-grouping as "any cell in the group wins" gives an impossible positive edge):
+
+| Bet | Detail | Prob | Payout (GRA) | House edge |
+|---|---|---|---|---|
+| Three Single Dice Combo (rule 3.5.10/4.1.4) | one exact 3-distinct-face triple (20 cells total, felt-grouped into 4 rows of 5 purely cosmetically) | 2.78% | 30:1 | 13.89% |
+| Double + Single Dice Combo (rule 3.5.11/4.1.5) | one exact double-D + single-P combination — the printed felt omits exactly 2 of the 30 possible pairs, (1,2) and (6,5), leaving 28 offered cells | 1.39% | 50:1 | **29.17%** (worst bet on the table) |
+| Three Dice From Four (rule 3.5.13/4.1.7) | one of 4 fixed 4-number windows (1234/2345/2356/3456) — wins if the three dice are a 3-subset of that window | 11.11% | 7:1 | 11.11% |
+
+These are rare novelty bets real players mostly ignore, but a faithful house edge requires exposing
+them accurately to any decider that might reach for the flashy 50:1 payout.
 
 Sources: gra.gov.sg "SIC BO (MBS) Game Rules Version 7" (w.e.f. 19 Sep 2025) — read in full, rules
 1–6, rule 4.1 settlement tables, and Appendix A/B · wizardofodds.com/games/sic-bo/ · /appendix/1/.
 
 ---
 
-## 4. SLOT MACHINE (example configuration — no single standard exists)
+## 4. SLOT MACHINE (243-ways video slot — example configuration, no single standard exists)
 
 **RTP** = long-run fraction paid back; **house edge = 100% − RTP**. Land-based ~88–94%, online ~94–98%.
-**Virtual reels / RNG:** RNG picks outcome; symbols weighted by number of stops mapped to them (weighting baked into strip).
-Core: **RTP = Σ P(combo) × payout multiplier**; for independent reels P(combo) = product of per-reel symbol probs.
+Slot paytables/reel strips are manufacturer-proprietary — no public "official" table exists (unlike Roulette/
+Baccarat/Sic Bo). What Singapore's **Gambling Regulatory Authority (GRA) "Technical Standards for Electronic
+Gaming Machines" v1.0** does mandate is a legal floor: **minimum theoretical RTP ≥ 90.0%** (§3.3.2), holding at
+every bet level (§3.3.3(a)); a gamble/double-up feature must pay exactly 100% RTP (§3.3.5); the RNG decides the
+outcome at spin-press with every combination reachable (§3.4.1–3.4.2); and — the detail that most separates a
+faithful sim from a naive one — **weighted virtual reels are the norm** (§3.4.6): the displayed 3-row window on
+each reel is 3 *consecutive* stops on a longer weighted strip, not 3 independently-sampled symbols.
 
-**Worked deterministic example — 3-reel, single payline, 1-coin bet.**
-Reel strip (32 stops, identical all 3 reels): 7=1, BAR=3, BELL=6, CHERRY=4, BLANK=18. Outcomes = 32³ = 32,768.
+**Machine shape**: 5 reels × 3 rows, **243 ways-to-win** (3⁵ — Aristocrat/WMS "Reel Power"-style: every way is
+always active, matching cells on *consecutive* reels starting at reel 1, any row, win regardless of a fixed
+line). This has no line-selection decision, which maps cleanly onto this sim's one-stake-per-round architecture
+— real 243-ways cabinets work the same way, it isn't a simplification. 9 symbols: `WILD` (subs every paying
+symbol, not scatter), `SCATTER` (pays anywhere, any row/reel; triggers free spins), 3 high-pay (`DRAGON`/
+`TIGER`/`LOTUS`), 4 low-pay (`ACE`/`KING`/`QUEEN`/`TEN`).
 
-| Combination | Payout ×bet | Count/32768 |
-|---|---|---|
-| 7-7-7 | 2000 | 1 |
-| BAR×3 | 200 | 27 |
-| BELL×3 | 50 | 216 |
-| CHERRY×3 | 25 | 64 |
-| CHERRY on reels 1&2 only | 8 | 448 |
-| CHERRY on reel 1 only | 2 | 3584 |
+**Reel strips** (32 stops each; composition varies per reel — reel 3 is the "loosest," an extra wild, one fewer
+king — real cabinets vary reels the same way):
 
-Total winning = 4340; Σ count×payout = 30552. **RTP = 30552/32768 = 93.24%**, house edge = 6.76%.
-Hit frequency = 4340/32768 = **13.24%**. (7-7-7 alone contributes 6.10% of RTP → moderate/high volatility.)
+| Symbol | Reel 1 | Reel 2 | Reel 3 | Reel 4 | Reel 5 |
+|---|---|---|---|---|---|
+| WILD | 1 | 2 | 2 | 2 | 1 |
+| SCATTER | 1 | 1 | 1 | 1 | 1 |
+| DRAGON | 1 | 1 | 1 | 1 | 1 |
+| TIGER | 1 | 1 | 1 | 1 | 1 |
+| LOTUS | 2 | 2 | 2 | 2 | 2 |
+| ACE | 3 | 3 | 3 | 3 | 3 |
+| KING | 5 | 5 | 4 | 5 | 5 |
+| QUEEN | 8 | 7 | 8 | 7 | 8 |
+| TEN | 10 | 10 | 10 | 10 | 10 |
+| **Total** | **32** | **32** | **32** | **32** | **32** |
 
-Deterministic impl: seed RNG → per reel `i = rng.randrange(32)`, symbol = `strip[i]` → evaluate ordered paytable
-(jackpot-first so exclusive cherry cases resolve) → return first match ×bet. Tune RTP via strip weights/payouts;
-integer payouts converge to a nearby value, not a round number.
+**Paytable** (3-of/4-of/5-of-a-kind, "for-one" multiplier of TOTAL bet, already ways-normalized — a run's payout
+is `paytable[symbol][count-3] × ways / 243`):
 
-Sources: wizardofodds.com/games/slots/ · easy.vegas/games/slots/how-they-work · /returns
+| Symbol | ×3 | ×4 | ×5 |
+|---|---|---|---|
+| DRAGON | 75 | 210 | 750 |
+| TIGER | 42 | 115 | 370 |
+| LOTUS | 26 | 74 | 210 |
+| ACE | 16 | 42 | 148 |
+| KING | 16 | 37 | 116 |
+| QUEEN | 7 | 26 | 84 |
+| TEN | 7 | 21 | 74 |
+
+**Scatter pay + free spins**: 3 scatters → 2× total bet + 8 free spins; 4 → 5× + 15 free spins; 5 → 20× + 20 free
+spins. Free spins execute automatically inside the engine per triggering round (no new bet decision, same
+precedent as Blackjack's post-bet action loop) — **v1 has no retriggers**: a bonus spin's own scatter hits still
+pay the scatter amount, but never extend the bonus round (keeps the RTP formula below exact/closed-form; a clean
+v2 seam).
+
+**RTP — exact by enumeration**, not estimated. Each reel's 32 stops collapse to the distinct 3-symbol *window
+signatures* they produce (grouping by sorted multiset, since row order never affects scoring) — roughly 15-19
+signatures per reel — turning the full 32⁵ = 33,554,432-combination space into ~2.2M weighted signature-tuples,
+enumerated exactly (implementation: `slotRtpBreakdown()` in `packages/engine/src/games/slot.ts`, cross-checked
+against a 500,000-round Monte Carlo simulation of the actual main+bonus-spin loop):
+
+- Ways-win EV per spin (`waysRtp`) = **87.088%**
+- Scatter-pay EV per spin (`scatterRtp`) = **1.543%**
+- Base-game EV per spin (`baseRtp` = waysRtp + scatterRtp) = **88.631%**
+- Trigger probability: 3 scatters ≈ 0.6767% (1-in-148), 4 ≈ 0.0350% (1-in-2857), 5 ≈ 0.00072% (1-in-138,089)
+- Trigger frequency (3+) ≈ **0.712%** (1-in-140 spins) — realistic for a real cabinet (typical range 1-in-100 to
+  1-in-300)
+- Expected free spins per spin ≈ **0.05953**
+- **Closed form (exact, since free spins reuse the base config and v1 has no retriggers):
+  `totalRTP = baseRtp × (1 + expectedFreeSpinsPerSpin) = 0.88631 × 1.05953 = 93.907%`**, house edge = **6.093%**
+- Independent Monte Carlo cross-check (500,000 full rounds, main+bonus loop): within 2% of the closed form,
+  consistent given the fat right tail from rare 5-of-a-kind/5-scatter hits.
+- Hit frequency (any nonzero payout on a spin) ≈ **20.2%** — in line with real video slots (typically 20–35%).
+
+**93.907% RTP is comfortably above the SG GRA's 90.0% legal floor and inside the realistic 90–97% band** for a
+real cabinet — this is a defensible worked example, verified by code, not a rounded guess.
+
+**Betting controls**: real cabinets separate *denomination* (coin value) from *bet level* (credits per spin) —
+the player presses a denomination chip and a bet-level stepper, or slams BET MAX, rather than typing a raw
+stake. This sim mirrors that: `denominations = [1, 2, 5, 10, 25, 50]` (sim-points, analogous to a real cabinet's
+cent-to-dollar range — SG regulation sets no fixed denomination, only the RTP floor), `betLevel = 1..10`, so
+`SLOT_MIN_BET = 1` and `SLOT_MAX_BET = 500`. Every decider — rule bot, naive "casual human" bot, and LLM — chooses
+`{ denomination, betLevel, betMax }`, not a bare number, so its reasoning trace and the UI replay both speak in
+terms of the machine's actual physical controls.
+
+Sources: gra.gov.sg "Technical Standards for Electronic Gaming Machines (Singapore)" v1.0 (read in full, §§2-3) ·
+Casino Control (Gaming Equipment) Regulations 2009, Reg. 12 · wizardofodds.com/games/slots/ ·
+easy.vegas/games/slots/how-they-work · hardrock.bet/casino/how-to-play-slots/reels-and-paylines/ (243-ways
+mechanics) · betus.com.pa "what-are-243-ways-slots" · bgaming.com/articles/rtp-in-slot-games-how-return-to-player-works
 
 ---
 
 ### Cross-game notes
-- All house edges here are exact/derivable from combinatorics except Slots (whatever the config computes to).
+- All house edges here are exact/derivable from combinatorics, including Slots (`slotRtpBreakdown()`
+  enumerates exactly; Monte Carlo is an independent cross-check only, never the tuning method).
 - Roulette, Baccarat, and Sic Bo payouts are verified directly against gazetted GRA (Singapore)
-  rule sheets, read in full. Slots payouts are casino-dependent — ship a defensible example
-  configuration but keep it **configurable**.
+  rule sheets, read in full. Slot paytables/reel strips are casino-dependent — ship a defensible
+  example configuration but keep it **configurable**.

@@ -4178,66 +4178,6 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../../packages/core/src/schemas.ts
-var reasoning = external_exports.string().min(1).max(4e3);
-var RouletteBetTypeSchema = external_exports.enum([
-  "straight",
-  "split",
-  "street",
-  "corner",
-  "sixline",
-  "column",
-  "dozen",
-  "red",
-  "black",
-  "odd",
-  "even",
-  "high",
-  "low",
-  "five"
-]);
-var RouletteBetSchema = external_exports.object({
-  type: RouletteBetTypeSchema,
-  amount: external_exports.number().positive(),
-  numbers: external_exports.array(external_exports.union([external_exports.number().int().min(0).max(36), external_exports.literal("00")])).optional(),
-  selector: external_exports.union([external_exports.literal(1), external_exports.literal(2), external_exports.literal(3)]).optional()
-});
-var RouletteDecisionSchema = external_exports.object({
-  bets: external_exports.array(RouletteBetSchema).min(1).max(10),
-  reasoning
-});
-var BaccaratBetSchema = external_exports.object({
-  type: external_exports.enum(["player", "banker", "tie", "playerPair", "bankerPair"]),
-  amount: external_exports.number().positive()
-});
-var BaccaratDecisionSchema = external_exports.object({
-  bets: external_exports.array(BaccaratBetSchema).min(1).max(4),
-  reasoning
-});
-var SicBoBetSchema = external_exports.object({
-  type: external_exports.enum(["small", "big", "odd", "even", "total", "single", "combo", "double", "triple", "anytriple"]),
-  amount: external_exports.number().positive(),
-  total: external_exports.number().int().min(4).max(17).optional(),
-  face: external_exports.number().int().min(1).max(6).optional(),
-  faces: external_exports.tuple([external_exports.number().int().min(1).max(6), external_exports.number().int().min(1).max(6)]).optional()
-});
-var SicBoDecisionSchema = external_exports.object({
-  bets: external_exports.array(SicBoBetSchema).min(1).max(8),
-  reasoning
-});
-var SlotDecisionSchema = external_exports.object({
-  amount: external_exports.number().positive(),
-  reasoning
-});
-var BlackjackBetSchema = external_exports.object({
-  amount: external_exports.number().positive(),
-  reasoning
-});
-var BlackjackActionSchema = external_exports.object({
-  action: external_exports.enum(["hit", "stand", "double", "split", "surrender", "insurance", "decline-insurance"]),
-  reasoning
-});
-
 // ../../packages/engine/src/games/roulette.ts
 var RED_NUMBERS = /* @__PURE__ */ new Set([
   1,
@@ -4273,7 +4213,10 @@ var ROULETTE_ODDS = {
   even: 1,
   high: 1,
   low: 1,
-  five: 6
+  five: 5,
+  zeroCombo: 11,
+  series3: 11,
+  series6: 5
 };
 var ROULETTE_MIN_BET = {
   red: 50,
@@ -4289,7 +4232,10 @@ var ROULETTE_MIN_BET = {
   sixline: 10,
   column: 10,
   dozen: 10,
-  five: 10
+  five: 10,
+  zeroCombo: 10,
+  series3: 10,
+  series6: 10
 };
 function columnNumbers(sel) {
   const out = [];
@@ -4302,6 +4248,58 @@ function dozenNumbers(sel) {
   for (let n = start; n < start + 12; n++) out.push(n);
   return out;
 }
+var EUROPEAN_WHEEL_ORDER = [
+  0,
+  32,
+  15,
+  19,
+  4,
+  21,
+  2,
+  25,
+  17,
+  34,
+  6,
+  27,
+  13,
+  36,
+  11,
+  30,
+  8,
+  23,
+  10,
+  5,
+  24,
+  16,
+  33,
+  1,
+  20,
+  14,
+  31,
+  9,
+  22,
+  18,
+  29,
+  7,
+  28,
+  12,
+  35,
+  3,
+  26
+];
+var SERIES3_GROUPS = (() => {
+  const nonZero = EUROPEAN_WHEEL_ORDER.filter((n) => n !== 0);
+  const groups = [];
+  for (let i = 0; i < nonZero.length; i += 3) groups.push(nonZero.slice(i, i + 3));
+  return groups;
+})();
+var SERIES6_GROUPS = (() => {
+  const groups = [];
+  for (let i = 0; i < SERIES3_GROUPS.length; i += 2) {
+    groups.push([...SERIES3_GROUPS[i], ...SERIES3_GROUPS[i + 1]]);
+  }
+  return groups;
+})();
 function rouletteWins(bet, result) {
   const num = typeof result === "number" ? result : -1;
   switch (bet.type) {
@@ -4313,6 +4311,16 @@ function rouletteWins(bet, result) {
       return (bet.numbers ?? []).some((p) => p === result);
     case "five":
       return result === "00" || result === 0 || result === 1 || result === 2 || result === 3;
+    case "zeroCombo":
+      return result === 0 || result === "00";
+    case "series3": {
+      const group = bet.seriesGroup !== void 0 ? SERIES3_GROUPS[bet.seriesGroup - 1] : void 0;
+      return num > 0 && (group ?? []).includes(num);
+    }
+    case "series6": {
+      const group = bet.seriesGroup !== void 0 ? SERIES6_GROUPS[bet.seriesGroup - 1] : void 0;
+      return num > 0 && (group ?? []).includes(num);
+    }
     case "red":
       return num > 0 && RED_NUMBERS.has(num);
     case "black":
@@ -4334,7 +4342,8 @@ function rouletteWins(bet, result) {
 var col = (n) => (n - 1) % 3 + 1;
 var row = (n) => Math.ceil(n / 3);
 var ZERO_SPLITS = [[0, 1], [0, 2], [0, 3], ["00", 2], ["00", 3], [0, "00"]];
-var ZERO_TRIOS = [[0, 1, 2], [0, 2, 3]];
+var ZERO_TRIOS_EUROPEAN = [[0, 1, 2]];
+var ZERO_TRIOS_AMERICAN = [[0, 1, 2], ["00", 2, 3], [0, "00", 2], [0, "00", 3]];
 var sameSet = (a, b) => {
   if (a.length !== b.length) return false;
   const as = [...a].sort().join(",");
@@ -4356,7 +4365,8 @@ function isValidRouletteBet(bet, variant) {
     }
     case "street": {
       if (nums.length !== 3) return false;
-      if (variant === "european" && ZERO_TRIOS.some((z) => sameSet(z, nums))) return true;
+      const zeroTrios = variant === "american" ? ZERO_TRIOS_AMERICAN : ZERO_TRIOS_EUROPEAN;
+      if (zeroTrios.some((z) => sameSet(z, nums))) return true;
       const ns = [...nums].map(Number).sort((x, y) => x - y);
       return ns[0] % 3 === 1 && ns[1] === ns[0] + 1 && ns[2] === ns[0] + 2;
     }
@@ -4373,7 +4383,12 @@ function isValidRouletteBet(bet, variant) {
       return n % 3 === 1 && sameSet(ns, [n, n + 1, n + 2, n + 3, n + 4, n + 5]);
     }
     case "five":
+    case "zeroCombo":
       return variant === "american";
+    case "series3":
+      return bet.seriesGroup !== void 0 && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES3_GROUPS.length;
+    case "series6":
+      return bet.seriesGroup !== void 0 && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES6_GROUPS.length;
     case "column":
     case "dozen":
     case "red":
@@ -4400,29 +4415,52 @@ function spinRoulette(rng, variant) {
 
 // ../../packages/engine/src/games/sicbo.ts
 var SICBO_TOTAL_ODDS = {
-  4: 60,
-  5: 30,
-  6: 17,
+  4: 62,
+  5: 31,
+  6: 18,
   7: 12,
   8: 8,
-  9: 6,
+  9: 7,
   10: 6,
   11: 6,
-  12: 6,
+  12: 7,
   13: 8,
   14: 12,
-  15: 17,
-  16: 30,
-  17: 60
+  15: 18,
+  16: 31,
+  17: 62
 };
 var SICBO_ODDS = {
   evenMoney: 1,
   // small / big / odd / even
-  combo: 5,
-  double: 10,
+  combo: 6,
+  double: 11,
   triple: 180,
-  anytriple: 30
-  // single number pays 1/2/3 to one by the number of dice that match
+  anytriple: 31,
+  doubleAny: 50,
+  threeSingleCombo: 30,
+  threeFromFour: 7
+  // single number pays 1/2/12 to one by the number of dice that match (rule 4.1.6)
+};
+var SICBO_DOUBLE_ANY_GROUPS = {
+  1: ["113", "114", "115", "116"],
+  2: ["122", "223", "224", "225", "226"],
+  3: ["133", "233", "334", "335", "336"],
+  4: ["144", "244", "344", "445", "446"],
+  5: ["155", "255", "355", "455", "556"],
+  6: ["166", "266", "366", "466"]
+};
+var SICBO_THREE_SINGLE_COMBO_GROUPS = {
+  1: ["126", "135", "234", "256", "346"],
+  2: ["123", "136", "145", "235", "356"],
+  3: ["124", "146", "236", "245", "456"],
+  4: ["125", "134", "156", "246", "345"]
+};
+var SICBO_THREE_FROM_FOUR_GROUPS = {
+  1: [1, 2, 3, 4],
+  2: [2, 3, 4, 5],
+  3: [2, 3, 5, 6],
+  4: [3, 4, 5, 6]
 };
 var SICBO_MIN_BET = {
   small: 50,
@@ -4434,7 +4472,10 @@ var SICBO_MIN_BET = {
   combo: 10,
   double: 10,
   triple: 10,
-  anytriple: 10
+  anytriple: 10,
+  doubleAny: 10,
+  threeSingleCombo: 10,
+  threeFromFour: 10
 };
 var SICBO_TABLE_MIN = Math.min(...Object.values(SICBO_MIN_BET));
 function isTriple(d) {
@@ -4445,6 +4486,9 @@ function diceSum(d) {
 }
 function countFace(d, face) {
   return (d[0] === face ? 1 : 0) + (d[1] === face ? 1 : 0) + (d[2] === face ? 1 : 0);
+}
+function sortedTriple(d) {
+  return [...d].sort().join("");
 }
 function resolveSicBoBet(bet, d) {
   const { amount } = bet;
@@ -4464,7 +4508,9 @@ function resolveSicBoBet(bet, d) {
     case "single": {
       if (bet.face === void 0) return -amount;
       const n = countFace(d, bet.face);
-      return n > 0 ? amount * n : -amount;
+      if (n === 0) return -amount;
+      if (n === 3) return amount * 12;
+      return amount * n;
     }
     case "combo": {
       if (!bet.faces) return -amount;
@@ -4481,6 +4527,27 @@ function resolveSicBoBet(bet, d) {
     }
     case "anytriple":
       return isTriple(d) ? amount * SICBO_ODDS.anytriple : -amount;
+    case "doubleAny": {
+      if (bet.face === void 0) return -amount;
+      const group = SICBO_DOUBLE_ANY_GROUPS[bet.face];
+      if (!group) return -amount;
+      return group.includes(sortedTriple(d)) ? amount * SICBO_ODDS.doubleAny : -amount;
+    }
+    case "threeSingleCombo": {
+      if (bet.group === void 0) return -amount;
+      const group = SICBO_THREE_SINGLE_COMBO_GROUPS[bet.group];
+      if (!group) return -amount;
+      return group.includes(sortedTriple(d)) ? amount * SICBO_ODDS.threeSingleCombo : -amount;
+    }
+    case "threeFromFour": {
+      if (bet.group === void 0) return -amount;
+      const set = SICBO_THREE_FROM_FOUR_GROUPS[bet.group];
+      if (!set) return -amount;
+      const distinct = new Set(d);
+      if (distinct.size !== 3) return -amount;
+      const allInSet = [...distinct].every((f) => set.includes(f));
+      return allInSet ? amount * SICBO_ODDS.threeFromFour : -amount;
+    }
   }
 }
 function rollSicBo(rng) {
@@ -4488,47 +4555,96 @@ function rollSicBo(rng) {
 }
 
 // ../../packages/engine/src/games/slot.ts
+var SLOT_REEL_COUNT = 5;
+var SLOT_ROWS = 3;
+var SLOT_WAYS = SLOT_ROWS ** SLOT_REEL_COUNT;
+var SLOT_DENOMINATIONS = [1, 2, 5, 10, 25, 50];
+var SLOT_MAX_LEVEL = 10;
+var SLOT_MIN_BET = SLOT_DENOMINATIONS[0] * 1;
+var SLOT_MAX_BET = SLOT_DENOMINATIONS[SLOT_DENOMINATIONS.length - 1] * SLOT_MAX_LEVEL;
+var PAYING_SYMBOLS = ["DRAGON", "TIGER", "LOTUS", "ACE", "KING", "QUEEN", "TEN"];
 var EXAMPLE_SLOT = {
+  wild: "WILD",
+  scatter: "SCATTER",
   reels: (() => {
-    const strip = [
-      ...Array(1).fill("7"),
-      ...Array(3).fill("BAR"),
-      ...Array(6).fill("BELL"),
-      ...Array(4).fill("CHERRY"),
-      ...Array(18).fill("BLANK")
+    const strip = (wild, king, queen) => [
+      ...Array(wild).fill("WILD"),
+      ...Array(1).fill("SCATTER"),
+      ...Array(1).fill("DRAGON"),
+      ...Array(1).fill("TIGER"),
+      ...Array(2).fill("LOTUS"),
+      ...Array(3).fill("ACE"),
+      ...Array(king).fill("KING"),
+      ...Array(queen).fill("QUEEN"),
+      ...Array(10).fill("TEN")
     ];
-    return [strip, [...strip], [...strip]];
+    return [
+      strip(1, 5, 8),
+      // reel 1: 1+1+1+1+2+3+5+8+10 = 32
+      strip(2, 5, 7),
+      // reel 2: 2+1+1+1+2+3+5+7+10 = 32
+      strip(2, 4, 8),
+      // reel 3 (loosest): 2+1+1+1+2+3+4+8+10 = 32
+      strip(2, 5, 7),
+      // reel 4
+      strip(1, 5, 8)
+      // reel 5
+    ];
   })(),
-  paytable: [
-    { symbol: "7", count: 3, payout: 2e3 },
-    { symbol: "BAR", count: 3, payout: 200 },
-    { symbol: "BELL", count: 3, payout: 50 },
-    { symbol: "CHERRY", count: 3, payout: 25 },
-    { symbol: "CHERRY", count: 2, payout: 8 },
-    { symbol: "CHERRY", count: 1, payout: 2 }
-  ]
+  paytable: {
+    DRAGON: [75, 210, 750],
+    TIGER: [42, 115, 370],
+    LOTUS: [26, 74, 210],
+    ACE: [16, 42, 148],
+    KING: [16, 37, 116],
+    QUEEN: [7, 26, 84],
+    TEN: [7, 21, 74]
+  },
+  scatterPay: { 3: 2, 4: 5, 5: 20 },
+  freeSpins: { 3: 8, 4: 15, 5: 20 }
 };
-function evaluate(config2, symbols) {
-  for (let i = 0; i < config2.paytable.length; i++) {
-    const rule = config2.paytable[i];
-    let matched = true;
-    for (let r = 0; r < rule.count; r++) {
-      if (symbols[r] !== rule.symbol) {
-        matched = false;
-        break;
-      }
+function reelWindow(strip, idx) {
+  const n = strip.length;
+  return [strip[idx], strip[(idx + 1) % n], strip[(idx + 2) % n]];
+}
+function evaluateSlotGrid(config2, grid) {
+  const wins = [];
+  let waysWin = 0;
+  for (const symbol17 of PAYING_SYMBOLS) {
+    const matchesPerReel = [];
+    for (const reel of grid) {
+      const m = reel.filter((s) => s === symbol17 || s === config2.wild).length;
+      if (m === 0) break;
+      matchesPerReel.push(m);
     }
-    if (matched) return { payout: rule.payout, ruleIndex: i };
+    const runLen = matchesPerReel.length;
+    if (runLen >= 3) {
+      const ways = matchesPerReel.reduce((a, b) => a * b, 1);
+      const payout = config2.paytable[symbol17][runLen - 3] * ways / SLOT_WAYS;
+      wins.push({ symbol: symbol17, count: runLen, ways, payout });
+      waysWin += payout;
+    }
   }
-  return { payout: 0, ruleIndex: -1 };
+  let scatterCount = 0;
+  for (const reel of grid) scatterCount += reel.filter((s) => s === config2.scatter).length;
+  const cappedCount = Math.min(scatterCount, 5);
+  const scatterPayout = scatterCount >= 3 ? config2.scatterPay[cappedCount] : 0;
+  const freeSpinsAwarded = scatterCount >= 3 ? config2.freeSpins[cappedCount] : 0;
+  return { waysWin, wins, scatterCount, scatterPayout, freeSpinsAwarded };
 }
 function spinSlot(rng, config2) {
-  const symbols = config2.reels.map((strip) => strip[rng.int(strip.length)]);
-  const { payout, ruleIndex } = evaluate(config2, symbols);
-  return { symbols, payout, ruleIndex };
+  const grid = config2.reels.map((strip) => reelWindow(strip, rng.int(strip.length)));
+  return { grid, ...evaluateSlotGrid(config2, grid) };
 }
-function resolveSlot(spin, amount) {
-  return spin.payout > 0 ? spin.payout * amount - amount : -amount;
+function playSlot(rng, config2) {
+  const mainSpin = spinSlot(rng, config2);
+  const bonusSpins = [];
+  for (let i = 0; i < mainSpin.freeSpinsAwarded; i++) bonusSpins.push(spinSlot(rng, config2));
+  const totalPayout = mainSpin.waysWin + mainSpin.scatterPayout + bonusSpins.reduce((s, b) => s + b.waysWin + b.scatterPayout, 0);
+  return { mainSpin, bonusSpins, totalPayout };
+}
+function resolveSlot(round, amount) {
+  return round.totalPayout > 0 ? round.totalPayout * amount - amount : -amount;
 }
 
 // ../../packages/engine/src/games/cards.ts
@@ -4854,6 +4970,70 @@ function settle(state) {
   state.phase = "settled";
 }
 
+// ../../packages/core/src/schemas.ts
+var reasoning = external_exports.string().min(1).max(4e3);
+var RouletteBetTypeSchema = external_exports.enum([
+  "straight",
+  "split",
+  "street",
+  "corner",
+  "sixline",
+  "column",
+  "dozen",
+  "red",
+  "black",
+  "odd",
+  "even",
+  "high",
+  "low",
+  "five"
+]);
+var RouletteBetSchema = external_exports.object({
+  type: RouletteBetTypeSchema,
+  amount: external_exports.number().positive(),
+  numbers: external_exports.array(external_exports.union([external_exports.number().int().min(0).max(36), external_exports.literal("00")])).optional(),
+  selector: external_exports.union([external_exports.literal(1), external_exports.literal(2), external_exports.literal(3)]).optional()
+});
+var RouletteDecisionSchema = external_exports.object({
+  bets: external_exports.array(RouletteBetSchema).min(1).max(10),
+  reasoning
+});
+var BaccaratBetSchema = external_exports.object({
+  type: external_exports.enum(["player", "banker", "tie", "playerPair", "bankerPair"]),
+  amount: external_exports.number().positive()
+});
+var BaccaratDecisionSchema = external_exports.object({
+  bets: external_exports.array(BaccaratBetSchema).min(1).max(4),
+  reasoning
+});
+var SicBoBetSchema = external_exports.object({
+  type: external_exports.enum(["small", "big", "odd", "even", "total", "single", "combo", "double", "triple", "anytriple"]),
+  amount: external_exports.number().positive(),
+  total: external_exports.number().int().min(4).max(17).optional(),
+  face: external_exports.number().int().min(1).max(6).optional(),
+  faces: external_exports.tuple([external_exports.number().int().min(1).max(6), external_exports.number().int().min(1).max(6)]).optional()
+});
+var SicBoDecisionSchema = external_exports.object({
+  bets: external_exports.array(SicBoBetSchema).min(1).max(8),
+  reasoning
+});
+var SlotDecisionSchema = external_exports.object({
+  denomination: external_exports.number().refine((v) => SLOT_DENOMINATIONS.includes(v), {
+    message: `denomination must be one of ${SLOT_DENOMINATIONS.join(", ")}`
+  }),
+  betLevel: external_exports.number().int().min(1).max(SLOT_MAX_LEVEL),
+  betMax: external_exports.boolean().optional(),
+  reasoning
+});
+var BlackjackBetSchema = external_exports.object({
+  amount: external_exports.number().positive(),
+  reasoning
+});
+var BlackjackActionSchema = external_exports.object({
+  action: external_exports.enum(["hit", "stand", "double", "split", "surrender", "insurance", "decline-insurance"]),
+  reasoning
+});
+
 // ../../packages/core/src/adapters.ts
 async function ask(ctx, req) {
   const res = await ctx.decide(req);
@@ -5025,6 +5205,12 @@ var sicboAdapter = {
     return { steps: [step], outcome: { dice, placedBets: bets }, net };
   }
 };
+function resolveSlotBetControls(value, bankroll) {
+  const raw = value.betMax ? SLOT_MAX_BET : value.denomination * value.betLevel;
+  const floor = Math.min(SLOT_MIN_BET, bankroll);
+  const ceiling = Math.min(Math.floor(raw), SLOT_MAX_BET, bankroll);
+  return Math.max(floor, ceiling);
+}
 var slotAdapter = {
   id: "slot",
   label: "Slot Machine",
@@ -5040,16 +5226,39 @@ var slotAdapter = {
       observation: {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        rtpNote: "Pure chance, ~93% RTP. Only decision is stake size."
+        machine: {
+          reels: 5,
+          ways: SLOT_WAYS,
+          wild: config2.wild,
+          scatter: config2.scatter,
+          denominations: SLOT_DENOMINATIONS,
+          maxBetLevel: SLOT_MAX_LEVEL,
+          minBet: SLOT_MIN_BET,
+          maxBet: SLOT_MAX_BET
+        },
+        rtpNote: "243-ways video slot, ~93.9% RTP, 6.1% house edge (SG GRA floor is 90%). Choose a denomination (coin value) and a bet level (credits per spin) \u2014 total stake = denomination x betLevel \u2014 or set betMax to slam the BET MAX button (highest denomination x highest level). Scatters pay anywhere and can award free spins.",
+        note: "denomination must be exactly one of the listed values. A resulting stake the bankroll cannot cover, or above the table max, is clamped down \u2014 a real cabinet would refuse an unaffordable or out-of-range bet the same way."
       },
       schema: SlotDecisionSchema,
       schemaName: "SlotDecision"
     };
     const { step, value } = await ask(ctx, req);
-    const amount = Math.max(1, Math.min(Math.floor(value.amount), ctx.bankroll));
-    const spin = spinSlot(ctx.rng, config2);
-    const net = resolveSlot(spin, amount);
-    return { steps: [step], outcome: { symbols: spin.symbols, payout: spin.payout, amount }, net };
+    const amount = resolveSlotBetControls(value, ctx.bankroll);
+    const round = playSlot(ctx.rng, config2);
+    const net = resolveSlot(round, amount);
+    return {
+      steps: [step],
+      outcome: {
+        mainSpin: round.mainSpin,
+        bonusSpins: round.bonusSpins,
+        totalPayout: round.totalPayout,
+        amount,
+        denomination: value.denomination,
+        betLevel: value.betLevel,
+        betMax: !!value.betMax
+      },
+      net
+    };
   }
 };
 function observeBlackjack(state) {
@@ -5186,8 +5395,22 @@ var DEFAULT_RULE_BOT_CONFIG = {
   roulette: { type: "red" },
   baccarat: { type: "banker" },
   sicbo: { type: "small" },
+  slot: { denomination: 1, betLevel: 10 },
   sizing: "flat"
 };
+function pickBetControls(target) {
+  let best = { denomination: SLOT_DENOMINATIONS[0], betLevel: 1 };
+  let bestDiff = Infinity;
+  for (const denomination of SLOT_DENOMINATIONS) {
+    const betLevel = Math.max(1, Math.min(SLOT_MAX_LEVEL, Math.round(target / denomination)));
+    const diff = Math.abs(denomination * betLevel - target);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = { denomination, betLevel };
+    }
+  }
+  return best;
+}
 var ROULETTE_LABEL = {
   straight: "Straight",
   split: "Split",
@@ -5248,6 +5471,7 @@ function makeRuleBot(config2 = {}) {
     roulette: { ...DEFAULT_RULE_BOT_CONFIG.roulette, ...config2.roulette },
     baccarat: { ...DEFAULT_RULE_BOT_CONFIG.baccarat, ...config2.baccarat },
     sicbo: { ...DEFAULT_RULE_BOT_CONFIG.sicbo, ...config2.sicbo },
+    slot: { ...DEFAULT_RULE_BOT_CONFIG.slot, ...config2.slot },
     sizing: config2.sizing ?? DEFAULT_RULE_BOT_CONFIG.sizing
   };
   const state = { prevBankroll: null, prevStake: 0 };
@@ -5295,8 +5519,24 @@ function makeRuleBot(config2 = {}) {
         }, stake);
       }
       case "slot": {
-        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
-        return recordAndReturn({ amount: stake, reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} spin.` }, stake);
+        const s = cfg.slot;
+        if (s.useMax) {
+          return recordAndReturn({
+            denomination: s.denomination,
+            betLevel: SLOT_MAX_LEVEL,
+            betMax: true,
+            reasoning: `Bet Max every spin (denomination ${s.denomination}).`
+          }, SLOT_MAX_BET);
+        }
+        const unit = Math.max(SLOT_MIN_BET, s.denomination * s.betLevel);
+        const target = computeStake(cfg.sizing, unit, req.bankroll, state);
+        const { denomination, betLevel } = pickBetControls(target);
+        const amount = denomination * betLevel;
+        return recordAndReturn({
+          denomination,
+          betLevel,
+          reasoning: `${sizingLabel(cfg.sizing, amount, unit)} \u2014 denomination ${denomination}, bet level ${betLevel}.`
+        }, amount);
       }
       case "blackjack": {
         const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);

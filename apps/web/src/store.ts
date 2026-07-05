@@ -197,7 +197,7 @@ export const useStore = create<StoreState>()(
       // Bump when the persisted shape changes (e.g. new Sic Bo bet types / player
       // options, new rule-bot config). A version mismatch discards incompatible
       // old state instead of rendering it into a crash loop.
-      version: 2,
+      version: 3, // bumped: RuleBotConfig gained a required `slot` control block
       migrate: () => ({ sessions: [], form: defaultForm }), // drop any pre-version persisted state, start clean
       partialize: (s) => ({ sessions: s.sessions, form: { ...s.form, llm: { ...s.form.llm, apiKey: '' } } }),
     },

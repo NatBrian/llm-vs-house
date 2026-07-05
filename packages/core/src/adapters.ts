@@ -6,8 +6,9 @@ import {
   spinRoulette, resolveRouletteBet, isValidRouletteBet, ROULETTE_MIN_BET, ROULETTE_ODDS,
   type RouletteBet, type RouletteVariant,
   dealBaccarat, resolveBaccaratBet, BACCARAT_MIN_BET, BACCARAT_BANKER_COMMISSION, type BaccaratBet,
-  rollSicBo, resolveSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, type SicBoBet,
-  spinSlot, resolveSlot, EXAMPLE_SLOT, type SlotConfig,
+  rollSicBo, resolveSicBoBet, isValidSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, SICBO_ODDS, type SicBoBet,
+  playSlot, resolveSlot, EXAMPLE_SLOT, SLOT_MIN_BET, SLOT_MAX_BET, SLOT_DENOMINATIONS, SLOT_MAX_LEVEL, SLOT_WAYS,
+  type SlotConfig,
   startBlackjack, legalActions, applyAction, handValue,
   DEFAULT_BLACKJACK_RULES, type BlackjackRules, type BlackjackState, type BlackjackAction,
   cardLabel, type Card,
@@ -73,6 +74,7 @@ function applySicBoTableRules(bets: SicBoBet[], bankroll: number): SicBoBet[] {
   let remaining = bankroll;
   const out: SicBoBet[] = [];
   for (const b of bets) {
+    if (!isValidSicBoBet(b)) continue; // not a real felt cell -> refused
     const min = SICBO_MIN_BET[b.type];
     const amt = Math.min(Math.floor(b.amount), remaining);
     if (amt < min) continue; // below table minimum (or bankroll can't cover it) -> refused
@@ -105,6 +107,24 @@ function applyRouletteTableRules(bets: RouletteBet[], bankroll: number, variant:
   return out;
 }
 
+/**
+ * Per-bet-type house edge, in percent. Standard bets share the wheel's base
+ * edge (2.70% European / 5.26% American — series3/series6 are mathematically
+ * equivalent to street/sixline so they share it too). The American-only extras
+ * are notably worse: Top Line ("five") and the dedicated 0/00 box are real
+ * GRA-approved "sucker bets" a human might be tempted by despite the odds.
+ */
+function rouletteHouseEdgePct(variant: RouletteVariant): Partial<Record<RouletteBet['type'], number>> {
+  const base = variant === 'european' ? 2.7 : 5.26;
+  const standard = {
+    straight: base, split: base, street: base, corner: base, sixline: base,
+    column: base, dozen: base, red: base, black: base, odd: base, even: base, high: base, low: base,
+    series3: base, series6: base,
+  };
+  if (variant !== 'american') return standard;
+  return { ...standard, five: 21.05, zeroCombo: 36.84 };
+}
+
 // ---------------------------------------------------------------- Roulette
 const rouletteAdapter: GameAdapter = {
   id: 'roulette',
@@ -118,12 +138,16 @@ const rouletteAdapter: GameAdapter = {
         variant: config.variant,
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: config.variant === 'european' ? 2.7 : 5.26,
+        houseEdgePct: rouletteHouseEdgePct(config.variant),
         payouts: ROULETTE_ODDS,
         tableMinimums: ROULETTE_MIN_BET, // even-money outside bets cost 50; everything else 10
-        note: 'Place one or more bets. Outside even-money bets minimise variance. Zero loses every '
-          + 'non-zero bet outright (no la partage / en prison at this table). A stake below its '
-          + "bet's table minimum, or numbers that don't form a real split/street/corner/sixline, is refused.",
+        note: 'Place one or more bets. Outside even-money bets minimise variance. Zero (and 00, on '
+          + "American tables) loses every non-zero bet outright (no la partage / en prison at this "
+          + 'table). On American tables the Top Line ("five": 0,00,1,2,3) and the dedicated 0/00 box '
+          + '("zeroCombo") carry a much worse edge (21.05% / 36.84%) than any other bet on the felt — '
+          + 'real, GRA-approved, but a bad deal. Series3/series6 are fixed wheel-sector bets with the '
+          + "same edge as an equivalent street/sixline. A stake below its bet's table minimum, or "
+          + "numbers/selectors that don't form a real felt cell, is refused.",
       },
       schema: RouletteDecisionSchema, schemaName: 'RouletteDecision',
     };
@@ -184,7 +208,8 @@ const sicboAdapter: GameAdapter = {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
         houseEdgePct: {
           small: 2.78, big: 2.78, odd: 2.78, even: 2.78, combo: 2.78,
-          double: 11.11, anytriple: 11.11, single: 3.70, triple: 16.20,
+          single: 3.70, double: 11.11, anytriple: 11.11, triple: 16.20,
+          doubleAny: 29.17, threeSingleCombo: 13.89, threeFromFour: 11.11,
           total: {
             4: 12.5, 5: 11.11, 6: 12.04, 7: 9.72, 8: 12.5, 9: 7.41, 10: 12.5,
             11: 12.5, 12: 7.41, 13: 12.5, 14: 9.72, 15: 12.04, 16: 11.11, 17: 12.5,
@@ -193,13 +218,17 @@ const sicboAdapter: GameAdapter = {
         tableMinimums: SICBO_MIN_BET, // even-money bets (small/big/odd/even) cost 50; inside bets 10
         payouts: {
           small: 1, big: 1, odd: 1, even: 1,
-          single: '1:1 / 2:1 / 12:1 by matching dice', combo: 6, double: 11, triple: 180, anytriple: 31,
+          single: '1:1 / 2:1 / 12:1 by matching dice (3-of-a-kind pays 12, not 3)',
+          combo: SICBO_ODDS.combo, double: SICBO_ODDS.double, triple: SICBO_ODDS.triple, anytriple: SICBO_ODDS.anytriple,
+          doubleAny: SICBO_ODDS.doubleAny, threeSingleCombo: SICBO_ODDS.threeSingleCombo, threeFromFour: SICBO_ODDS.threeFromFour,
           total: SICBO_TOTAL_ODDS,
         },
-        note: 'Small/Big/Odd/Even and the Two-Dice Combo all sit at 2.78% — the best bets at this '
-          + 'table (GRA MBS rule 4.1 payouts). Even-money bets cost a 50-point minimum; inside bets '
-          + '(min 10) vary from 7.41% (Total 9/12) to 16.20% (a specific Triple). A stake below its '
-          + "bet's minimum is refused.",
+        note: 'Small/Big/Odd/Even and the Two-Dice Combo all sit at 2.78% — the best bets at this table '
+          + '(GRA MBS rule 4.1 payouts) — with a matching single-number bet close behind at 3.70% thanks '
+          + 'to its 12:1 triple-match payout. Total 9/12 is the best proposition bet at 7.41%; the 50:1 '
+          + "doubleAny bet has the worst edge (29.17%) despite the flashy payout. A stake below its "
+          + "bet's minimum, or a bet that does not describe a real felt cell (e.g. an invented doubleAny "
+          + 'pair), is refused.',
       },
       schema: SicBoDecisionSchema, schemaName: 'SicBoDecision',
     };
@@ -210,6 +239,20 @@ const sicboAdapter: GameAdapter = {
     return { steps: [step], outcome: { dice, placedBets: bets }, net };
   },
 };
+
+/**
+ * Turns the decider's chosen machine controls (denomination x bet level, or BET MAX)
+ * into a clamped integer stake. Floor is table-minimum-or-bankroll (whichever is
+ * smaller, so a bankroll below the minimum never produces a bet bigger than itself),
+ * ceiling is bet-max-or-bankroll — mirrors how the other games' table rules refuse an
+ * unaffordable or out-of-range stake rather than erroring the round out.
+ */
+function resolveSlotBetControls(value: { denomination: number; betLevel: number; betMax?: boolean }, bankroll: number): number {
+  const raw = value.betMax ? SLOT_MAX_BET : value.denomination * value.betLevel;
+  const floor = Math.min(SLOT_MIN_BET, bankroll);
+  const ceiling = Math.min(Math.floor(raw), SLOT_MAX_BET, bankroll);
+  return Math.max(floor, ceiling);
+}
 
 // ---------------------------------------------------------------- Slot
 const slotAdapter: GameAdapter = {
@@ -222,15 +265,33 @@ const slotAdapter: GameAdapter = {
       kind: 'bet', game: 'slot', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
-        rtpNote: 'Pure chance, ~93% RTP. Only decision is stake size.',
+        machine: {
+          reels: 5, ways: SLOT_WAYS, wild: config.wild, scatter: config.scatter,
+          denominations: SLOT_DENOMINATIONS, maxBetLevel: SLOT_MAX_LEVEL,
+          minBet: SLOT_MIN_BET, maxBet: SLOT_MAX_BET,
+        },
+        rtpNote: '243-ways video slot, ~93.9% RTP, 6.1% house edge (SG GRA floor is 90%). '
+          + 'Choose a denomination (coin value) and a bet level (credits per spin) — total '
+          + 'stake = denomination x betLevel — or set betMax to slam the BET MAX button '
+          + '(highest denomination x highest level). Scatters pay anywhere and can award free spins.',
+        note: 'denomination must be exactly one of the listed values. A resulting stake the '
+          + 'bankroll cannot cover, or above the table max, is clamped down — a real cabinet '
+          + 'would refuse an unaffordable or out-of-range bet the same way.',
       },
       schema: SlotDecisionSchema, schemaName: 'SlotDecision',
     };
     const { step, value } = await ask(ctx, req);
-    const amount = Math.max(1, Math.min(Math.floor(value.amount), ctx.bankroll));
-    const spin = spinSlot(ctx.rng, config);
-    const net = resolveSlot(spin, amount);
-    return { steps: [step], outcome: { symbols: spin.symbols, payout: spin.payout, amount }, net };
+    const amount = resolveSlotBetControls(value, ctx.bankroll);
+    const round = playSlot(ctx.rng, config);
+    const net = resolveSlot(round, amount);
+    return {
+      steps: [step],
+      outcome: {
+        mainSpin: round.mainSpin, bonusSpins: round.bonusSpins, totalPayout: round.totalPayout,
+        amount, denomination: value.denomination, betLevel: value.betLevel, betMax: !!value.betMax,
+      },
+      net,
+    };
   },
 };
 

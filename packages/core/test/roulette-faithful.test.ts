@@ -13,14 +13,14 @@ function cfg(seed: string, rounds = 200, startingBankroll = 5000): SessionConfig
 }
 
 /** Every bet the dealer accepted must be a well-formed, above-minimum, real-cell stake. */
-function assertFaithfulBets(placedBets: any[], bankrollBefore: number) {
+function assertFaithfulBets(placedBets: any[], bankrollBefore: number, variant: 'european' | 'american' = 'european') {
   let total = 0;
   for (const b of placedBets) {
     const min = ROULETTE_MIN_BET[b.type as keyof typeof ROULETTE_MIN_BET];
     expect(min, `unknown bet type ${b.type}`).toBeGreaterThan(0);
     expect(Number.isInteger(b.amount)).toBe(true);
     expect(b.amount).toBeGreaterThanOrEqual(min);
-    expect(isValidRouletteBet(b, 'european')).toBe(true); // dealer never accepts an invented cell
+    expect(isValidRouletteBet(b, variant)).toBe(true); // dealer never accepts an invented cell
     total += b.amount;
   }
   expect(total).toBeLessThanOrEqual(bankrollBefore);
@@ -48,6 +48,26 @@ describe('naive human bot plays a faithful Roulette table', () => {
     // a casual player touches most of the board over 300 rounds — inside and outside bets
     expect(seenTypes.size).toBeGreaterThanOrEqual(6);
     expect(multiBetRounds).toBeGreaterThan(0); // genuinely spreads, not a single bet
+  });
+
+  it('on an American table, also reaches the RWS-only bets (five/zeroCombo) and always the wheel-sector series bets', async () => {
+    const americanCfg = makeSessionConfig({
+      id: 'roulette-american', label: 'roulette', seed: 'american-1', game: 'roulette',
+      deciderId: 'naive', createdAt: '2026-07-05T00:00:00.000Z',
+      rounds: 400, startingBankroll: 5000, baseBet: 50,
+      gameConfig: { variant: 'american' },
+    });
+    const session = await runSession(americanCfg, naiveDecide);
+    const seenTypes = new Set<string>();
+    for (const r of session.rounds) {
+      const bets = (r.outcome as any).placedBets as any[];
+      assertFaithfulBets(bets, r.bankrollBefore, 'american');
+      for (const b of bets) seenTypes.add(b.type);
+    }
+    expect(seenTypes.has('five')).toBe(true);
+    expect(seenTypes.has('zeroCombo')).toBe(true);
+    expect(seenTypes.has('series3')).toBe(true);
+    expect(seenTypes.has('series6')).toBe(true);
   });
 
   it('is deterministic — replay reproduces the naive spread exactly', async () => {

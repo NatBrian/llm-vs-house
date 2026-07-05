@@ -3,7 +3,7 @@ import {
   runSession, replaySession, naiveDecide, baselineDecide, makeSessionConfig,
   type SessionConfig,
 } from '../src/index.js';
-import { SICBO_MIN_BET } from '@casino/engine';
+import { SICBO_MIN_BET, isValidSicBoBet } from '@casino/engine';
 
 function cfg(seed: string, rounds = 200, startingBankroll = 5000): SessionConfig {
   return makeSessionConfig({
@@ -29,6 +29,7 @@ function assertFaithfulBets(placedBets: any[], bankrollBefore: number) {
       expect(b.faces).toHaveLength(2);
       expect(b.faces[0]).not.toBe(b.faces[1]); // two distinct faces
     }
+    expect(isValidSicBoBet(b)).toBe(true); // dealer never accepts an invented felt cell
     total += b.amount;
   }
   expect(total).toBeLessThanOrEqual(bankrollBefore); // never stakes more than the bankroll
@@ -57,6 +58,17 @@ describe('naive human bot plays a faithful Sic Bo table', () => {
     expect(seenTypes.size).toBeGreaterThanOrEqual(7);
     expect(seenTypes.has('odd') || seenTypes.has('even')).toBe(true);
     expect(multiBetRounds).toBeGreaterThan(0); // genuinely spreads, not a single bet
+  });
+
+  it('over enough rounds, also reaches the GRA-only bet families (doubleAny/threeSingleCombo/threeFromFour)', async () => {
+    const session = await runSession(cfg('spread-2', 600), naiveDecide);
+    const seenTypes = new Set<string>();
+    for (const r of session.rounds) {
+      for (const b of (r.outcome as any).placedBets as any[]) seenTypes.add(b.type);
+    }
+    expect(seenTypes.has('doubleAny')).toBe(true);
+    expect(seenTypes.has('threeSingleCombo')).toBe(true);
+    expect(seenTypes.has('threeFromFour')).toBe(true);
   });
 
   it('is deterministic — replay reproduces the naive spread exactly', async () => {

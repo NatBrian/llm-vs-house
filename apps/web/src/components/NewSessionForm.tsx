@@ -37,6 +37,7 @@ const SICBO_BETS: Array<{ value: RuleBotConfig['sicbo']['type']; label: string }
   { value: 'single', label: 'Single number (1:1/2:1/12:1, 3.70% edge)' },
   { value: 'triple', label: 'Specific triple (180:1, 16.20% edge)' },
 ];
+const SLOT_DENOMS = [1, 2, 5, 10, 25, 50];
 const SIZING_OPTIONS: Array<{ value: RuleBotConfig['sizing']; label: string; hint: string }> = [
   { value: 'flat', label: 'Flat', hint: 'Same stake every round.' },
   { value: 'martingale', label: 'Martingale', hint: 'Double after a loss, reset after a win.' },
@@ -134,10 +135,30 @@ function RuleBotConfigPanel() {
         </Field>
       )}
 
-      {(game === 'slot' || game === 'blackjack') && (
-        <p className="text-[11px] text-white/45">
-          {game === 'blackjack' ? 'Actions follow correct basic strategy; only the stake size is configurable below.' : 'Slots have no bet choice — only the stake size is configurable below.'}
-        </p>
+      {game === 'blackjack' && (
+        <p className="text-[11px] text-white/45">Actions follow correct basic strategy; only the stake size is configurable below.</p>
+      )}
+
+      {game === 'slot' && (
+        <Field label="Machine controls">
+          <div className="flex gap-1.5">
+            <select
+              value={ruleBot.slot.denomination}
+              onChange={(e) => setRuleBot({ slot: { ...ruleBot.slot, denomination: Number(e.target.value) } })}
+              className={inputCls} disabled={ruleBot.slot.useMax}
+            >
+              {SLOT_DENOMS.map((d) => <option key={d} value={d}>{d}pt denom</option>)}
+            </select>
+            <input type="number" min={1} max={10} value={ruleBot.slot.betLevel} disabled={ruleBot.slot.useMax}
+              onChange={(e) => setRuleBot({ slot: { ...ruleBot.slot, betLevel: Math.max(1, Math.min(10, +e.target.value || 1)) } })}
+              className={inputCls} placeholder="Bet level 1-10" />
+          </div>
+          <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-white/60">
+            <input type="checkbox" checked={!!ruleBot.slot.useMax}
+              onChange={(e) => setRuleBot({ slot: { ...ruleBot.slot, useMax: e.target.checked } })} />
+            Always press Bet Max
+          </label>
+        </Field>
       )}
 
       <Field label="Stake sizing">
