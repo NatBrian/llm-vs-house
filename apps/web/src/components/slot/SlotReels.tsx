@@ -7,7 +7,7 @@
 // The outcome is ALREADY decided (it arrives as a finished `grid` prop) — the reel
 // animation always lands on the known final symbols, never mid-flight-random.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Application, BlurFilter, Container, Graphics } from 'pixi.js';
 import gsap from 'gsap';
 import { makeSymbolTile } from './symbolTile';
@@ -40,6 +40,11 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
   const hostRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const columnsRef = useRef<Array<{ scroll: Container; blur: BlurFilter; glow: Graphics }>>([]);
+  // Flips once Application.init() resolves. The animation-build effect below depends on
+  // this (not just spinKey) — without it, the very first spin after mount races the async
+  // init: appRef.current is still null when that effect first runs, it bails out silently,
+  // and nothing re-triggers it since spinKey hasn't changed yet.
+  const [ready, setReady] = useState(false);
 
   // Mount the Pixi Application once; destroy on unmount.
   useEffect(() => {
@@ -65,7 +70,7 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
         const scroll = new Container();
         scroll.x = colX;
         const blur = new BlurFilter({ strength: 0 });
-        blur.blurX = 0;
+        blur.strengthX = 0;
         scroll.filters = [blur];
         scroll.mask = maskG;
         app.stage.addChild(scroll);
@@ -73,20 +78,24 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
         columns.push({ scroll, blur, glow });
       }
       columnsRef.current = columns;
+      setReady(true);
     });
     return () => {
       cancelled = true;
       appRef.current?.destroy(true, { children: true });
       appRef.current = null;
+      setReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // (Re)build and animate every column whenever a new spin lands.
+  // (Re)build and animate every column whenever a new spin lands. Depends on `ready` too,
+  // so the first spin after mount plays as soon as Pixi finishes initializing, not just
+  // on the next spinKey change.
   useEffect(() => {
     const app = appRef.current;
     const columns = columnsRef.current;
-    if (!app || columns.length !== REEL_COUNT) return;
+    if (!app || !ready || columns.length !== REEL_COUNT) return;
 
     const timeline = gsap.timeline({
       onComplete: () => onSettled?.(),
@@ -114,7 +123,7 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
       const cruiseBlur = isAnticipation ? REEL_TIMING.anticipationBlur : REEL_TIMING.cruiseBlur;
 
       // Ramp up: accelerate the scroll + blur in.
-      timeline.to(blur, { blurY: cruiseBlur, duration: rampS, ease: 'power1.in' }, 0);
+      timeline.to(blur, { strengthY: cruiseBlur, duration: rampS, ease: 'power1.in' }, 0);
       timeline.to(scroll, {
         y: `-=${CELL * 3}`,
         duration: rampS,
@@ -137,7 +146,7 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
       // Landing: exact target, blur clears, then a small settle bounce.
       const landStart = stopDelay;
       timeline.to(scroll, { y: targetY, duration: landS, ease: 'power2.out' }, landStart);
-      timeline.to(blur, { blurY: 0, duration: landS, ease: 'power2.out' }, landStart);
+      timeline.to(blur, { strengthY: 0, duration: landS, ease: 'power2.out' }, landStart);
       timeline.to(glow, { alpha: 0, duration: landS }, landStart);
       timeline.fromTo(scroll, { y: targetY - 10 }, { y: targetY, duration: settleS, ease: 'back.out(2)' }, landStart + landS);
     });
@@ -146,7 +155,7 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
       timeline.kill();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spinKey]);
+  }, [spinKey, ready]);
 
   return <div ref={hostRef} style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, borderRadius: 8, overflow: 'hidden' }} />;
 }
