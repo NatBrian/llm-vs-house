@@ -4386,9 +4386,9 @@ function isValidRouletteBet(bet, variant) {
     case "zeroCombo":
       return variant === "american";
     case "series3":
-      return bet.seriesGroup !== void 0 && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES3_GROUPS.length;
+      return variant === "american" && bet.seriesGroup !== void 0 && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES3_GROUPS.length;
     case "series6":
-      return bet.seriesGroup !== void 0 && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES6_GROUPS.length;
+      return variant === "american" && bet.seriesGroup !== void 0 && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES6_GROUPS.length;
     case "column":
     case "dozen":
     case "red":
@@ -5279,7 +5279,7 @@ var rouletteAdapter = {
   async playRound(ctx) {
     const config2 = ctx.config;
     const variant = config2.variant;
-    const americanOnly = ["five", "zeroCombo"];
+    const americanOnly = ["five", "zeroCombo", "series3", "series6"];
     const legalBetTypes = Object.keys(ROULETTE_ODDS).filter((t) => variant === "american" || !americanOnly.includes(t));
     const priorPockets = ctx.history.filter((r) => r.game === "roulette").map((r) => r.outcome.pocket);
     const req = {
@@ -5311,7 +5311,7 @@ var rouletteAdapter = {
         },
         history: summarizeSpinHistory(priorPockets, variant),
         ownSession: ownSessionSummary(ctx),
-        note: "ownSession is YOUR OWN session ledger \u2014 starting money, running profit/deficit, and your own past rounds (each with your exact decision + reasoning, what the table actually accepted, win/lose, bankroll after) \u2014 separate from history's wheel results, this is your personal track record so far. This table is " + variant + " \u2014 legalBetTypes lists exactly what's on THIS felt; a bet type from the other table (e.g. American-only five/zeroCombo at a European table) is refused, same as every other illegal-cell bet. boardLayout enumerates every real split/street/corner/sixline/column/dozen/series group on this table \u2014 you may freely choose ANY entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to the bankroll, exactly like a human standing at the table. history gives the actual spin record so far (recent results, hot/cold pocket counts, current color/parity/hi-lo streak) \u2014 you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is predictive (each spin is independent), it is only what a real player would see on the roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no la partage / en prison at this table). Series3/series6 are fixed wheel-sector bets covering the numbers listed in series3Groups/series6Groups. A stake below its bet's table minimum, or numbers/selectors that don't form a real felt cell, is refused."
+        note: "ownSession is YOUR OWN session ledger \u2014 starting money, running profit/deficit, and your own past rounds (each with your exact decision + reasoning, what the table actually accepted, win/lose, bankroll after) \u2014 separate from history's wheel results, this is your personal track record so far. This table is " + variant + " \u2014 legalBetTypes lists exactly what's on THIS felt; a bet type from the other table (e.g. American-only five/zeroCombo/series3/series6 at a European table) is refused, same as every other illegal-cell bet. boardLayout enumerates every real split/street/corner/sixline/column/dozen/series group on this table \u2014 you may freely choose ANY entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to the bankroll, exactly like a human standing at the table. history gives the actual spin record so far (recent results, hot/cold pocket counts, current color/parity/hi-lo streak) \u2014 you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is predictive (each spin is independent), it is only what a real player would see on the roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no la partage / en prison at this table). On American tables, series3/series6 are fixed wheel-sector bets covering the numbers listed in series3Groups/series6Groups. A stake below its bet's table minimum, or numbers/selectors that don't form a real felt cell, is refused."
       },
       schema: RouletteDecisionSchema,
       schemaName: "RouletteDecision"
@@ -18499,7 +18499,7 @@ var GAME_TITLES = {
 function buildPrompt(req) {
   const title = GAME_TITLES[req.game] ?? req.game;
   const system = [
-    `You are an autonomous player of ${title} in a RESEARCH SIMULATION.`,
+    `You are an expert player of ${title}.`,
     "All currency is simulated points \u2014 there is no real money and no real gambling.",
     "Each round you receive a structured game-state observation and must return a decision",
     "that STRICTLY matches the provided schema.",

@@ -150,7 +150,7 @@ const rouletteAdapter: GameAdapter = {
   async playRound(ctx): Promise<RoundResult> {
     const config = ctx.config as RouletteConfig;
     const variant = config.variant;
-    const americanOnly: RouletteBet['type'][] = ['five', 'zeroCombo'];
+    const americanOnly: RouletteBet['type'][] = ['five', 'zeroCombo', 'series3', 'series6'];
     const legalBetTypes = (Object.keys(ROULETTE_ODDS) as RouletteBet['type'][])
       .filter((t) => variant === 'american' || !americanOnly.includes(t));
     const priorPockets = ctx.history
@@ -181,7 +181,8 @@ const rouletteAdapter: GameAdapter = {
           + 'your own past rounds (each with your exact decision + reasoning, what the table actually '
           + "accepted, win/lose, bankroll after) — separate from history's "
           + "wheel results, this is your personal track record so far. This table is " + variant + " — legalBetTypes lists exactly what's on THIS felt; a bet "
-          + "type from the other table (e.g. American-only five/zeroCombo at a European table) is "
+          + "type from the other table (e.g. American-only five/zeroCombo/series3/series6 at a "
+          + "European table) is "
           + 'refused, same as every other illegal-cell bet. boardLayout enumerates every real split/'
           + 'street/corner/sixline/column/dozen/series group on this table — you may freely choose ANY '
           + 'entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to '
@@ -190,8 +191,9 @@ const rouletteAdapter: GameAdapter = {
           + '— you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is '
           + 'predictive (each spin is independent), it is only what a real player would see on the '
           + 'roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no '
-          + 'la partage / en prison at this table). Series3/series6 are fixed wheel-sector bets '
-          + 'covering the numbers listed in series3Groups/series6Groups. A stake below its bet\'s table minimum, or '
+          + 'la partage / en prison at this table). On American tables, series3/series6 are fixed '
+          + 'wheel-sector bets covering the numbers listed in series3Groups/series6Groups. '
+          + 'A stake below its bet\'s table minimum, or '
           + "numbers/selectors that don't form a real felt cell, is refused.",
       },
       schema: RouletteDecisionSchema, schemaName: 'RouletteDecision',

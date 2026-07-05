@@ -28,7 +28,7 @@ describe('prompt building', () => {
       observation: { variant: 'european' }, schema: RouletteDecisionSchema, schemaName: 'RouletteDecision',
     };
     const { system, prompt } = buildPrompt(req);
-    expect(system).toContain('SIMULATION');
+    expect(system).toContain('no real money and no real gambling');
     expect(prompt).toContain('Round #4');
     expect(prompt).toContain('european');
   });

@@ -379,8 +379,8 @@ function naiveRoulette(req: DecisionRequest): { bets: any[]; reasoning: string }
   const variant = ((req.observation as any).variant as RouletteVariant) ?? 'european';
   const families: RouletteBetType[] = [
     'red', 'black', 'odd', 'even', 'high', 'low', 'dozen', 'column',
-    'straight', 'split', 'street', 'corner', 'sixline', 'series3', 'series6',
-    ...(variant === 'american' ? (['five', 'zeroCombo'] as RouletteBetType[]) : []),
+    'straight', 'split', 'street', 'corner', 'sixline',
+    ...(variant === 'american' ? (['five', 'zeroCombo', 'series3', 'series6'] as RouletteBetType[]) : []),
   ];
   const rnd = mulberry32(req.index * 2654435761 + 7);
   let remaining = req.bankroll;

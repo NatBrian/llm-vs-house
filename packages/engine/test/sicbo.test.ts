@@ -12,7 +12,7 @@ function houseEdge(bet: SicBoBet): number {
   return -sum / 216;
 }
 
-describe('sic bo house edge vs GRA-verified table (docs/PAYOUTS.md)', () => {
+describe('sic bo house edge vs GRA-verified table (docs/PAYOUTS.md, GRA MBS v7)', () => {
   const cases: Array<[string, SicBoBet, number]> = [
     ['small', { type: 'small', amount: 1 }, 0.0278],
     ['big', { type: 'big', amount: 1 }, 0.0278],
@@ -25,6 +25,8 @@ describe('sic bo house edge vs GRA-verified table (docs/PAYOUTS.md)', () => {
     ['total 8 (8:1)', { type: 'total', amount: 1, total: 8 }, 0.1250],
     ['total 9 (7:1)', { type: 'total', amount: 1, total: 9 }, 0.0741],
     ['total 10 (6:1)', { type: 'total', amount: 1, total: 10 }, 0.1250],
+    ['total 16 (31:1, mirror of 5)', { type: 'total', amount: 1, total: 16 }, 0.1111],
+    ['total 17 (62:1, mirror of 4)', { type: 'total', amount: 1, total: 17 }, 0.1250],
     ['single face (1/2/12)', { type: 'single', amount: 1, face: 4 }, 0.0370],
     ['combo (6:1)', { type: 'combo', amount: 1, faces: [2, 5] }, 0.0278],
     ['specific double (11:1)', { type: 'double', amount: 1, face: 3 }, 0.1111],

@@ -188,9 +188,9 @@ export function isValidRouletteBet(bet: RouletteBet, variant: RouletteVariant): 
     case 'zeroCombo':
       return variant === 'american';
     case 'series3':
-      return bet.seriesGroup !== undefined && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES3_GROUPS.length;
+      return variant === 'american' && bet.seriesGroup !== undefined && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES3_GROUPS.length;
     case 'series6':
-      return bet.seriesGroup !== undefined && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES6_GROUPS.length;
+      return variant === 'american' && bet.seriesGroup !== undefined && bet.seriesGroup >= 1 && bet.seriesGroup <= SERIES6_GROUPS.length;
     case 'column': case 'dozen': case 'red': case 'black':
     case 'odd': case 'even': case 'high': case 'low':
       return true;

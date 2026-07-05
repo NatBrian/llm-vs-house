@@ -3,7 +3,7 @@ import { GAME_IDS, type GameId, type RuleBotConfig } from '@casino/core';
 import { GAME_META } from '../lib/format';
 import { PROVIDERS } from '../lib/providers';
 
-const ROULETTE_BETS: Array<{ value: string; label: string }> = [
+const ROULETTE_BETS: Array<{ value: string; label: string; americanOnly?: boolean }> = [
   { value: 'red', label: 'Red (1:1)' },
   { value: 'black', label: 'Black (1:1)' },
   { value: 'odd', label: 'Odd (1:1)' },
@@ -17,6 +17,10 @@ const ROULETTE_BETS: Array<{ value: string; label: string }> = [
   { value: 'column-2', label: '2nd Column (2:1)' },
   { value: 'column-3', label: '3rd Column (2:1)' },
   { value: 'straight', label: 'Straight up (35:1)' },
+  { value: 'series3-1', label: '3 Numbers Series (11:1)' },
+  { value: 'series6-1', label: '6 Numbers Series (5:1)' },
+  { value: 'five', label: 'Top Line 0/00/1/2/3 (5:1, 21.05% edge)', americanOnly: true },
+  { value: 'zeroCombo', label: '0/00 Combo (11:1, 36.84% edge)', americanOnly: true },
 ];
 const BACCARAT_BETS: Array<{ value: RuleBotConfig['baccarat']['type']; label: string }> = [
   { value: 'banker', label: 'Banker (0.95:1, 1.06% edge)' },
@@ -30,12 +34,15 @@ const SICBO_BETS: Array<{ value: RuleBotConfig['sicbo']['type']; label: string }
   { value: 'big', label: 'Big 11-17 (1:1, 2.78% edge)' },
   { value: 'odd', label: 'Odd (1:1, 2.78% edge)' },
   { value: 'even', label: 'Even (1:1, 2.78% edge)' },
-  { value: 'total', label: 'Total (varies, pick 4-17)' },
-  { value: 'single', label: 'Single number (1:1/2:1/3:1)' },
-  { value: 'double', label: 'Double (10:1)' },
-  { value: 'triple', label: 'Specific triple (180:1)' },
-  { value: 'anytriple', label: 'Any triple (30:1)' },
-  { value: 'combo', label: 'Two-dice combo (5:1)' },
+  { value: 'combo', label: 'Two-dice combo (6:1, 2.78% edge)' },
+  { value: 'total', label: 'Total (varies, 7.41-12.5% edge, pick 4-17)' },
+  { value: 'anytriple', label: 'Any triple (31:1, 11.11% edge)' },
+  { value: 'double', label: 'Double (11:1, 11.11% edge)' },
+  { value: 'single', label: 'Single number (1:1/2:1/12:1, 3.70% edge)' },
+  { value: 'triple', label: 'Specific triple (180:1, 16.20% edge)' },
+  { value: 'doubleAny', label: 'Double + single (50:1, 29.17% edge)' },
+  { value: 'threeSingleCombo', label: 'Three single dice (30:1, 13.89% edge)' },
+  { value: 'threeFromFour', label: 'Three from four (7:1, 11.11% edge)' },
 ];
 const SLOT_DENOMS = [1, 2, 5, 10, 25, 50];
 const SIZING_OPTIONS: Array<{ value: RuleBotConfig['sizing']; label: string; hint: string }> = [
@@ -44,14 +51,16 @@ const SIZING_OPTIONS: Array<{ value: RuleBotConfig['sizing']; label: string; hin
   { value: 'paroli', label: 'Paroli', hint: 'Double after a win, reset after a loss.' },
 ];
 
-/** Encode/decode the roulette dozen/column selector into a single <select> value. */
+/** Encode/decode the roulette dozen/column/series selector into a single <select> value. */
 function rouletteValue(b: RuleBotConfig['roulette']): string {
   if (b.type === 'dozen' || b.type === 'column') return `${b.type}-${b.selector ?? 1}`;
+  if (b.type === 'series3' || b.type === 'series6') return `${b.type}-${b.seriesGroup ?? 1}`;
   return b.type;
 }
 function rouletteFromValue(v: string): RuleBotConfig['roulette'] {
   const [type, sel] = v.split('-');
   if (type === 'dozen' || type === 'column') return { type, selector: (Number(sel) || 1) as 1 | 2 | 3 };
+  if (type === 'series3' || type === 'series6') return { type, seriesGroup: Number(sel) || 1 };
   if (type === 'straight') return { type: 'straight', numbers: [0] };
   return { type: type as RuleBotConfig['roulette']['type'] };
 }
@@ -82,12 +91,20 @@ function RuleBotConfigPanel() {
             onChange={(e) => setRuleBot({ roulette: rouletteFromValue(e.target.value) })}
             className={inputCls}
           >
-            {ROULETTE_BETS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {ROULETTE_BETS.filter((o) => !o.americanOnly || form.rouletteVariant === 'american')
+              .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           {ruleBot.roulette.type === 'straight' && (
             <input type="number" min={0} max={36} value={ruleBot.roulette.numbers?.[0] ?? 0}
               onChange={(e) => setRuleBot({ roulette: { type: 'straight', numbers: [Math.max(0, Math.min(36, +e.target.value || 0))] } })}
               className={`${inputCls} mt-1.5`} placeholder="Number 0-36" />
+          )}
+          {(ruleBot.roulette.type === 'series3' || ruleBot.roulette.type === 'series6') && (
+            <input type="number" min={1} max={ruleBot.roulette.type === 'series3' ? 12 : 6} value={ruleBot.roulette.seriesGroup ?? 1}
+              onChange={(e) => setRuleBot({
+                roulette: { type: ruleBot.roulette.type, seriesGroup: Math.max(1, Math.min(ruleBot.roulette.type === 'series3' ? 12 : 6, +e.target.value || 1)) },
+              })}
+              className={`${inputCls} mt-1.5`} placeholder={`Group 1-${ruleBot.roulette.type === 'series3' ? 12 : 6}`} />
           )}
         </Field>
       )}
@@ -131,6 +148,34 @@ function RuleBotConfigPanel() {
                   className={inputCls} placeholder={`Face ${i + 1}`} />
               ))}
             </div>
+          )}
+          {ruleBot.sicbo.type === 'doubleAny' && (
+            <div className="flex gap-1.5 mt-1.5">
+              <input type="number" min={1} max={6} value={ruleBot.sicbo.face ?? 2}
+                onChange={(e) => setRuleBot({ sicbo: { ...ruleBot.sicbo, face: Math.max(1, Math.min(6, +e.target.value || 2)) } })}
+                className={inputCls} placeholder="Double face" />
+              <input type="number" min={1} max={6} value={ruleBot.sicbo.partner ?? 3}
+                onChange={(e) => setRuleBot({ sicbo: { ...ruleBot.sicbo, partner: Math.max(1, Math.min(6, +e.target.value || 3)) } })}
+                className={inputCls} placeholder="Partner face" />
+            </div>
+          )}
+          {ruleBot.sicbo.type === 'threeSingleCombo' && (
+            <div className="flex gap-1.5 mt-1.5">
+              {[0, 1, 2].map((i) => (
+                <input key={i} type="number" min={1} max={6} value={ruleBot.sicbo.triple?.[i] ?? [1, 2, 6][i]}
+                  onChange={(e) => {
+                    const triple: [number, number, number] = [...(ruleBot.sicbo.triple ?? [1, 2, 6])] as [number, number, number];
+                    triple[i] = Math.max(1, Math.min(6, +e.target.value || 1));
+                    setRuleBot({ sicbo: { ...ruleBot.sicbo, triple } });
+                  }}
+                  className={inputCls} placeholder={`Face ${i + 1}`} />
+              ))}
+            </div>
+          )}
+          {ruleBot.sicbo.type === 'threeFromFour' && (
+            <input type="number" min={1} max={4} value={ruleBot.sicbo.group ?? 1}
+              onChange={(e) => setRuleBot({ sicbo: { ...ruleBot.sicbo, group: Math.max(1, Math.min(4, +e.target.value || 1)) } })}
+              className={`${inputCls} mt-1.5`} placeholder="Group 1-4 (1234/2345/2356/3456)" />
           )}
         </Field>
       )}
@@ -206,6 +251,27 @@ export function NewSessionForm() {
         </div>
         <p className="mt-1 text-[11px] text-white/40">{GAME_META[form.game]!.name} · edge {GAME_META[form.game]!.edge}</p>
       </div>
+
+      {form.game === 'roulette' && (
+        <Field label="Table">
+          <div className="flex rounded-lg overflow-hidden border border-white/10">
+            {([
+              { value: 'european' as const, label: 'MBS · Single-Zero' },
+              { value: 'american' as const, label: 'RWS · Double-Zero' },
+            ]).map((o) => (
+              <button key={o.value} onClick={() => setForm({ rouletteVariant: o.value })}
+                className={`flex-1 py-1.5 text-xs transition ${form.rouletteVariant === o.value ? 'bg-gold-500 text-ink-950 font-medium' : 'text-white/60 hover:text-white'}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[10px] text-white/40">
+            {form.rouletteVariant === 'american'
+              ? 'RWS-style: 38 pockets (0 and 00), plus the Top Line, 0/00 Combo, and Series bets.'
+              : 'MBS-style: 37 pockets (single 0), 2.70% base house edge.'}
+          </p>
+        </Field>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <Field label="Rounds">

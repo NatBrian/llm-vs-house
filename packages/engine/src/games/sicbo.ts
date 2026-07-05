@@ -1,7 +1,9 @@
 // Sic Bo engine. Three dice, 216 equally-likely outcomes.
-// Payouts and bet families follow the GRA-approved "SIC BO (MBS) Game Rules Version 6"
-// (w.e.f. 11 February 2020), rule 4.1 and Appendix A/B — not the generic international/
-// Wizard-of-Odds set. See docs/PAYOUTS.md for the rule-by-rule citation.
+// Payouts and bet families match Singapore's gazetted "SIC BO (MBS) Game Rules Version 7"
+// (GRA, w.e.f. 19 Sep 2025), rule 4.1 settlement tables and rule 3.5 bet definitions —
+// read directly from the primary source, not a secondary paraphrase (docs/PAYOUTS.md).
+// Includes the three exotic side-bet families from the real felt (Three-Single-Dice-Combo,
+// Double+Single-Combo, Four-Number-Combo) alongside the ten core bets.
 
 import type { Rng } from '../rng.js';
 

@@ -14,7 +14,7 @@ const GAME_TITLES: Record<string, string> = {
 export function buildPrompt(req: DecisionRequest): { system: string; prompt: string } {
   const title = GAME_TITLES[req.game] ?? req.game;
   const system = [
-    `You are an autonomous player of ${title} in a RESEARCH SIMULATION.`,
+    `You are an expert player of ${title}.`,
     'All currency is simulated points — there is no real money and no real gambling.',
     'Each round you receive a structured game-state observation and must return a decision',
     'that STRICTLY matches the provided schema.',

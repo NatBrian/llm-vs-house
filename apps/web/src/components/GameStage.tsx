@@ -84,7 +84,7 @@ export function GameStage() {
         </div>
       )}
 
-      <div key={idx} className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         {game === 'roulette' && (
           <RouletteBoard
             pocket={(round.outcome as any).pocket}
@@ -107,7 +107,14 @@ export function GameStage() {
             roundKey={idx}
           />
         )}
-        {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
+        {game === 'sicbo' && (
+          <SicBoBoard
+            dice={(round.outcome as any).dice}
+            placedBets={(round.outcome as any).placedBets ?? []}
+            history={session.rounds.slice(0, idx).map((r) => (r.outcome as any).dice).reverse()}
+            roundKey={idx}
+          />
+        )}
         {game === 'slot' && (
           <Suspense fallback={<div className="text-white/40 text-sm">Loading slot machine…</div>}>
             <SlotBoard outcome={round.outcome as any} roundKey={idx} />

@@ -9,41 +9,83 @@
 
 ## 1. ROULETTE
 
-Layouts: **European** single-zero (37 pockets: 0, 1–36), **American** double-zero (38 pockets: 0, 00, 1–36).
-Payouts identical on both wheels; only the extra `00` changes the edge.
+**Verified directly against the primary sources**: GRA-approved "Roulette (MBS) Game Rules Version 3"
+(w.e.f. 14 Aug 2019) and "RWS ROULETTE Game Rules" (w.e.f. 3 Feb 2023, superseding an earlier v3 from
+2019) — both read in full, including the appendix table-layout images (rendered from the PDF), not
+just the text.
 
-| Bet | Numbers | Payout |
-|---|---|---|
-| Straight-up | 1 | 35:1 |
-| Split | 2 | 17:1 |
-| Street | 3 | 11:1 |
-| Corner / Square | 4 | 8:1 |
-| Six-line / Double street | 6 | 5:1 |
-| Column | 12 | 2:1 |
-| Dozen | 12 | 2:1 |
-| Red/Black | 18 | 1:1 |
-| Odd/Even | 18 | 1:1 |
-| High/Low (1–18 / 19–36) | 18 | 1:1 |
-| Five-number (American only) | 0,00,1,2,3 | 6:1 |
+**Two real tables, two wheels**: MBS's rule text (4.2: "when the outcome is 0, wagers placed on a
+straight up 0 or on any combination of 0 and the numbers 1, 2 and/or 3 shall win") describes a
+genuine **single-zero (European, 37 pockets)** wheel with no `00` anywhere. RWS's appendix images (all
+four of its pay-table layouts, A/B through J/K) show `0` **and** `00` as two separate physical pockets
+every time — RWS's roulette is **always double-zero (American, 38 pockets)**; it does not offer a
+plain single-zero table. This simulation models both: `variant: 'european'` = MBS-style, `'american'`
+= RWS-style (picked via the table selector in the UI, `RouletteConfig.variant`).
 
-House edge: **European 2.70%** (1/37), **American 5.26%** (2/38). American five-number bet = **7.89%** (worst bet).
+| Bet | Numbers | Payout | Which table |
+|---|---|---|---|
+| Straight-up | 1 | 35:1 | both |
+| Split | 2 | 17:1 | both |
+| Street | 3 | 11:1 | both |
+| Corner / Square | 4 | 8:1 | both |
+| Six-line / Double street | 6 | 5:1 | both |
+| Column | 12 | 2:1 | both |
+| Dozen | 12 | 2:1 | both |
+| Red/Black | 18 | 1:1 | both |
+| Odd/Even | 18 | 1:1 | both |
+| High/Low (1–18 / 19–36) | 18 | 1:1 | both |
+| **Top Line** ("five": 0,00,1,2,3) | 5 | **5:1** | RWS/American only |
+| **0/00 Combo** (`zeroCombo`) | 2 | **11:1** | RWS/American only |
+| **3 Numbers Series** (`series3`) | 3 | **11:1** | RWS/American only |
+| **6 Numbers Series** (`series6`) | 6 | **5:1** | RWS/American only |
+
+House edge: **European (MBS) 2.70%** (1/37), **American (RWS) 5.26%** (2/38, applies to every
+standard bet **and** the Series bets, which are just a repackaged street/sixline). The Top Line and
+0/00 Combo are real GRA-approved bets with a much worse edge — **21.05%** and **36.84%**
+respectively — genuine "sucker bets" a human player might be tempted by despite the odds; this is
+intentional GRA-verified realism, not a simulation quirk.
+
+**Zero-adjacent street geometry — GRA Appendix C/F/I/L, quoted verbatim**: "A Bet on all three
+numbers in a row... Also can be placed at the corner on 0, 1 and 2 or 00, 2 and 3, or 0, 00 and 2 or
+0, 00 and 3 where the 3 numbers touch." The only zero-street on a **single-zero** wheel is `{0,1,2}` —
+`{0,2,3}` is **not** a real street; it requires `00` to exist (as `{00,2,3}`). An earlier version of
+this engine incorrectly allowed `{0,2,3}` as a European street; fixed.
+
+**"3/6 Numbers Series" bets (RWS pay tables 3/4)** are wheel-sector bets, not French call bets
+(Voisins/Tiers/Orphelins — this Singapore table has no racetrack and no French terminology at all).
+Verified by construction: partitioning the standard European wheel sequence
+(0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26),
+minus the zero, into 12 consecutive groups of 3 reproduces the exact 12 groups printed in the RWS
+Appendix G image, set-for-set (the printed felt lists them in the opposite order). `series6` groups
+are just adjacent `series3` pairs. The GRA rules never publish `00`-inclusive-wheel groupings
+separately, so this simulation applies the same European-sequence-derived groups on both variants —
+a documented, consistent extrapolation, not a literal second citation.
+
+**"0/00 Combo" is a distinct named bet, not a generic split**: RWS pay tables 2/4 list a dedicated
+felt box covering only `{0, 00}` at **11:1** — far worse than the fair 17:1 a literal split bet on the
+same two numbers would pay if placed on the line between them (also legal, via `split`). Both are
+modeled; a player/bot can choose the fair split or the flashier, worse-paying dedicated box.
 
 **Table minimums** (this simulation, mirrors the Sic Bo convention): outside even-money bets
-(Red/Black/Odd/Even/High/Low) **50**; every other bet (straight/split/street/corner/sixline/
-column/dozen/five) **10**. Enforced by the adapter — a stake below its bet's minimum is refused,
-as is a split/street/corner/sixline whose numbers don't form a real cell/line/corner on the felt.
+(Red/Black/Odd/Even/High/Low) **50**; every other bet (straight/split/street/corner/sixline/column/
+dozen/five/zeroCombo/series3/series6) **10**. Neither GRA rule sheet gazettes a specific dollar
+figure (both only require limits "displayed at the table") — Marina Bay Sands publicly advertises a
+**$5** roulette table minimum as a real-world reference point. Enforced by the adapter — a stake
+below its bet's minimum is refused, as is any bet whose numbers/selector don't form a real cell/
+line/corner/series-group on the felt.
 
 **La Partage / En Prison** (single-zero French tables, even-money bets only, when ball hits 0):
 - La Partage: lose half the even-money stake immediately.
 - En Prison: stake imprisoned one spin; returned (no profit) if it wins next spin, else forfeited.
 - Either rule → even-money house edge **1.35%** (exactly half). Other bets stay 2.70%. Not universal.
-- **Not applied in this simulation.** Confirmed via Singapore's Gambling Regulatory Authority
-  published rules (Marina Bay Sands & Resorts World Sentosa, v3): zero simply loses every
-  non-zero bet outright, English/American-style layout, no racetrack or French call-bet
-  terminology (Voisins du Zéro / Tiers du Cylindre / Orphelins / Jeu Zéro are out of scope).
-  This matches the Singapore/Malaysia casino convention the simulation targets.
+- **Not applied in this simulation** — confirmed by both GRA rule sheets directly: zero simply loses
+  every non-zero bet outright, English/American-style layout, no racetrack or French call-bet
+  terminology (Voisins du Zéro / Tiers du Cylindre / Orphelins / Jeu Zéro are out of scope). This
+  matches the Singapore casino convention the simulation targets.
 
-Sources: wizardofodds.com/games/roulette/basics/ · primedope.com/in-depth-guide-to-european-roulette-odds/ · en.wikipedia.org/wiki/En_prison · GRA-published MBS/RWS Roulette Rules v3
+Sources: gra.gov.sg "Roulette (MBS) Game Rules Version 3" (w.e.f. 14 Aug 2019, read in full) ·
+gra.gov.sg "RWS ROULETTE Game Rules" (w.e.f. 3 Feb 2023, read in full incl. Appendices A–L images) ·
+wizardofodds.com/games/roulette/basics/ · en.wikipedia.org/wiki/En_prison
 
 ---
 
@@ -139,37 +181,97 @@ Sources: wizardofodds.com/games/baccarat/basics/ · /appendix/2/
 
 ## 3. SIC BO (three dice, 216 = 6³ outcomes)
 
-**Payouts vary by casino** — expose as configurable. Below = common Wizard of Odds standard set; variants noted.
+**Verified directly against the primary source**: GRA-approved "SIC BO (MBS) Game Rules Version 7"
+(w.e.f. 19 Sep 2025), read in full — rule text cross-checked against the rendered Appendix A/B page
+images, not a secondary paraphrase. Every payout below is rule 4.1's settlement table, not the
+generic international/Wizard-of-Odds set most secondary sources quote — several figures differ,
+always in the **player's** favor (GRA pays more than the generic table on 8 of the 13 bet families).
+An earlier pass on this doc cited "Version 6" (w.e.f. 11 Feb 2020); v7 carries the same payouts and
+bet families, just a newer gazette date — nothing below changed as a result of the version bump.
 
-Small/Big: total 4–10 / 11–17, **loses on any triple**, prob 48.61%, payout 1:1, house edge **2.78%** (best bets).
+**Bet definitions** (rule 3.5): Small (3.5.1) and Big (3.5.2) win on totals 4–10 / 11–17
+respectively and **lose on any total outside that range or on any triple** — the triple exclusion
+applies to Small/Big/Odd/Even only. Odd (3.5.3) and Even (3.5.4) are the same shape, by parity, also
+losing on any triple. Three Dice Totals (3.5.8) has **no triple exclusion** — a wager on Total 9
+wins on 3-3-3 exactly like any other combination summing to 9 (confirmed by rule 3.5.8.1's wording,
+which never mentions Any Triple, unlike 3.5.1–3.5.4). Specific Double (3.5.6) wins on 2 or 3 of a
+face; Specific Triple (3.5.5) needs all 3; Any Triple (3.5.7) is any three-of-a-kind; Two Dice
+Combinations (3.5.9) needs both named faces present anywhere among the three dice; Single Dice Wager
+(3.5.12) needs the named face on 1 or more dice, paid by match count.
 
-Three-dice totals:
+Small/Big/Odd/Even: **loses on any triple**, prob 48.61%, payout 1:1, house edge **2.78%** (rule
+4.1.1) — the best bet on the table, tied with Two-Dice Combo (see below).
 
-| Total | Ways/216 | Payout (std) | House edge | Variant |
+**Three-dice totals (rule 4.1.2, no triple exclusion)** — every payout differs from the generic
+60/30/17/12/8/6/6 table:
+
+| Total | Ways/216 | Payout (GRA) | House edge |
+|---|---|---|---|
+| 4 / 17 | 3 | **62:1** | 12.50% |
+| 5 / 16 | 6 | **31:1** | 11.11% |
+| 6 / 15 | 10 | **18:1** | 12.04% |
+| 7 / 14 | 15 | 12:1 | 9.72% (best total) |
+| 8 / 13 | 21 | 8:1 | 12.50% |
+| 9 / 12 | 25 | **7:1** | **7.41%** (2nd-best total) |
+| 10 / 11 | 27 | 6:1 | 12.50% |
+
+(Totals 3 and 18 are the specific-triple bet, not "total" bets — rule 3.5.8's range is 4–17.)
+
+**Named/single-face bets (rule 4.1.1 named sections; 4.1.6 single dice; 4.1.3 two-dice combo)**:
+
+| Bet | Detail | Prob | Payout (GRA) | House edge |
 |---|---|---|---|---|
-| 4 / 17 | 3 | 60:1 | 15.28% | — |
-| 5 / 16 | 6 | 30:1 | 13.89% | — |
-| 6 / 15 | 10 | 17:1 | 16.67% | 18:1 → 12.04% |
-| 7 / 14 | 15 | 12:1 | 9.72% | — (best total) |
-| 8 / 13 | 21 | 8:1 | 12.50% | — |
-| 9 / 12 | 25 | 6:1 | 18.98% | — |
-| 10 / 11 | 27 | 6:1 | 12.50% | — |
+| Single, 1 die shows | | 34.72% | 1:1 | combined |
+| Single, 2 dice show | | 6.94% | 2:1 | combined |
+| Single, 3 dice show | | 0.46% | **12:1** (not 3:1) | overall **3.70%** |
+| Two-dice combo (domino) | two specific faces both appear | 13.89% | **6:1** | **2.78%** |
+| Specific double | chosen face appears ≥2 times | 7.41% | **11:1** | **11.11%** |
+| Any triple | any three-of-a-kind | 2.78% | **31:1** | **11.11%** |
+| Specific triple | chosen three-of-a-kind | 0.46% | 180:1 | **16.20%** |
 
-(Totals 3 and 18 are the specific-triple bet, not "total" bets.)
+The single-number 3-match payout (**12:1**, rule 4.1.6) is the single biggest fidelity gap the old
+table had — most international Sic Bo tables (and the AU variant this doc previously cited) pay 3:1
+for a triple match on a single-number bet; Singapore's GRA-approved MBS table pays **12:1**, making
+Single one of the best bets on the table (3.70% edge) rather than one of the worst (7.87%).
 
-Singles/doubles/triples/combos:
+**Notable finding**: the Two-Dice Combo at 6:1 computes to exactly −2.78% (−1/36), tying
+Small/Big/Odd/Even as the best bet on the table — under the generic 5:1 table it was one of the
+*worst* (16.67%). This flips the naive "even-money bets are always best" heuristic a rule-bot or LLM
+might otherwise assume, and is why the adapter's `houseEdgePct` observation enumerates every family
+exactly rather than summarizing.
 
-| Bet | Detail | Prob | Payout (std) | House edge | Variant |
-|---|---|---|---|---|---|
-| Single number (1 die) | shows on 1 die | 34.72% | 1:1 | combined | |
-| Single number (2 dice) | | 6.94% | 2:1 | combined | |
-| Single number (3 dice) | | 0.46% | 3:1 | overall **7.87%** | AU 12:1 → 3.70% |
-| Two-dice combo (domino) | two specific faces both appear | 13.89% | 5:1 | **16.67%** | — |
-| Specific double | chosen pair (≥2 of a face) | 7.41% | 10:1 | **18.52%** | 8:1 → 33.33% |
-| Any triple | any three-of-a-kind | 2.78% | 30:1 | **13.89%** | 24:1 → 30.56% |
-| Specific triple | chosen three-of-a-kind | 0.46% | 180:1 | **16.20%** | 150:1 → 30.09% |
+**Three exotic side-bet families**, absent from the old generic table, from the real MBS felt
+(Appendix A/B) — each a single **exact-match** wager, not a grouped OR-bet (verified by house-edge
+math: treating a printed row-grouping as "any cell in the group wins" back-solves to an impossible
++183% player edge, confirming each code is its own single-outcome target):
 
-Sources: wizardofodds.com/games/sic-bo/ · /appendix/1/ · playsmart.ca/novelty-games/sic-bo/odds/
+| Bet | Rule | Detail | Payout | House edge |
+|---|---|---|---|---|
+| Three Single Dice Combo (`threeSingleCombo`) | 3.5.10/4.1.4 | one exact 3-distinct-face triple (20 cells total, felt-grouped into 4 rows of 5 purely cosmetically) | **30:1** | 13.89% |
+| Double + Single Dice Combo (`doubleAny`) | 3.5.11/4.1.5 | one exact double-**D** + single-**P** combination | **50:1** | **29.17%** (worst bet on the table) |
+| Three Dice From Four (`threeFromFour`) | 3.5.13/4.1.7 | one of 4 fixed 4-number windows (1234/2345/2356/3456) — a genuine group-OR bet (unlike the two above): wins if the three dice are any 3-subset of that window | **7:1** | 11.11% |
+
+`doubleAny`'s 30 possible (double, partner) pairs are **not all offered**: the printed felt omits
+exactly two — double-1-with-partner-2 and double-6-with-partner-5 — leaving 28 real cells
+(`SICBO_DOUBLE_ANY_PAIRS` in `packages/engine/src/games/sicbo.ts`). This asymmetry is transcribed
+directly from the appendix image, not a bug. These are rare novelty bets real players mostly ignore,
+but a faithful house edge requires exposing them accurately to any decider tempted by the flashy
+50:1 payout.
+
+**Table layout** (`apps/web/src/components/SicBoBoard.tsx`): matches Appendix A/B — Double+Single and
+Three-Single-Dice occupy a dedicated left column (the old board omitted both entirely); the top band
+pairs **EVEN with BIG** on the left and **ODD with SMALL** on the right (the old board had this
+backwards: Small-over-Odd and Big-over-Even), flanking the doubles/specific-triples/Any-Triple fan;
+then totals, the 15 two-dice combos, the new Three-From-Four row, then the 6 single-number cells.
+
+**Table minimums**: same generic-limits pattern as Roulette/Baccarat — rules 5.10–5.12 only say
+wagers stay "within the minimum and maximum" displayed at the table, no figures gazetted. This
+simulation uses the same 50 (even-money outside: Small/Big/Odd/Even) / 10 (everything else inside,
+including the 3 exotic families) convention as Roulette/Baccarat. Enforced by the adapter.
+
+Sources: gra.gov.sg "SIC BO (MBS) Game Rules Version 7" (w.e.f. 19 Sep 2025, read in full incl.
+Appendix A/B images) · wizardofodds.com/games/sic-bo/ · /appendix/1/ (generic/international
+comparison table only, no longer the payout source of truth for this simulation).
 
 ---
 
@@ -264,5 +366,8 @@ mechanics) · betus.com.pa "what-are-243-ways-slots" · bgaming.com/articles/rtp
 ---
 
 ### Cross-game notes
-- All house edges here are exact/derivable from combinatorics, including Slots (`slotRtpBreakdown()` enumerates exactly; Monte Carlo is an independent cross-check only, never the tuning method).
-- Sic Bo & Slots payouts are casino-dependent — ship a defensible standard table but keep it **configurable**.
+- All house edges here are exact/derivable from combinatorics, including Slots (`slotRtpBreakdown()`
+  enumerates exactly; Monte Carlo is an independent cross-check only, never the tuning method).
+- Roulette, Baccarat, and Sic Bo payouts are verified directly against gazetted GRA (Singapore)
+  rule sheets, read in full. Slot paytables/reel strips are casino-dependent — ship a defensible
+  example configuration but keep it **configurable**.
