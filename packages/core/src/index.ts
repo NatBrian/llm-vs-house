@@ -31,6 +31,7 @@ export function makeSessionConfig(params: {
   startingBankroll?: number;
   baseBet?: number;
   rounds?: number;
+  stopTarget?: number;
 }): SessionConfig {
   const adapter = ADAPTERS[params.game]!;
   return {
@@ -44,5 +45,6 @@ export function makeSessionConfig(params: {
     baseBet: params.baseBet ?? 10,
     rounds: params.rounds ?? 50,
     createdAt: params.createdAt,
+    stopTarget: params.stopTarget ?? 0,
   };
 }

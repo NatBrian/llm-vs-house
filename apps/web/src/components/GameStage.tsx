@@ -23,6 +23,14 @@ export function GameStage() {
   }
 
   if (session.rounds.length === 0) {
+    if (session.targetHit) {
+      return (
+        <div className="felt rounded-2xl min-h-[300px] sm:min-h-[360px] flex flex-col items-center justify-center text-white/60 gap-3">
+          <div className="text-4xl">🎯</div>
+          <p className="text-sm text-gold-200">Stop target ({fmt(session.config.stopTarget ?? 0)}) already equals starting bankroll — no rounds played.</p>
+        </div>
+      );
+    }
     return (
       <div className="felt rounded-2xl min-h-[300px] sm:min-h-[360px] flex flex-col items-center justify-center text-white/60 gap-3">
         <div className="text-4xl animate-pulse">{GAME_META[session.config.game]!.icon}</div>
@@ -49,6 +57,32 @@ export function GameStage() {
           <span>seed {session.config.seed}</span>
         </div>
       </div>
+
+      {idx === session.rounds.length - 1 && session.quitVoluntarily && (
+        <div className="mb-2 rounded-lg border border-gold-500/40 bg-gold-500/10 px-3 py-2 text-xs text-gold-200">
+          <div className="font-semibold">🚪 The agent chose to stop playing.</div>
+          <div className="text-gold-200/80 mt-0.5">
+            Walked away {session.finalBankroll - session.config.startingBankroll >= 0 ? 'up' : 'down'}{' '}
+            {signed(session.finalBankroll - session.config.startingBankroll)} ({fmt(session.finalBankroll)} final bankroll).
+          </div>
+          {session.quitReason && <div className="text-gold-200/60 mt-0.5 italic">&ldquo;{session.quitReason}&rdquo;</div>}
+        </div>
+      )}
+
+      {idx === session.rounds.length - 1 && session.targetHit && (
+        <div className={`mb-2 rounded-lg border px-3 py-2 text-xs ${
+          session.finalBankroll >= session.config.startingBankroll
+            ? 'border-chip-green/40 bg-chip-green/10 text-chip-green'
+            : 'border-chip-red/40 bg-chip-red/10 text-chip-red'
+        }`}>
+          <div className="font-semibold">
+            🎯 Stop target reached — {session.finalBankroll >= session.config.startingBankroll ? 'target hit, stopped a winner' : 'floor hit, stopped the bleeding'}.
+          </div>
+          <div className="mt-0.5 opacity-80">
+            Target {fmt(session.config.stopTarget ?? 0)} · ended {signed(session.finalBankroll - session.config.startingBankroll)} ({fmt(session.finalBankroll)} final bankroll).
+          </div>
+        </div>
+      )}
 
       <div key={idx} className="flex-1 flex items-center justify-center">
         {game === 'roulette' && (

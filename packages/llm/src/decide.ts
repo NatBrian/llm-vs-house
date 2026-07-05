@@ -17,11 +17,15 @@ export function buildPrompt(req: DecisionRequest): { system: string; prompt: str
     `You are an autonomous player of ${title} in a RESEARCH SIMULATION.`,
     'All currency is simulated points — there is no real money and no real gambling.',
     'Each round you receive a structured game-state observation and must return a decision',
-    'that STRICTLY matches the provided schema. Consider house edge, bankroll, and variance.',
+    'that STRICTLY matches the provided schema.',
     'Keep "reasoning" concise (1–3 sentences) and specific to this observation.',
     req.kind === 'action'
       ? 'You are mid-hand: choose exactly ONE action from the legal actions listed.'
-      : 'Choose your bet(s). Do not stake more than the bankroll.',
+      : 'Choose your bet(s). Do not stake more than the bankroll. You may optionally set '
+        + '"stop" to true to end the session after this round resolves — a real casino is '
+        + 'walk-in-walk-out free, so leaving is always available on any round. Whether or '
+        + 'when to do so is entirely your own decision; omitting it (or setting it false) '
+        + 'simply continues the session as normal.',
   ].join(' ');
 
   const lines = [

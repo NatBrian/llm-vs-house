@@ -240,6 +240,18 @@ export function NewSessionForm() {
         )}
       </div>
 
+      {form.player !== 'llm' && (
+        <Field label="Stop target (optional)">
+          <input type="number" min={0} value={form.stopTarget}
+            onChange={(e) => setForm({ stopTarget: Math.max(0, +e.target.value || 0) })}
+            className={inputCls} placeholder="0 = disabled" />
+          <p className="mt-1 text-[10px] text-white/40">
+            0 disables it. Above bankroll ({form.startingBankroll}): take-profit — stop once reached. Below: stop-loss —
+            stop once dropped to it. The bot itself never decides to stop; this is a hard rail you set.
+          </p>
+        </Field>
+      )}
+
       {form.player === 'baseline' && <RuleBotConfigPanel />}
 
       {form.player === 'llm' && (

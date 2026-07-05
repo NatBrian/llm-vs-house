@@ -123,3 +123,50 @@ export function resolveBaccaratBet(bet: BaccaratBet, coup: BaccaratCoup): number
 export function dealBaccarat(rng: Rng, decks = 8): BaccaratCoup {
   return playBaccaratCoup(Shoe.shuffled(decks, rng));
 }
+
+export interface BaccaratHistoryStats {
+  /** Most-recent-first, capped at `window` — mirrors a real table's Big Road / Bead Plate. */
+  recent: BaccaratResult[];
+  resultPct: { player: number; banker: number; tie: number };
+  pairPct: { playerPair: number; bankerPair: number };
+  /** Current Big-Road streak: ties don't break or extend it, same as a real road. */
+  streak: { result: BaccaratResult | null; length: number };
+}
+
+/**
+ * Hot/cold + Big-Road-style streak over the session's actual hand history —
+ * the same road/bead-plate board a real baccarat table displays. Purely
+ * descriptive (each coup is independent), fed so the decider can play hunches
+ * or ignore it, exactly like a human reading the board.
+ */
+export function summarizeBaccaratHistory(
+  history: Array<Pick<BaccaratCoup, 'result' | 'playerPair' | 'bankerPair'>>,
+  window = 20,
+): BaccaratHistoryStats {
+  const n = history.length;
+  const recent = history.slice(-window).map((c) => c.result).reverse();
+  let playerCount = 0, bankerCount = 0, tieCount = 0, ppCount = 0, bpCount = 0;
+  for (const c of history) {
+    if (c.result === 'player') playerCount++;
+    else if (c.result === 'banker') bankerCount++;
+    else tieCount++;
+    if (c.playerPair) ppCount++;
+    if (c.bankerPair) bpCount++;
+  }
+  const pct = (c: number): number => (n ? Math.round((c / n) * 1000) / 10 : 0);
+
+  let value: BaccaratResult | null = null, length = 0;
+  for (const r of recent) {
+    if (r === 'tie') continue; // ties don't break or extend a Big-Road streak
+    if (value === null) { value = r; length = 1; }
+    else if (r === value) length++;
+    else break;
+  }
+
+  return {
+    recent,
+    resultPct: { player: pct(playerCount), banker: pct(bankerCount), tie: pct(tieCount) },
+    pairPct: { playerPair: pct(ppCount), bankerPair: pct(bpCount) },
+    streak: { result: value, length },
+  };
+}

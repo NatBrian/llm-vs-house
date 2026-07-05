@@ -14,6 +14,10 @@ export interface FormState {
   rounds: number;
   startingBankroll: number;
   baseBet: number;
+  /** Bankroll target for the Rule bot / Naive bot to stop at (0 = disabled). Above
+   *  startingBankroll it's a take-profit; below it's a stop-loss. The LLM decides
+   *  when to stop on its own, so this only applies to the deterministic bots. */
+  stopTarget: number;
   player: 'baseline' | 'naive' | 'llm';
   llm: LlmClientConfig;
   /** Human-chosen fixed bet + sizing strategy for the "Rule bot" player. */
@@ -58,6 +62,7 @@ const defaultForm: FormState = {
   rounds: 40,
   startingBankroll: 1000,
   baseBet: 10,
+  stopTarget: 0,
   player: 'baseline',
   llm: { provider: 'anthropic' as ProviderId, model: 'claude-sonnet-5', apiKey: '', baseURL: '' },
   ruleBot: DEFAULT_RULE_BOT_CONFIG,
@@ -108,6 +113,9 @@ export const useStore = create<StoreState>()(
             startingBankroll: form.startingBankroll,
             baseBet: form.baseBet,
             rounds: form.rounds,
+            // Only bots get a human-set stop target — the LLM decides for itself (see its
+            // own `stop` field in the decision schema instead).
+            stopTarget: isLlm ? 0 : form.stopTarget,
           });
 
           // Push a live placeholder so the table renders as rounds stream in (esp. for slow LLM runs).

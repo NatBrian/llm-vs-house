@@ -217,6 +217,53 @@ export function rollSicBo(rng: Rng): Dice {
   return [rng.intInclusive(1, 6), rng.intInclusive(1, 6), rng.intInclusive(1, 6)];
 }
 
+export interface SicBoHistoryStats {
+  /** Most-recent-first, capped at `window` — mirrors a real table's roadmap board. */
+  recent: Dice[];
+  /** % of all rolls so far landing in each category (not mutually exclusive with triple). */
+  smallBigPct: { small: number; big: number };
+  parityPct: { odd: number; even: number };
+  anyTriplePct: number;
+  faceCounts: { face: number; count: number }[]; // individual die-face hits across all rolls (hot/cold faces)
+  totalCounts: { total: number; count: number }[]; // three-dice sum frequency, 4..17
+}
+
+/**
+ * Hot/cold + percentage board over the session's actual dice history — the
+ * "recent rolls, % small/big/triple/odd/even" scoreboard a real Sic Bo table
+ * displays. Percentages are raw descriptive frequency (a triple's sum still
+ * counts toward small/big/odd/even here — the "voids those bets" rule is a
+ * payout rule, not a display rule).
+ */
+export function summarizeSicBoHistory(history: Dice[], window = 20): SicBoHistoryStats {
+  const recent = history.slice(-window).reverse();
+  const n = history.length;
+  let smallCount = 0, bigCount = 0, oddCount = 0, evenCount = 0, tripleCount = 0;
+  const faceCounts = new Map<number, number>();
+  for (let f = 1; f <= 6; f++) faceCounts.set(f, 0);
+  const totalCounts = new Map<number, number>();
+  for (let t = 4; t <= 17; t++) totalCounts.set(t, 0);
+
+  for (const d of history) {
+    const sum = diceSum(d);
+    if (isTriple(d)) tripleCount++;
+    if (sum <= 10) smallCount++; else bigCount++;
+    if (sum % 2 === 1) oddCount++; else evenCount++;
+    for (const f of d) faceCounts.set(f, (faceCounts.get(f) ?? 0) + 1);
+    totalCounts.set(sum, (totalCounts.get(sum) ?? 0) + 1);
+  }
+  const pct = (c: number): number => (n ? Math.round((c / n) * 1000) / 10 : 0);
+
+  return {
+    recent,
+    smallBigPct: { small: pct(smallCount), big: pct(bigCount) },
+    parityPct: { odd: pct(oddCount), even: pct(evenCount) },
+    anyTriplePct: pct(tripleCount),
+    faceCounts: [...faceCounts.entries()].map(([face, count]) => ({ face, count })),
+    totalCounts: [...totalCounts.entries()].map(([total, count]) => ({ total, count })),
+  };
+}
+
 /** All 216 equally-likely outcomes, for enumeration/house-edge computation. */
 export function allSicBoOutcomes(): Dice[] {
   const out: Dice[] = [];

@@ -4,9 +4,14 @@
 
 import {
   spinRoulette, resolveRouletteBet, isValidRouletteBet, ROULETTE_MIN_BET, ROULETTE_ODDS,
-  type RouletteBet, type RouletteVariant,
-  dealBaccarat, resolveBaccaratBet, BACCARAT_MIN_BET, BACCARAT_BANKER_COMMISSION, type BaccaratBet,
-  rollSicBo, resolveSicBoBet, isValidSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, SICBO_ODDS, type SicBoBet,
+  allSplits, allStreets, ALL_CORNERS, ALL_SIXLINES, columnNumbers, dozenNumbers,
+  SERIES3_GROUPS, SERIES6_GROUPS, summarizeSpinHistory,
+  type RouletteBet, type RouletteVariant, type Pocket,
+  dealBaccarat, resolveBaccaratBet, BACCARAT_MIN_BET, BACCARAT_BANKER_COMMISSION,
+  summarizeBaccaratHistory, type BaccaratBet, type BaccaratResult,
+  rollSicBo, resolveSicBoBet, isValidSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, SICBO_ODDS,
+  summarizeSicBoHistory, SICBO_THREE_FROM_FOUR_GROUPS, SICBO_DOUBLE_ANY_PAIRS,
+  type SicBoBet, type Dice,
   playSlot, resolveSlot, EXAMPLE_SLOT, SLOT_MIN_BET, SLOT_MAX_BET, SLOT_DENOMINATIONS, SLOT_MAX_LEVEL, SLOT_WAYS,
   type SlotConfig,
   startBlackjack, legalActions, applyAction, handValue,
@@ -42,6 +47,36 @@ async function ask(ctx: RoundContext, req: DecisionRequest): Promise<{ step: Dec
     ...(res.meta !== undefined ? { meta: res.meta } : {}),
   };
   return { step, value: parsed };
+}
+
+/**
+ * The LLM's own session ledger — total starting money, current profit/deficit,
+ * and a trail of its own past rounds (what it decided and why, what actually got
+ * placed after table rules, whether it won/lost, running bankroll) — fed to every
+ * game so the decider can reason like a human tracking their own session, not just
+ * the house's spin/roll history. `startingBankroll` is derived from the first
+ * recorded round's `bankrollBefore` rather than threaded as a separate field,
+ * since RoundRecord already carries it. `decisions` replays each step's exact
+ * validated payload (bets/controls + its own `reasoning`) verbatim — a human
+ * remembers not just "I won $50" but "I bet X because I thought Y", and it can
+ * differ from `outcome` when a proposed bet got refused/clamped by table rules.
+ */
+function ownSessionSummary(ctx: RoundContext, window = 10): Record<string, unknown> {
+  const startingBankroll = ctx.history.length ? ctx.history[0]!.bankrollBefore : ctx.bankroll;
+  const recentRounds = ctx.history.slice(-window).map((r) => ({
+    round: r.index + 1,
+    decisions: r.steps.map((s) => s.decision), // what YOU decided + why, verbatim
+    outcome: r.outcome, // what the table actually accepted/resolved
+    net: r.net,
+    bankrollAfter: r.bankrollAfter,
+  }));
+  return {
+    startingBankroll,
+    currentBankroll: ctx.bankroll,
+    profit: ctx.bankroll - startingBankroll, // negative = deficit
+    roundsPlayed: ctx.history.length,
+    recentRounds, // your own decisions+reasoning, what was placed, win/lose, bankroll trail — most-recent-last
+  };
 }
 
 /**
@@ -107,24 +142,6 @@ function applyRouletteTableRules(bets: RouletteBet[], bankroll: number, variant:
   return out;
 }
 
-/**
- * Per-bet-type house edge, in percent. Standard bets share the wheel's base
- * edge (2.70% European / 5.26% American — series3/series6 are mathematically
- * equivalent to street/sixline so they share it too). The American-only extras
- * are notably worse: Top Line ("five") and the dedicated 0/00 box are real
- * GRA-approved "sucker bets" a human might be tempted by despite the odds.
- */
-function rouletteHouseEdgePct(variant: RouletteVariant): Partial<Record<RouletteBet['type'], number>> {
-  const base = variant === 'european' ? 2.7 : 5.26;
-  const standard = {
-    straight: base, split: base, street: base, corner: base, sixline: base,
-    column: base, dozen: base, red: base, black: base, odd: base, even: base, high: base, low: base,
-    series3: base, series6: base,
-  };
-  if (variant !== 'american') return standard;
-  return { ...standard, five: 21.05, zeroCombo: 36.84 };
-}
-
 // ---------------------------------------------------------------- Roulette
 const rouletteAdapter: GameAdapter = {
   id: 'roulette',
@@ -132,30 +149,58 @@ const rouletteAdapter: GameAdapter = {
   defaultConfig: (): RouletteConfig => ({ variant: 'european' }),
   async playRound(ctx): Promise<RoundResult> {
     const config = ctx.config as RouletteConfig;
+    const variant = config.variant;
+    const americanOnly: RouletteBet['type'][] = ['five', 'zeroCombo'];
+    const legalBetTypes = (Object.keys(ROULETTE_ODDS) as RouletteBet['type'][])
+      .filter((t) => variant === 'american' || !americanOnly.includes(t));
+    const priorPockets = ctx.history
+      .filter((r) => r.game === 'roulette')
+      .map((r) => (r.outcome as { pocket: Pocket }).pocket);
     const req: DecisionRequest = {
       kind: 'bet', game: 'roulette', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
-        variant: config.variant,
+        variant,
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: rouletteHouseEdgePct(config.variant),
         payouts: ROULETTE_ODDS,
         tableMinimums: ROULETTE_MIN_BET, // even-money outside bets cost 50; everything else 10
-        note: 'Place one or more bets. Outside even-money bets minimise variance. Zero (and 00, on '
-          + "American tables) loses every non-zero bet outright (no la partage / en prison at this "
-          + 'table). On American tables the Top Line ("five": 0,00,1,2,3) and the dedicated 0/00 box '
-          + '("zeroCombo") carry a much worse edge (21.05% / 36.84%) than any other bet on the felt — '
-          + 'real, GRA-approved, but a bad deal. Series3/series6 are fixed wheel-sector bets with the '
-          + "same edge as an equivalent street/sixline. A stake below its bet's table minimum, or "
+        legalBetTypes, // only bet types this specific table (variant) offers
+        boardLayout: {
+          splits: allSplits(variant),
+          streets: allStreets(variant),
+          corners: ALL_CORNERS,
+          sixlines: ALL_SIXLINES,
+          columns: { 1: columnNumbers(1), 2: columnNumbers(2), 3: columnNumbers(3) },
+          dozens: { 1: dozenNumbers(1), 2: dozenNumbers(2), 3: dozenNumbers(3) },
+          series3Groups: SERIES3_GROUPS, // index+1 == seriesGroup
+          series6Groups: SERIES6_GROUPS, // index+1 == seriesGroup
+        },
+        history: summarizeSpinHistory(priorPockets, variant),
+        ownSession: ownSessionSummary(ctx),
+        note: 'ownSession is YOUR OWN session ledger — starting money, running profit/deficit, and '
+          + 'your own past rounds (each with your exact decision + reasoning, what the table actually '
+          + "accepted, win/lose, bankroll after) — separate from history's "
+          + "wheel results, this is your personal track record so far. This table is " + variant + " — legalBetTypes lists exactly what's on THIS felt; a bet "
+          + "type from the other table (e.g. American-only five/zeroCombo at a European table) is "
+          + 'refused, same as every other illegal-cell bet. boardLayout enumerates every real split/'
+          + 'street/corner/sixline/column/dozen/series group on this table — you may freely choose ANY '
+          + 'entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to '
+          + "the bankroll, exactly like a human standing at the table. history gives the actual spin "
+          + 'record so far (recent results, hot/cold pocket counts, current color/parity/hi-lo streak) '
+          + '— you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is '
+          + 'predictive (each spin is independent), it is only what a real player would see on the '
+          + 'roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no '
+          + 'la partage / en prison at this table). Series3/series6 are fixed wheel-sector bets '
+          + 'covering the numbers listed in series3Groups/series6Groups. A stake below its bet\'s table minimum, or '
           + "numbers/selectors that don't form a real felt cell, is refused.",
       },
       schema: RouletteDecisionSchema, schemaName: 'RouletteDecision',
     };
     const { step, value } = await ask(ctx, req);
-    const bets = applyRouletteTableRules(value.bets as RouletteBet[], ctx.bankroll, config.variant);
-    const pocket = spinRoulette(ctx.rng, config.variant);
+    const bets = applyRouletteTableRules(value.bets as RouletteBet[], ctx.bankroll, variant);
+    const pocket = spinRoulette(ctx.rng, variant);
     const net = bets.reduce((s, b) => s + resolveRouletteBet(b, pocket), 0);
-    return { steps: [step], outcome: { pocket, placedBets: bets }, net };
+    return { steps: [step], outcome: { pocket, placedBets: bets }, net, stop: !!value.stop };
   },
 };
 
@@ -166,16 +211,26 @@ const baccaratAdapter: GameAdapter = {
   defaultConfig: (): BaccaratConfig => ({ decks: 8 }),
   async playRound(ctx): Promise<RoundResult> {
     const config = ctx.config as BaccaratConfig;
+    const priorCoups = ctx.history
+      .filter((r) => r.game === 'baccarat')
+      .map((r) => r.outcome as { result: BaccaratResult; playerPair: boolean; bankerPair: boolean });
     const req: DecisionRequest = {
       kind: 'bet', game: 'baccarat', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
-        houseEdgePct: { banker: 1.06, player: 1.24, tie: 14.36, playerPair: 10.36, bankerPair: 10.36 },
         payouts: { player: 1, banker: 1 - BACCARAT_BANKER_COMMISSION, tie: 8, playerPair: 11, bankerPair: 11 },
         tableMinimums: BACCARAT_MIN_BET, // Player/Banker cost 50; Tie/Pair side bets cost 10
-        note: 'Banker has the lowest edge (1.06%) despite 5% commission, paid immediately per hand '
-          + '(mini-baccarat convention, confirmed by MBS/RWS rule sheets — no deferred marker). '
-          + "A stake below its bet's table minimum is refused.",
+        roadHistory: summarizeBaccaratHistory(priorCoups),
+        ownSession: ownSessionSummary(ctx),
+        note: 'roadHistory is the real Big Road / Bead Plate board: recent results (newest first), '
+          + '% player/banker/tie and % player-pair/banker-pair over every hand so far, and the current '
+          + 'streak (ties never break or extend a streak, same as a real road) — purely descriptive '
+          + '(each coup is independent, nothing here predicts the next one), play hunches (e.g. ride or '
+          + 'fade a banker streak) or ignore it, your call. ownSession is your own ledger — starting '
+          + 'money, running profit/deficit, your own past hands (your exact decision + reasoning, what '
+          + 'was actually accepted, win/lose). Banker commission is '
+          + 'paid immediately per hand (mini-baccarat convention, confirmed by MBS/RWS rule sheets — '
+          + "no deferred marker). A stake below its bet's table minimum is refused.",
       },
       schema: BaccaratDecisionSchema, schemaName: 'BaccaratDecision',
     };
@@ -192,6 +247,7 @@ const baccaratAdapter: GameAdapter = {
         placedBets: bets,
       },
       net,
+      stop: !!value.stop,
     };
   },
 };
@@ -202,15 +258,13 @@ const sicboAdapter: GameAdapter = {
   label: 'Sic Bo',
   defaultConfig: (): SicBoConfig => ({ _: undefined }),
   async playRound(ctx): Promise<RoundResult> {
+    const priorDice = ctx.history
+      .filter((r) => r.game === 'sicbo')
+      .map((r) => (r.outcome as { dice: Dice }).dice);
     const req: DecisionRequest = {
       kind: 'bet', game: 'sicbo', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
-        houseEdgePct: {
-          small: 2.78, big: 2.78, odd: 2.78, even: 2.78,
-          single: 3.7, combo: 2.78, double: 11.11, triple: 16.2, anytriple: 11.11,
-          doubleAny: 29.17, threeSingleCombo: 13.89, threeFromFour: 11.11,
-        },
         tableMinimums: SICBO_MIN_BET, // even-money bets (small/big/odd/even) cost 50; inside bets 10
         payouts: {
           small: 1, big: 1, odd: 1, even: 1,
@@ -219,10 +273,26 @@ const sicboAdapter: GameAdapter = {
           doubleAny: SICBO_ODDS.doubleAny, threeSingleCombo: SICBO_ODDS.threeSingleCombo, threeFromFour: SICBO_ODDS.threeFromFour,
           total: SICBO_TOTAL_ODDS,
         },
-        note: 'Small/Big/Odd/Even (2.78%) and a matching single-number bet (3.70%, thanks to the 12:1 '
-          + 'triple-match payout) are the best bets on this table; the 50:1 doubleAny bet has the worst '
-          + 'edge (29.17%) despite the flashy payout. A stake below its minimum, or a bet that does not '
-          + "describe a real felt cell (e.g. an invented doubleAny pair), is refused.",
+        boardLayout: {
+          // threeFromFour's `group` (1-4) and doubleAny's (face,partner) pair are felt
+          // cells picked by index/pair, not free-form numbers — expose the actual
+          // mapping so a choice is grounded, not a blind index guess (mirrors the
+          // roulette series3/series6 fix: same class of bug, same fix).
+          threeFromFourGroups: SICBO_THREE_FROM_FOUR_GROUPS, // group -> the 4 numbers it covers
+          validDoubleAnyPairs: SICBO_DOUBLE_ANY_PAIRS, // every legal [face, partner] cell (28 of 30 possible pairs — (1,2)/(6,5) aren't on the felt)
+        },
+        diceHistory: summarizeSicBoHistory(priorDice),
+        ownSession: ownSessionSummary(ctx),
+        note: 'boardLayout.threeFromFourGroups tells you exactly which 4 numbers each threeFromFour '
+          + 'group covers; boardLayout.validDoubleAnyPairs lists every real doubleAny felt cell — a '
+          + '(face,partner) pair not in that list is refused. diceHistory is the real roadmap board: '
+          + 'recent rolls (newest first), % small/big/odd/even and % any-triple over every roll so far, '
+          + 'and hot/cold counts per face and per three-dice total — purely descriptive (each roll is '
+          + 'independent, nothing here predicts the next one), play hunches or ignore it, your call. '
+          + 'ownSession is your own ledger — starting money, running profit/deficit, your own past bets '
+          + '(your exact decision + reasoning, what was actually accepted, win/lose). A stake below its '
+          + 'minimum, or a bet that does not describe a real felt cell (e.g. an invented doubleAny pair), '
+          + 'is refused.',
       },
       schema: SicBoDecisionSchema, schemaName: 'SicBoDecision',
     };
@@ -230,7 +300,7 @@ const sicboAdapter: GameAdapter = {
     const bets = applySicBoTableRules(value.bets as SicBoBet[], ctx.bankroll);
     const dice = rollSicBo(ctx.rng);
     const net = bets.reduce((s, b) => s + resolveSicBoBet(b, dice), 0);
-    return { steps: [step], outcome: { dice, placedBets: bets }, net };
+    return { steps: [step], outcome: { dice, placedBets: bets }, net, stop: !!value.stop };
   },
 };
 
@@ -264,13 +334,27 @@ const slotAdapter: GameAdapter = {
           denominations: SLOT_DENOMINATIONS, maxBetLevel: SLOT_MAX_LEVEL,
           minBet: SLOT_MIN_BET, maxBet: SLOT_MAX_BET,
         },
-        rtpNote: '243-ways video slot, ~93.9% RTP, 6.1% house edge (SG GRA floor is 90%). '
-          + 'Choose a denomination (coin value) and a bet level (credits per spin) — total '
-          + 'stake = denomination x betLevel — or set betMax to slam the BET MAX button '
-          + '(highest denomination x highest level). Scatters pay anywhere and can award free spins.',
-        note: 'denomination must be exactly one of the listed values. A resulting stake the '
-          + 'bankroll cannot cover, or above the table max, is clamped down — a real cabinet '
-          + 'would refuse an unaffordable or out-of-range bet the same way.',
+        // The pay-glass every cabinet displays: symbol -> [3-of-a-kind, 4-of-a-kind,
+        // 5-of-a-kind] multiplier of total bet, plus scatter pay and free-spins award
+        // by scatter count. Without this the model can't know DRAGON x5 pays 750x
+        // versus TEN x3 paying 7x — exactly the number a human reads off the glass
+        // before deciding whether the top symbols are worth chasing.
+        paytable: config.paytable,
+        scatterPay: config.scatterPay,
+        freeSpins: config.freeSpins,
+        machineNote: '243-ways video slot. Choose a denomination (coin value) and a bet level '
+          + '(credits per spin) — total stake = denomination x betLevel — or set betMax to slam '
+          + 'the BET MAX button (highest denomination x highest level). paytable lists, per symbol, '
+          + 'the "for-one" multiplier of your total bet for landing 3/4/5-of-a-kind anywhere on the '
+          + 'grid (ways pay, not fixed lines) — wild substitutes for every paying symbol. scatterPay is '
+          + 'the multiplier for 3/4/5 scatters landing anywhere regardless of ways; freeSpins is how '
+          + 'many free spins that same scatter count also awards.',
+        ownSession: ownSessionSummary(ctx),
+        note: 'ownSession is your own session ledger — starting money, running profit/deficit, your '
+          + 'own past spins (your exact decision + reasoning, stake actually spun, payout, bankroll '
+          + 'after). denomination must be exactly one of the listed values. A resulting stake the '
+          + 'bankroll cannot cover, or above the table max, is clamped down — a real cabinet would '
+          + 'refuse an unaffordable or out-of-range bet the same way.',
       },
       schema: SlotDecisionSchema, schemaName: 'SlotDecision',
     };
@@ -285,6 +369,7 @@ const slotAdapter: GameAdapter = {
         amount, denomination: value.denomination, betLevel: value.betLevel, betMax: !!value.betMax,
       },
       net,
+      stop: !!value.stop,
     };
   },
 };
@@ -328,7 +413,9 @@ const blackjackAdapter: GameAdapter = {
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
         rules: { decks: rules.decks, dealerHitsSoft17: rules.dealerHitsSoft17, blackjackPayout: rules.blackjackPayout },
-        note: 'Choose a stake; you then play the hand action by action.',
+        ownSession: ownSessionSummary(ctx),
+        note: 'ownSession is your own session ledger — starting money, running profit/deficit, your '
+          + 'own past hands. Choose a stake; you then play the hand action by action.',
       },
       schema: BlackjackBetSchema, schemaName: 'BlackjackBet',
     };

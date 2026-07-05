@@ -4400,6 +4400,76 @@ function isValidRouletteBet(bet, variant) {
       return true;
   }
 }
+function allSplits(variant) {
+  const out = [];
+  for (let n = 1; n <= 36; n++) {
+    if (col(n) !== 3 && n + 1 <= 36) out.push([n, n + 1]);
+    if (n + 3 <= 36) out.push([n, n + 3]);
+  }
+  for (const z of ZERO_SPLITS) {
+    if (z.includes("00") && variant !== "american") continue;
+    out.push(z);
+  }
+  return out;
+}
+function allStreets(variant) {
+  const out = [];
+  for (let n = 1; n <= 34; n += 3) out.push([n, n + 1, n + 2]);
+  out.push(...variant === "american" ? ZERO_TRIOS_AMERICAN : ZERO_TRIOS_EUROPEAN);
+  return out;
+}
+var ALL_CORNERS = (() => {
+  const out = [];
+  for (let n = 1; n <= 32; n++) if (n % 3 !== 0) out.push([n, n + 1, n + 3, n + 4]);
+  return out;
+})();
+var ALL_SIXLINES = (() => {
+  const out = [];
+  for (let n = 1; n <= 31; n += 3) out.push([n, n + 1, n + 2, n + 3, n + 4, n + 5]);
+  return out;
+})();
+function rouletteColor(pocket) {
+  if (pocket === 0 || pocket === "00") return "green";
+  return RED_NUMBERS.has(pocket) ? "red" : "black";
+}
+function streakOf(recent, classify) {
+  if (recent.length === 0) return { value: null, length: 0 };
+  const value = classify(recent[0]);
+  let length = 0;
+  for (const p of recent) {
+    if (classify(p) !== value) break;
+    length++;
+  }
+  return { value, length };
+}
+function summarizeSpinHistory(history, variant, window2 = 20) {
+  const recent = history.slice(-window2).reverse();
+  const counts = /* @__PURE__ */ new Map();
+  for (const p of rouletteWheel(variant)) counts.set(String(p), 0);
+  for (const p of history) counts.set(String(p), (counts.get(String(p)) ?? 0) + 1);
+  const ranked = [...counts.entries()].map(([key, count]) => ({
+    pocket: key === "00" ? "00" : Number(key),
+    count
+  }));
+  const hot = [...ranked].sort((a, b) => b.count - a.count).slice(0, 5);
+  const cold = [...ranked].sort((a, b) => a.count - b.count).slice(0, 5);
+  const color = streakOf(recent, rouletteColor);
+  const parity = streakOf(recent, (p) => typeof p === "number" && p > 0 ? p % 2 === 0 ? "even" : "odd" : "zero");
+  const band = streakOf(recent, (p) => {
+    const n = typeof p === "number" ? p : -1;
+    if (n >= 1 && n <= 18) return "low";
+    if (n >= 19 && n <= 36) return "high";
+    return "zero";
+  });
+  return {
+    recent,
+    hot,
+    cold,
+    colorStreak: { color: color.value ?? "green", length: color.length },
+    parityStreak: { parity: parity.value ?? "zero", length: parity.length },
+    highLowStreak: { band: band.value ?? "zero", length: band.length }
+  };
+}
 function resolveRouletteBet(bet, result) {
   return rouletteWins(bet, result) ? bet.amount * ROULETTE_ODDS[bet.type] : -bet.amount;
 }
@@ -4442,20 +4512,18 @@ var SICBO_ODDS = {
   threeFromFour: 7
   // single number pays 1/2/12 to one by the number of dice that match (rule 4.1.6)
 };
-var SICBO_DOUBLE_ANY_GROUPS = {
-  1: ["113", "114", "115", "116"],
-  2: ["122", "223", "224", "225", "226"],
-  3: ["133", "233", "334", "335", "336"],
-  4: ["144", "244", "344", "445", "446"],
-  5: ["155", "255", "355", "455", "556"],
-  6: ["166", "266", "366", "466"]
-};
-var SICBO_THREE_SINGLE_COMBO_GROUPS = {
-  1: ["126", "135", "234", "256", "346"],
-  2: ["123", "136", "145", "235", "356"],
-  3: ["124", "146", "236", "245", "456"],
-  4: ["125", "134", "156", "246", "345"]
-};
+var SICBO_DOUBLE_ANY_PAIRS = (() => {
+  const pairs = [];
+  for (let face = 1; face <= 6; face++) {
+    for (let partner = 1; partner <= 6; partner++) {
+      if (partner === face) continue;
+      if (face === 1 && partner === 2) continue;
+      if (face === 6 && partner === 5) continue;
+      pairs.push([face, partner]);
+    }
+  }
+  return pairs;
+})();
 var SICBO_THREE_FROM_FOUR_GROUPS = {
   1: [1, 2, 3, 4],
   2: [2, 3, 4, 5],
@@ -4490,68 +4558,121 @@ function countFace(d, face) {
 function sortedTriple(d) {
   return [...d].sort().join("");
 }
-function resolveSicBoBet(bet, d) {
-  const { amount } = bet;
+function isValidDoubleAnyPair(face, partner) {
+  return SICBO_DOUBLE_ANY_PAIRS.some(([f, p]) => f === face && p === partner);
+}
+var isFace = (n) => typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= 6;
+function isValidSicBoBet(bet) {
   switch (bet.type) {
     case "small":
-      return !isTriple(d) && diceSum(d) >= 4 && diceSum(d) <= 10 ? amount * SICBO_ODDS.evenMoney : -amount;
     case "big":
-      return !isTriple(d) && diceSum(d) >= 11 && diceSum(d) <= 17 ? amount * SICBO_ODDS.evenMoney : -amount;
     case "odd":
-      return !isTriple(d) && diceSum(d) % 2 === 1 ? amount * SICBO_ODDS.evenMoney : -amount;
     case "even":
-      return !isTriple(d) && diceSum(d) % 2 === 0 ? amount * SICBO_ODDS.evenMoney : -amount;
+    case "anytriple":
+      return true;
+    case "total":
+      return bet.total !== void 0 && Number.isInteger(bet.total) && bet.total >= 4 && bet.total <= 17;
+    case "single":
+    case "double":
+    case "triple":
+      return isFace(bet.face);
+    case "combo":
+      return !!bet.faces && isFace(bet.faces[0]) && isFace(bet.faces[1]) && bet.faces[0] !== bet.faces[1];
+    case "doubleAny":
+      return bet.face !== void 0 && bet.partner !== void 0 && isValidDoubleAnyPair(bet.face, bet.partner);
+    case "threeSingleCombo":
+      return !!bet.triple && bet.triple.every(isFace) && new Set(bet.triple).size === 3;
+    case "threeFromFour":
+      return bet.group !== void 0 && bet.group >= 1 && bet.group <= 4;
+  }
+}
+function resolveSicBoBet(bet, d) {
+  const { amount: amount2 } = bet;
+  switch (bet.type) {
+    case "small":
+      return !isTriple(d) && diceSum(d) >= 4 && diceSum(d) <= 10 ? amount2 * SICBO_ODDS.evenMoney : -amount2;
+    case "big":
+      return !isTriple(d) && diceSum(d) >= 11 && diceSum(d) <= 17 ? amount2 * SICBO_ODDS.evenMoney : -amount2;
+    case "odd":
+      return !isTriple(d) && diceSum(d) % 2 === 1 ? amount2 * SICBO_ODDS.evenMoney : -amount2;
+    case "even":
+      return !isTriple(d) && diceSum(d) % 2 === 0 ? amount2 * SICBO_ODDS.evenMoney : -amount2;
     case "total": {
-      if (bet.total === void 0) return -amount;
-      return diceSum(d) === bet.total ? amount * (SICBO_TOTAL_ODDS[bet.total] ?? 0) : -amount;
+      if (bet.total === void 0) return -amount2;
+      return diceSum(d) === bet.total ? amount2 * (SICBO_TOTAL_ODDS[bet.total] ?? 0) : -amount2;
     }
     case "single": {
-      if (bet.face === void 0) return -amount;
+      if (bet.face === void 0) return -amount2;
       const n = countFace(d, bet.face);
-      if (n === 0) return -amount;
-      if (n === 3) return amount * 12;
-      return amount * n;
+      if (n === 0) return -amount2;
+      if (n === 3) return amount2 * 12;
+      return amount2 * n;
     }
     case "combo": {
-      if (!bet.faces) return -amount;
+      if (!bet.faces) return -amount2;
       const [a, b] = bet.faces;
-      return countFace(d, a) >= 1 && countFace(d, b) >= 1 ? amount * SICBO_ODDS.combo : -amount;
+      return countFace(d, a) >= 1 && countFace(d, b) >= 1 ? amount2 * SICBO_ODDS.combo : -amount2;
     }
     case "double": {
-      if (bet.face === void 0) return -amount;
-      return countFace(d, bet.face) >= 2 ? amount * SICBO_ODDS.double : -amount;
+      if (bet.face === void 0) return -amount2;
+      return countFace(d, bet.face) >= 2 ? amount2 * SICBO_ODDS.double : -amount2;
     }
     case "triple": {
-      if (bet.face === void 0) return -amount;
-      return countFace(d, bet.face) === 3 ? amount * SICBO_ODDS.triple : -amount;
+      if (bet.face === void 0) return -amount2;
+      return countFace(d, bet.face) === 3 ? amount2 * SICBO_ODDS.triple : -amount2;
     }
     case "anytriple":
-      return isTriple(d) ? amount * SICBO_ODDS.anytriple : -amount;
+      return isTriple(d) ? amount2 * SICBO_ODDS.anytriple : -amount2;
     case "doubleAny": {
-      if (bet.face === void 0) return -amount;
-      const group = SICBO_DOUBLE_ANY_GROUPS[bet.face];
-      if (!group) return -amount;
-      return group.includes(sortedTriple(d)) ? amount * SICBO_ODDS.doubleAny : -amount;
+      if (bet.face === void 0 || bet.partner === void 0) return -amount2;
+      const target = sortedTriple([bet.face, bet.face, bet.partner]);
+      return sortedTriple(d) === target ? amount2 * SICBO_ODDS.doubleAny : -amount2;
     }
     case "threeSingleCombo": {
-      if (bet.group === void 0) return -amount;
-      const group = SICBO_THREE_SINGLE_COMBO_GROUPS[bet.group];
-      if (!group) return -amount;
-      return group.includes(sortedTriple(d)) ? amount * SICBO_ODDS.threeSingleCombo : -amount;
+      if (!bet.triple) return -amount2;
+      return sortedTriple(d) === sortedTriple(bet.triple) ? amount2 * SICBO_ODDS.threeSingleCombo : -amount2;
     }
     case "threeFromFour": {
-      if (bet.group === void 0) return -amount;
+      if (bet.group === void 0) return -amount2;
       const set = SICBO_THREE_FROM_FOUR_GROUPS[bet.group];
-      if (!set) return -amount;
+      if (!set) return -amount2;
       const distinct = new Set(d);
-      if (distinct.size !== 3) return -amount;
+      if (distinct.size !== 3) return -amount2;
       const allInSet = [...distinct].every((f) => set.includes(f));
-      return allInSet ? amount * SICBO_ODDS.threeFromFour : -amount;
+      return allInSet ? amount2 * SICBO_ODDS.threeFromFour : -amount2;
     }
   }
 }
 function rollSicBo(rng) {
   return [rng.intInclusive(1, 6), rng.intInclusive(1, 6), rng.intInclusive(1, 6)];
+}
+function summarizeSicBoHistory(history, window2 = 20) {
+  const recent = history.slice(-window2).reverse();
+  const n = history.length;
+  let smallCount = 0, bigCount = 0, oddCount = 0, evenCount = 0, tripleCount = 0;
+  const faceCounts = /* @__PURE__ */ new Map();
+  for (let f = 1; f <= 6; f++) faceCounts.set(f, 0);
+  const totalCounts = /* @__PURE__ */ new Map();
+  for (let t = 4; t <= 17; t++) totalCounts.set(t, 0);
+  for (const d of history) {
+    const sum = diceSum(d);
+    if (isTriple(d)) tripleCount++;
+    if (sum <= 10) smallCount++;
+    else bigCount++;
+    if (sum % 2 === 1) oddCount++;
+    else evenCount++;
+    for (const f of d) faceCounts.set(f, (faceCounts.get(f) ?? 0) + 1);
+    totalCounts.set(sum, (totalCounts.get(sum) ?? 0) + 1);
+  }
+  const pct = (c) => n ? Math.round(c / n * 1e3) / 10 : 0;
+  return {
+    recent,
+    smallBigPct: { small: pct(smallCount), big: pct(bigCount) },
+    parityPct: { odd: pct(oddCount), even: pct(evenCount) },
+    anyTriplePct: pct(tripleCount),
+    faceCounts: [...faceCounts.entries()].map(([face, count]) => ({ face, count })),
+    totalCounts: [...totalCounts.entries()].map(([total, count]) => ({ total, count }))
+  };
 }
 
 // ../../packages/engine/src/games/slot.ts
@@ -4643,8 +4764,8 @@ function playSlot(rng, config2) {
   const totalPayout = mainSpin.waysWin + mainSpin.scatterPayout + bonusSpins.reduce((s, b) => s + b.waysWin + b.scatterPayout, 0);
   return { mainSpin, bonusSpins, totalPayout };
 }
-function resolveSlot(round, amount) {
-  return round.totalPayout > 0 ? round.totalPayout * amount - amount : -amount;
+function resolveSlot(round, amount2) {
+  return round.totalPayout > 0 ? round.totalPayout * amount2 - amount2 : -amount2;
 }
 
 // ../../packages/engine/src/games/cards.ts
@@ -4762,23 +4883,51 @@ var BACCARAT_MIN_BET = {
   bankerPair: 10
 };
 function resolveBaccaratBet(bet, coup) {
-  const { amount } = bet;
+  const { amount: amount2 } = bet;
   switch (bet.type) {
     case "player":
-      return coup.result === "player" ? amount : coup.result === "tie" ? 0 : -amount;
+      return coup.result === "player" ? amount2 : coup.result === "tie" ? 0 : -amount2;
     case "banker":
-      if (coup.result === "banker") return amount * (1 - BACCARAT_BANKER_COMMISSION);
-      return coup.result === "tie" ? 0 : -amount;
+      if (coup.result === "banker") return amount2 * (1 - BACCARAT_BANKER_COMMISSION);
+      return coup.result === "tie" ? 0 : -amount2;
     case "tie":
-      return coup.result === "tie" ? amount * 8 : -amount;
+      return coup.result === "tie" ? amount2 * 8 : -amount2;
     case "playerPair":
-      return coup.playerPair ? amount * 11 : -amount;
+      return coup.playerPair ? amount2 * 11 : -amount2;
     case "bankerPair":
-      return coup.bankerPair ? amount * 11 : -amount;
+      return coup.bankerPair ? amount2 * 11 : -amount2;
   }
 }
 function dealBaccarat(rng, decks = 8) {
   return playBaccaratCoup(Shoe.shuffled(decks, rng));
+}
+function summarizeBaccaratHistory(history, window2 = 20) {
+  const n = history.length;
+  const recent = history.slice(-window2).map((c) => c.result).reverse();
+  let playerCount = 0, bankerCount = 0, tieCount = 0, ppCount = 0, bpCount = 0;
+  for (const c of history) {
+    if (c.result === "player") playerCount++;
+    else if (c.result === "banker") bankerCount++;
+    else tieCount++;
+    if (c.playerPair) ppCount++;
+    if (c.bankerPair) bpCount++;
+  }
+  const pct = (c) => n ? Math.round(c / n * 1e3) / 10 : 0;
+  let value = null, length = 0;
+  for (const r of recent) {
+    if (r === "tie") continue;
+    if (value === null) {
+      value = r;
+      length = 1;
+    } else if (r === value) length++;
+    else break;
+  }
+  return {
+    recent,
+    resultPct: { player: pct(playerCount), banker: pct(bankerCount), tie: pct(tieCount) },
+    pairPct: { playerPair: pct(ppCount), bankerPair: pct(bpCount) },
+    streak: { result: value, length }
+  };
 }
 
 // ../../packages/engine/src/games/blackjack.ts
@@ -4972,50 +5121,62 @@ function settle(state) {
 
 // ../../packages/core/src/schemas.ts
 var reasoning = external_exports.string().min(1).max(4e3);
-var RouletteBetTypeSchema = external_exports.enum([
-  "straight",
-  "split",
-  "street",
-  "corner",
-  "sixline",
-  "column",
-  "dozen",
-  "red",
-  "black",
-  "odd",
-  "even",
-  "high",
-  "low",
-  "five"
+var amount = external_exports.number().positive();
+var stop = external_exports.boolean().optional();
+var Pocket = external_exports.union([external_exports.number().int().min(0).max(36), external_exports.literal("00")]);
+var RouletteBetSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({ type: external_exports.literal("straight"), amount, numbers: external_exports.tuple([Pocket]) }),
+  external_exports.object({ type: external_exports.literal("split"), amount, numbers: external_exports.tuple([Pocket, Pocket]) }),
+  external_exports.object({ type: external_exports.literal("street"), amount, numbers: external_exports.tuple([Pocket, Pocket, Pocket]) }),
+  external_exports.object({ type: external_exports.literal("corner"), amount, numbers: external_exports.tuple([Pocket, Pocket, Pocket, Pocket]) }),
+  external_exports.object({ type: external_exports.literal("sixline"), amount, numbers: external_exports.tuple([Pocket, Pocket, Pocket, Pocket, Pocket, Pocket]) }),
+  external_exports.object({ type: external_exports.literal("column"), amount, selector: external_exports.union([external_exports.literal(1), external_exports.literal(2), external_exports.literal(3)]) }),
+  external_exports.object({ type: external_exports.literal("dozen"), amount, selector: external_exports.union([external_exports.literal(1), external_exports.literal(2), external_exports.literal(3)]) }),
+  external_exports.object({ type: external_exports.literal("red"), amount }),
+  external_exports.object({ type: external_exports.literal("black"), amount }),
+  external_exports.object({ type: external_exports.literal("odd"), amount }),
+  external_exports.object({ type: external_exports.literal("even"), amount }),
+  external_exports.object({ type: external_exports.literal("high"), amount }),
+  external_exports.object({ type: external_exports.literal("low"), amount }),
+  external_exports.object({ type: external_exports.literal("five"), amount }),
+  external_exports.object({ type: external_exports.literal("zeroCombo"), amount }),
+  external_exports.object({ type: external_exports.literal("series3"), amount, seriesGroup: external_exports.number().int().min(1).max(12) }),
+  external_exports.object({ type: external_exports.literal("series6"), amount, seriesGroup: external_exports.number().int().min(1).max(6) })
 ]);
-var RouletteBetSchema = external_exports.object({
-  type: RouletteBetTypeSchema,
-  amount: external_exports.number().positive(),
-  numbers: external_exports.array(external_exports.union([external_exports.number().int().min(0).max(36), external_exports.literal("00")])).optional(),
-  selector: external_exports.union([external_exports.literal(1), external_exports.literal(2), external_exports.literal(3)]).optional()
-});
 var RouletteDecisionSchema = external_exports.object({
   bets: external_exports.array(RouletteBetSchema).min(1).max(10),
-  reasoning
+  reasoning,
+  stop
 });
 var BaccaratBetSchema = external_exports.object({
   type: external_exports.enum(["player", "banker", "tie", "playerPair", "bankerPair"]),
-  amount: external_exports.number().positive()
+  amount
 });
 var BaccaratDecisionSchema = external_exports.object({
   bets: external_exports.array(BaccaratBetSchema).min(1).max(4),
-  reasoning
+  reasoning,
+  stop
 });
-var SicBoBetSchema = external_exports.object({
-  type: external_exports.enum(["small", "big", "odd", "even", "total", "single", "combo", "double", "triple", "anytriple"]),
-  amount: external_exports.number().positive(),
-  total: external_exports.number().int().min(4).max(17).optional(),
-  face: external_exports.number().int().min(1).max(6).optional(),
-  faces: external_exports.tuple([external_exports.number().int().min(1).max(6), external_exports.number().int().min(1).max(6)]).optional()
-});
+var Face = external_exports.number().int().min(1).max(6);
+var SicBoBetSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({ type: external_exports.literal("small"), amount }),
+  external_exports.object({ type: external_exports.literal("big"), amount }),
+  external_exports.object({ type: external_exports.literal("odd"), amount }),
+  external_exports.object({ type: external_exports.literal("even"), amount }),
+  external_exports.object({ type: external_exports.literal("anytriple"), amount }),
+  external_exports.object({ type: external_exports.literal("total"), amount, total: external_exports.number().int().min(4).max(17) }),
+  external_exports.object({ type: external_exports.literal("single"), amount, face: Face }),
+  external_exports.object({ type: external_exports.literal("double"), amount, face: Face }),
+  external_exports.object({ type: external_exports.literal("triple"), amount, face: Face }),
+  external_exports.object({ type: external_exports.literal("combo"), amount, faces: external_exports.tuple([Face, Face]) }),
+  external_exports.object({ type: external_exports.literal("doubleAny"), amount, face: Face, partner: Face }),
+  external_exports.object({ type: external_exports.literal("threeSingleCombo"), amount, triple: external_exports.tuple([Face, Face, Face]) }),
+  external_exports.object({ type: external_exports.literal("threeFromFour"), amount, group: external_exports.number().int().min(1).max(4) })
+]);
 var SicBoDecisionSchema = external_exports.object({
   bets: external_exports.array(SicBoBetSchema).min(1).max(8),
-  reasoning
+  reasoning,
+  stop
 });
 var SlotDecisionSchema = external_exports.object({
   denomination: external_exports.number().refine((v) => SLOT_DENOMINATIONS.includes(v), {
@@ -5023,7 +5184,8 @@ var SlotDecisionSchema = external_exports.object({
   }),
   betLevel: external_exports.number().int().min(1).max(SLOT_MAX_LEVEL),
   betMax: external_exports.boolean().optional(),
-  reasoning
+  reasoning,
+  stop
 });
 var BlackjackBetSchema = external_exports.object({
   amount: external_exports.number().positive(),
@@ -5050,6 +5212,27 @@ async function ask(ctx, req) {
   };
   return { step, value: parsed };
 }
+function ownSessionSummary(ctx, window2 = 10) {
+  const startingBankroll = ctx.history.length ? ctx.history[0].bankrollBefore : ctx.bankroll;
+  const recentRounds = ctx.history.slice(-window2).map((r) => ({
+    round: r.index + 1,
+    decisions: r.steps.map((s) => s.decision),
+    // what YOU decided + why, verbatim
+    outcome: r.outcome,
+    // what the table actually accepted/resolved
+    net: r.net,
+    bankrollAfter: r.bankrollAfter
+  }));
+  return {
+    startingBankroll,
+    currentBankroll: ctx.bankroll,
+    profit: ctx.bankroll - startingBankroll,
+    // negative = deficit
+    roundsPlayed: ctx.history.length,
+    recentRounds
+    // your own decisions+reasoning, what was placed, win/lose, bankroll trail — most-recent-last
+  };
+}
 function applyBaccaratTableRules(bets, bankroll) {
   let remaining = bankroll;
   const out = [];
@@ -5066,6 +5249,7 @@ function applySicBoTableRules(bets, bankroll) {
   let remaining = bankroll;
   const out = [];
   for (const b of bets) {
+    if (!isValidSicBoBet(b)) continue;
     const min = SICBO_MIN_BET[b.type];
     const amt = Math.min(Math.floor(b.amount), remaining);
     if (amt < min) continue;
@@ -5094,6 +5278,10 @@ var rouletteAdapter = {
   defaultConfig: () => ({ variant: "european" }),
   async playRound(ctx) {
     const config2 = ctx.config;
+    const variant = config2.variant;
+    const americanOnly = ["five", "zeroCombo"];
+    const legalBetTypes = Object.keys(ROULETTE_ODDS).filter((t) => variant === "american" || !americanOnly.includes(t));
+    const priorPockets = ctx.history.filter((r) => r.game === "roulette").map((r) => r.outcome.pocket);
     const req = {
       kind: "bet",
       game: "roulette",
@@ -5101,23 +5289,38 @@ var rouletteAdapter = {
       bankroll: ctx.bankroll,
       baseBet: ctx.baseBet,
       observation: {
-        variant: config2.variant,
+        variant,
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: config2.variant === "european" ? 2.7 : 5.26,
         payouts: ROULETTE_ODDS,
         tableMinimums: ROULETTE_MIN_BET,
         // even-money outside bets cost 50; everything else 10
-        note: "Place one or more bets. Outside even-money bets minimise variance. Zero loses every non-zero bet outright (no la partage / en prison at this table). A stake below its bet's table minimum, or numbers that don't form a real split/street/corner/sixline, is refused."
+        legalBetTypes,
+        // only bet types this specific table (variant) offers
+        boardLayout: {
+          splits: allSplits(variant),
+          streets: allStreets(variant),
+          corners: ALL_CORNERS,
+          sixlines: ALL_SIXLINES,
+          columns: { 1: columnNumbers(1), 2: columnNumbers(2), 3: columnNumbers(3) },
+          dozens: { 1: dozenNumbers(1), 2: dozenNumbers(2), 3: dozenNumbers(3) },
+          series3Groups: SERIES3_GROUPS,
+          // index+1 == seriesGroup
+          series6Groups: SERIES6_GROUPS
+          // index+1 == seriesGroup
+        },
+        history: summarizeSpinHistory(priorPockets, variant),
+        ownSession: ownSessionSummary(ctx),
+        note: "ownSession is YOUR OWN session ledger \u2014 starting money, running profit/deficit, and your own past rounds (each with your exact decision + reasoning, what the table actually accepted, win/lose, bankroll after) \u2014 separate from history's wheel results, this is your personal track record so far. This table is " + variant + " \u2014 legalBetTypes lists exactly what's on THIS felt; a bet type from the other table (e.g. American-only five/zeroCombo at a European table) is refused, same as every other illegal-cell bet. boardLayout enumerates every real split/street/corner/sixline/column/dozen/series group on this table \u2014 you may freely choose ANY entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to the bankroll, exactly like a human standing at the table. history gives the actual spin record so far (recent results, hot/cold pocket counts, current color/parity/hi-lo streak) \u2014 you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is predictive (each spin is independent), it is only what a real player would see on the roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no la partage / en prison at this table). Series3/series6 are fixed wheel-sector bets covering the numbers listed in series3Groups/series6Groups. A stake below its bet's table minimum, or numbers/selectors that don't form a real felt cell, is refused."
       },
       schema: RouletteDecisionSchema,
       schemaName: "RouletteDecision"
     };
     const { step, value } = await ask(ctx, req);
-    const bets = applyRouletteTableRules(value.bets, ctx.bankroll, config2.variant);
-    const pocket = spinRoulette(ctx.rng, config2.variant);
+    const bets = applyRouletteTableRules(value.bets, ctx.bankroll, variant);
+    const pocket = spinRoulette(ctx.rng, variant);
     const net = bets.reduce((s, b) => s + resolveRouletteBet(b, pocket), 0);
-    return { steps: [step], outcome: { pocket, placedBets: bets }, net };
+    return { steps: [step], outcome: { pocket, placedBets: bets }, net, stop: !!value.stop };
   }
 };
 var baccaratAdapter = {
@@ -5126,6 +5329,7 @@ var baccaratAdapter = {
   defaultConfig: () => ({ decks: 8 }),
   async playRound(ctx) {
     const config2 = ctx.config;
+    const priorCoups = ctx.history.filter((r) => r.game === "baccarat").map((r) => r.outcome);
     const req = {
       kind: "bet",
       game: "baccarat",
@@ -5135,11 +5339,12 @@ var baccaratAdapter = {
       observation: {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: { banker: 1.06, player: 1.24, tie: 14.36, playerPair: 10.36, bankerPair: 10.36 },
         payouts: { player: 1, banker: 1 - BACCARAT_BANKER_COMMISSION, tie: 8, playerPair: 11, bankerPair: 11 },
         tableMinimums: BACCARAT_MIN_BET,
         // Player/Banker cost 50; Tie/Pair side bets cost 10
-        note: "Banker has the lowest edge (1.06%) despite 5% commission, paid immediately per hand (mini-baccarat convention, confirmed by MBS/RWS rule sheets \u2014 no deferred marker). A stake below its bet's table minimum is refused."
+        roadHistory: summarizeBaccaratHistory(priorCoups),
+        ownSession: ownSessionSummary(ctx),
+        note: "roadHistory is the real Big Road / Bead Plate board: recent results (newest first), % player/banker/tie and % player-pair/banker-pair over every hand so far, and the current streak (ties never break or extend a streak, same as a real road) \u2014 purely descriptive (each coup is independent, nothing here predicts the next one), play hunches (e.g. ride or fade a banker streak) or ignore it, your call. ownSession is your own ledger \u2014 starting money, running profit/deficit, your own past hands (your exact decision + reasoning, what was actually accepted, win/lose). Banker commission is paid immediately per hand (mini-baccarat convention, confirmed by MBS/RWS rule sheets \u2014 no deferred marker). A stake below its bet's table minimum is refused."
       },
       schema: BaccaratDecisionSchema,
       schemaName: "BaccaratDecision"
@@ -5160,7 +5365,8 @@ var baccaratAdapter = {
         bankerPair: coup.bankerPair,
         placedBets: bets
       },
-      net
+      net,
+      stop: !!value.stop
     };
   }
 };
@@ -5169,6 +5375,7 @@ var sicboAdapter = {
   label: "Sic Bo",
   defaultConfig: () => ({ _: void 0 }),
   async playRound(ctx) {
+    const priorDice = ctx.history.filter((r) => r.game === "sicbo").map((r) => r.outcome.dice);
     const req = {
       kind: "bet",
       game: "sicbo",
@@ -5178,7 +5385,6 @@ var sicboAdapter = {
       observation: {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: { small: 2.78, big: 2.78, odd: 2.78, even: 2.78, anytriple: 13.89 },
         tableMinimums: SICBO_MIN_BET,
         // even-money bets (small/big/odd/even) cost 50; inside bets 10
         payouts: {
@@ -5186,14 +5392,29 @@ var sicboAdapter = {
           big: 1,
           odd: 1,
           even: 1,
-          single: "1:1 / 2:1 / 3:1 by matching dice",
-          combo: 5,
-          double: 10,
-          triple: 180,
-          anytriple: 30,
+          single: "1:1 / 2:1 / 12:1 by matching dice (3-of-a-kind pays 12, not 3)",
+          combo: SICBO_ODDS.combo,
+          double: SICBO_ODDS.double,
+          triple: SICBO_ODDS.triple,
+          anytriple: SICBO_ODDS.anytriple,
+          doubleAny: SICBO_ODDS.doubleAny,
+          threeSingleCombo: SICBO_ODDS.threeSingleCombo,
+          threeFromFour: SICBO_ODDS.threeFromFour,
           total: SICBO_TOTAL_ODDS
         },
-        note: "Small/Big/Odd/Even (2.78%) are the best bets but each costs a 50-point minimum; inside bets (min 10) pay more but cost more edge. A stake below its minimum is refused."
+        boardLayout: {
+          // threeFromFour's `group` (1-4) and doubleAny's (face,partner) pair are felt
+          // cells picked by index/pair, not free-form numbers — expose the actual
+          // mapping so a choice is grounded, not a blind index guess (mirrors the
+          // roulette series3/series6 fix: same class of bug, same fix).
+          threeFromFourGroups: SICBO_THREE_FROM_FOUR_GROUPS,
+          // group -> the 4 numbers it covers
+          validDoubleAnyPairs: SICBO_DOUBLE_ANY_PAIRS
+          // every legal [face, partner] cell (28 of 30 possible pairs — (1,2)/(6,5) aren't on the felt)
+        },
+        diceHistory: summarizeSicBoHistory(priorDice),
+        ownSession: ownSessionSummary(ctx),
+        note: "boardLayout.threeFromFourGroups tells you exactly which 4 numbers each threeFromFour group covers; boardLayout.validDoubleAnyPairs lists every real doubleAny felt cell \u2014 a (face,partner) pair not in that list is refused. diceHistory is the real roadmap board: recent rolls (newest first), % small/big/odd/even and % any-triple over every roll so far, and hot/cold counts per face and per three-dice total \u2014 purely descriptive (each roll is independent, nothing here predicts the next one), play hunches or ignore it, your call. ownSession is your own ledger \u2014 starting money, running profit/deficit, your own past bets (your exact decision + reasoning, what was actually accepted, win/lose). A stake below its minimum, or a bet that does not describe a real felt cell (e.g. an invented doubleAny pair), is refused."
       },
       schema: SicBoDecisionSchema,
       schemaName: "SicBoDecision"
@@ -5202,7 +5423,7 @@ var sicboAdapter = {
     const bets = applySicBoTableRules(value.bets, ctx.bankroll);
     const dice = rollSicBo(ctx.rng);
     const net = bets.reduce((s, b) => s + resolveSicBoBet(b, dice), 0);
-    return { steps: [step], outcome: { dice, placedBets: bets }, net };
+    return { steps: [step], outcome: { dice, placedBets: bets }, net, stop: !!value.stop };
   }
 };
 function resolveSlotBetControls(value, bankroll) {
@@ -5236,28 +5457,38 @@ var slotAdapter = {
           minBet: SLOT_MIN_BET,
           maxBet: SLOT_MAX_BET
         },
-        rtpNote: "243-ways video slot, ~93.9% RTP, 6.1% house edge (SG GRA floor is 90%). Choose a denomination (coin value) and a bet level (credits per spin) \u2014 total stake = denomination x betLevel \u2014 or set betMax to slam the BET MAX button (highest denomination x highest level). Scatters pay anywhere and can award free spins.",
-        note: "denomination must be exactly one of the listed values. A resulting stake the bankroll cannot cover, or above the table max, is clamped down \u2014 a real cabinet would refuse an unaffordable or out-of-range bet the same way."
+        // The pay-glass every cabinet displays: symbol -> [3-of-a-kind, 4-of-a-kind,
+        // 5-of-a-kind] multiplier of total bet, plus scatter pay and free-spins award
+        // by scatter count. Without this the model can't know DRAGON x5 pays 750x
+        // versus TEN x3 paying 7x — exactly the number a human reads off the glass
+        // before deciding whether the top symbols are worth chasing.
+        paytable: config2.paytable,
+        scatterPay: config2.scatterPay,
+        freeSpins: config2.freeSpins,
+        machineNote: '243-ways video slot. Choose a denomination (coin value) and a bet level (credits per spin) \u2014 total stake = denomination x betLevel \u2014 or set betMax to slam the BET MAX button (highest denomination x highest level). paytable lists, per symbol, the "for-one" multiplier of your total bet for landing 3/4/5-of-a-kind anywhere on the grid (ways pay, not fixed lines) \u2014 wild substitutes for every paying symbol. scatterPay is the multiplier for 3/4/5 scatters landing anywhere regardless of ways; freeSpins is how many free spins that same scatter count also awards.',
+        ownSession: ownSessionSummary(ctx),
+        note: "ownSession is your own session ledger \u2014 starting money, running profit/deficit, your own past spins (your exact decision + reasoning, stake actually spun, payout, bankroll after). denomination must be exactly one of the listed values. A resulting stake the bankroll cannot cover, or above the table max, is clamped down \u2014 a real cabinet would refuse an unaffordable or out-of-range bet the same way."
       },
       schema: SlotDecisionSchema,
       schemaName: "SlotDecision"
     };
     const { step, value } = await ask(ctx, req);
-    const amount = resolveSlotBetControls(value, ctx.bankroll);
+    const amount2 = resolveSlotBetControls(value, ctx.bankroll);
     const round = playSlot(ctx.rng, config2);
-    const net = resolveSlot(round, amount);
+    const net = resolveSlot(round, amount2);
     return {
       steps: [step],
       outcome: {
         mainSpin: round.mainSpin,
         bonusSpins: round.bonusSpins,
         totalPayout: round.totalPayout,
-        amount,
+        amount: amount2,
         denomination: value.denomination,
         betLevel: value.betLevel,
         betMax: !!value.betMax
       },
-      net
+      net,
+      stop: !!value.stop
     };
   }
 };
@@ -5299,15 +5530,16 @@ var blackjackAdapter = {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
         rules: { decks: rules.decks, dealerHitsSoft17: rules.dealerHitsSoft17, blackjackPayout: rules.blackjackPayout },
-        note: "Choose a stake; you then play the hand action by action."
+        ownSession: ownSessionSummary(ctx),
+        note: "ownSession is your own session ledger \u2014 starting money, running profit/deficit, your own past hands. Choose a stake; you then play the hand action by action."
       },
       schema: BlackjackBetSchema,
       schemaName: "BlackjackBet"
     };
     const bet = await ask(ctx, betReq);
     steps.push(bet.step);
-    const amount = Math.max(1, Math.min(Math.floor(bet.value.amount), ctx.bankroll));
-    const state = startBlackjack(ctx.rng, rules, amount);
+    const amount2 = Math.max(1, Math.min(Math.floor(bet.value.amount), ctx.bankroll));
+    const state = startBlackjack(ctx.rng, rules, amount2);
     let guard = 0;
     while (state.phase !== "settled") {
       const legal = legalActions(state);
@@ -5425,7 +5657,10 @@ var ROULETTE_LABEL = {
   even: "Even",
   high: "High (19-36)",
   low: "Low (1-18)",
-  five: "Basket (0/00/1/2/3)"
+  five: "Top Line (0/00/1/2/3)",
+  zeroCombo: "0/00 Combo",
+  series3: "3 Numbers Series",
+  series6: "6 Numbers Series"
 };
 var BACCARAT_LABEL = {
   player: "Player",
@@ -5444,7 +5679,10 @@ var SICBO_LABEL = {
   single: "Single",
   double: "Double",
   triple: "Triple",
-  combo: "Two-Dice Combo"
+  combo: "Two-Dice Combo",
+  doubleAny: "Double + Single",
+  threeSingleCombo: "Three Single Dice",
+  threeFromFour: "Three From Four"
 };
 var SIZING_CAP_MULTIPLE = 32;
 function computeStake(sizing, unit, bankroll, state) {
@@ -5491,7 +5729,13 @@ function makeRuleBot(config2 = {}) {
         const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
         const b = cfg.roulette;
         return recordAndReturn({
-          bets: [{ type: b.type, amount: stake, ...b.numbers ? { numbers: b.numbers } : {}, ...b.selector ? { selector: b.selector } : {} }],
+          bets: [{
+            type: b.type,
+            amount: stake,
+            ...b.numbers ? { numbers: b.numbers } : {},
+            ...b.selector ? { selector: b.selector } : {},
+            ...b.seriesGroup ? { seriesGroup: b.seriesGroup } : {}
+          }],
           reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${ROULETTE_LABEL[b.type]} (table min ${min}).`
         }, stake);
       }
@@ -5513,6 +5757,12 @@ function makeRuleBot(config2 = {}) {
         if (b.type === "total") bet.total = b.total ?? 9;
         if (b.type === "single" || b.type === "double" || b.type === "triple") bet.face = b.face ?? 4;
         if (b.type === "combo") bet.faces = b.faces ?? [1, 2];
+        if (b.type === "doubleAny") {
+          bet.face = b.face ?? 2;
+          bet.partner = b.partner ?? 3;
+        }
+        if (b.type === "threeSingleCombo") bet.triple = b.triple ?? [1, 2, 6];
+        if (b.type === "threeFromFour") bet.group = b.group ?? 1;
         return recordAndReturn({
           bets: [bet],
           reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${SICBO_LABEL[b.type]} (table min ${min}).`
@@ -5531,12 +5781,12 @@ function makeRuleBot(config2 = {}) {
         const unit = Math.max(SLOT_MIN_BET, s.denomination * s.betLevel);
         const target = computeStake(cfg.sizing, unit, req.bankroll, state);
         const { denomination, betLevel } = pickBetControls(target);
-        const amount = denomination * betLevel;
+        const amount2 = denomination * betLevel;
         return recordAndReturn({
           denomination,
           betLevel,
-          reasoning: `${sizingLabel(cfg.sizing, amount, unit)} \u2014 denomination ${denomination}, bet level ${betLevel}.`
-        }, amount);
+          reasoning: `${sizingLabel(cfg.sizing, amount2, unit)} \u2014 denomination ${denomination}, bet level ${betLevel}.`
+        }, amount2);
       }
       case "blackjack": {
         const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
@@ -8807,7 +9057,7 @@ var OpenAICompletionLanguageModel = class {
       });
     }
     const { prompt: completionPrompt, stopSequences } = convertToOpenAICompletionPrompt({ prompt, inputFormat });
-    const stop = [...stopSequences != null ? stopSequences : [], ...userStopSequences != null ? userStopSequences : []];
+    const stop2 = [...stopSequences != null ? stopSequences : [], ...userStopSequences != null ? userStopSequences : []];
     const baseArgs = {
       // model id:
       model: this.modelId,
@@ -8827,7 +9077,7 @@ var OpenAICompletionLanguageModel = class {
       // prompt:
       prompt: completionPrompt,
       // stop sequences:
-      stop: stop.length > 0 ? stop : void 0
+      stop: stop2.length > 0 ? stop2 : void 0
     };
     switch (type) {
       case "regular": {
@@ -12213,7 +12463,7 @@ var OpenAICompatibleCompletionLanguageModel = class {
       });
     }
     const { prompt: completionPrompt, stopSequences } = convertToOpenAICompatibleCompletionPrompt({ prompt, inputFormat });
-    const stop = [...stopSequences != null ? stopSequences : [], ...userStopSequences != null ? userStopSequences : []];
+    const stop2 = [...stopSequences != null ? stopSequences : [], ...userStopSequences != null ? userStopSequences : []];
     const baseArgs = {
       // model id:
       model: this.modelId,
@@ -12233,7 +12483,7 @@ var OpenAICompatibleCompletionLanguageModel = class {
       // prompt:
       prompt: completionPrompt,
       // stop sequences:
-      stop: stop.length > 0 ? stop : void 0
+      stop: stop2.length > 0 ? stop2 : void 0
     };
     switch (type) {
       case "regular": {
@@ -18252,9 +18502,9 @@ function buildPrompt(req) {
     `You are an autonomous player of ${title} in a RESEARCH SIMULATION.`,
     "All currency is simulated points \u2014 there is no real money and no real gambling.",
     "Each round you receive a structured game-state observation and must return a decision",
-    "that STRICTLY matches the provided schema. Consider house edge, bankroll, and variance.",
+    "that STRICTLY matches the provided schema.",
     'Keep "reasoning" concise (1\u20133 sentences) and specific to this observation.',
-    req.kind === "action" ? "You are mid-hand: choose exactly ONE action from the legal actions listed." : "Choose your bet(s). Do not stake more than the bankroll."
+    req.kind === "action" ? "You are mid-hand: choose exactly ONE action from the legal actions listed." : 'Choose your bet(s). Do not stake more than the bankroll. You may optionally set "stop" to true to end the session after this round resolves \u2014 a real casino is walk-in-walk-out free, so leaving is always available on any round. Whether or when to do so is entirely your own decision; omitting it (or setting it false) simply continues the session as normal.'
   ].join(" ");
   const lines = [
     `Round #${req.index + 1}. Bankroll: ${req.bankroll} points. Base bet: ${req.baseBet}.`,

@@ -58,13 +58,13 @@ export interface RouletteBet {
   seriesGroup?: number;
 }
 
-function columnNumbers(sel: number): number[] {
+export function columnNumbers(sel: number): number[] {
   const out: number[] = [];
   for (let n = sel; n <= 36; n += 3) out.push(n); // sel=1 => 1,4,7,...; sel=2 => 2,5,...
   return out;
 }
 
-function dozenNumbers(sel: number): number[] {
+export function dozenNumbers(sel: number): number[] {
   const start = (sel - 1) * 12 + 1;
   const out: number[] = [];
   for (let n = start; n < start + 12; n++) out.push(n);
@@ -195,6 +195,106 @@ export function isValidRouletteBet(bet: RouletteBet, variant: RouletteVariant): 
     case 'odd': case 'even': case 'high': case 'low':
       return true;
   }
+}
+
+/**
+ * Every legal split/street on the felt, for `variant` — mirrors the exact same
+ * row/col/zero-adjacency rules `isValidRouletteBet` checks, so anything listed
+ * here is guaranteed to pass validation. Fed to the decider so it can pick a
+ * real cell without having to re-derive table geometry from general knowledge.
+ */
+export function allSplits(variant: RouletteVariant): Pocket[][] {
+  const out: Pocket[][] = [];
+  for (let n = 1; n <= 36; n++) {
+    if (col(n) !== 3 && n + 1 <= 36) out.push([n, n + 1]); // horizontal neighbor
+    if (n + 3 <= 36) out.push([n, n + 3]); // vertical neighbor
+  }
+  for (const z of ZERO_SPLITS) {
+    if (z.includes('00') && variant !== 'american') continue;
+    out.push(z);
+  }
+  return out;
+}
+
+export function allStreets(variant: RouletteVariant): Pocket[][] {
+  const out: Pocket[][] = [];
+  for (let n = 1; n <= 34; n += 3) out.push([n, n + 1, n + 2]);
+  out.push(...(variant === 'american' ? ZERO_TRIOS_AMERICAN : ZERO_TRIOS_EUROPEAN));
+  return out;
+}
+
+/** Every legal corner (variant-independent — corners never touch 0/00). */
+export const ALL_CORNERS: number[][] = (() => {
+  const out: number[][] = [];
+  for (let n = 1; n <= 32; n++) if (n % 3 !== 0) out.push([n, n + 1, n + 3, n + 4]);
+  return out;
+})();
+
+/** Every legal sixline (variant-independent — sixlines never touch 0/00). */
+export const ALL_SIXLINES: number[][] = (() => {
+  const out: number[][] = [];
+  for (let n = 1; n <= 31; n += 3) out.push([n, n + 1, n + 2, n + 3, n + 4, n + 5]);
+  return out;
+})();
+
+export function rouletteColor(pocket: Pocket): 'red' | 'black' | 'green' {
+  if (pocket === 0 || pocket === '00') return 'green';
+  return RED_NUMBERS.has(pocket) ? 'red' : 'black';
+}
+
+export interface SpinHistoryStats {
+  /** Most-recent-first, capped at `window` — mirrors an electronic roadmap display. */
+  recent: Pocket[];
+  hot: { pocket: Pocket; count: number }[];
+  cold: { pocket: Pocket; count: number }[];
+  colorStreak: { color: 'red' | 'black' | 'green'; length: number };
+  parityStreak: { parity: 'odd' | 'even' | 'zero'; length: number };
+  highLowStreak: { band: 'high' | 'low' | 'zero'; length: number };
+}
+
+function streakOf<T>(recent: Pocket[], classify: (p: Pocket) => T): { value: T | null; length: number } {
+  if (recent.length === 0) return { value: null, length: 0 };
+  const value = classify(recent[0]!);
+  let length = 0;
+  for (const p of recent) {
+    if (classify(p) !== value) break;
+    length++;
+  }
+  return { value, length };
+}
+
+/**
+ * Hot/cold counts + trailing streaks over the session's actual spin history —
+ * the same "roadmap" board a real table displays. `window` bounds the
+ * displayed `recent` list; hot/cold counts run over full `history` so they
+ * stay meaningful even early in a short window.
+ */
+export function summarizeSpinHistory(history: Pocket[], variant: RouletteVariant, window = 20): SpinHistoryStats {
+  const recent = history.slice(-window).reverse();
+  const counts = new Map<string, number>();
+  for (const p of rouletteWheel(variant)) counts.set(String(p), 0);
+  for (const p of history) counts.set(String(p), (counts.get(String(p)) ?? 0) + 1);
+  const ranked = [...counts.entries()].map(([key, count]) => ({
+    pocket: (key === '00' ? '00' : Number(key)) as Pocket, count,
+  }));
+  const hot = [...ranked].sort((a, b) => b.count - a.count).slice(0, 5);
+  const cold = [...ranked].sort((a, b) => a.count - b.count).slice(0, 5);
+
+  const color = streakOf(recent, rouletteColor);
+  const parity = streakOf<'odd' | 'even' | 'zero'>(recent, (p) => (typeof p === 'number' && p > 0 ? (p % 2 === 0 ? 'even' : 'odd') : 'zero'));
+  const band = streakOf<'high' | 'low' | 'zero'>(recent, (p) => {
+    const n = typeof p === 'number' ? p : -1;
+    if (n >= 1 && n <= 18) return 'low';
+    if (n >= 19 && n <= 36) return 'high';
+    return 'zero';
+  });
+
+  return {
+    recent, hot, cold,
+    colorStreak: { color: color.value ?? 'green', length: color.length },
+    parityStreak: { parity: parity.value ?? 'zero', length: parity.length },
+    highLowStreak: { band: band.value ?? 'zero', length: band.length },
+  };
 }
 
 /** Net points for a single bet given the winning pocket. */

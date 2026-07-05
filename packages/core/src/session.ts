@@ -21,15 +21,27 @@ export async function runSession(config: SessionConfig, decide: Decide, hooks: R
   const rounds: RoundRecord[] = [];
   let bustedOut = false;
   let stopped = false;
+  let quitVoluntarily = false;
+  let quitReason: string | undefined;
+  let targetHit = false;
+
+  // A human-set stop-loss/take-profit rail, checked against the LIVE bankroll before
+  // each round — not the decider's choice, so it applies the same to bots and LLMs.
+  // 0 (the default) disables it entirely.
+  const target = config.stopTarget ?? 0;
+  const targetReached = (b: number): boolean =>
+    target !== 0 && (target >= config.startingBankroll ? b >= target : b <= target);
 
   for (let i = 0; i < config.rounds; i++) {
     if (hooks.signal?.aborted) { stopped = true; break; }
     if (bankroll < config.baseBet) { bustedOut = true; break; }
+    if (targetReached(bankroll)) { targetHit = true; break; }
     const before = bankroll;
     let res;
     try {
       res = await adapter.playRound({
         rng, index: i, bankroll: before, baseBet: config.baseBet, config: config.gameConfig, decide,
+        history: rounds.slice(),
       });
     } catch (err) {
       if (hooks.signal?.aborted) { stopped = true; break; } // aborted mid-round: drop it, stop cleanly
@@ -42,9 +54,16 @@ export async function runSession(config: SessionConfig, decide: Decide, hooks: R
     };
     rounds.push(round);
     hooks.onRound?.(round, i, config.rounds);
+    // The decider chose to walk away after this round — a real casino is walk-in-
+    // walk-out free, so this ends the session cleanly (not a bust, not an abort).
+    if (res.stop) {
+      quitVoluntarily = true;
+      quitReason = round.steps[round.steps.length - 1]?.reasoning;
+      break;
+    }
   }
 
-  return { config, rounds, finalBankroll: bankroll, bustedOut, stopped };
+  return { config, rounds, finalBankroll: bankroll, bustedOut, stopped, quitVoluntarily, quitReason, targetHit };
 }
 
 /** A decider that replays a session's logged decisions in order (no LLM/bot call). */

@@ -81,3 +81,87 @@ describe('schema validation rejects malformed decisions', () => {
     await expect(runSession(cfg('roulette'), badDecide as any)).rejects.toThrow();
   });
 });
+
+describe('a decider can voluntarily end the session', () => {
+  const quitAfterRound3 = async (req: { index: number }) => ({
+    value: {
+      bets: [{ type: 'red', amount: 10 }],
+      reasoning: req.index === 2 ? 'walking away up a little' : 'still playing',
+      stop: req.index === 2,
+    },
+  });
+
+  it('stops after the round where stop=true, well short of the round budget', async () => {
+    const session = await runSession(cfg('roulette', 'quit-seed', 40), quitAfterRound3 as any);
+    expect(session.rounds.length).toBe(3); // rounds 0,1,2 — stopped after index 2
+    expect(session.quitVoluntarily).toBe(true);
+    expect(session.quitReason).toBe('walking away up a little');
+    expect(session.bustedOut).toBe(false);
+    expect(session.stopped).toBe(false);
+    expect(session.finalBankroll).toBe(session.rounds[session.rounds.length - 1]!.bankrollAfter);
+  });
+
+  it('replay reproduces the same voluntary early stop', async () => {
+    const original = await runSession(cfg('roulette', 'quit-seed', 40), quitAfterRound3 as any);
+    const replay = await replaySession(original);
+    expect(replay.rounds.length).toBe(original.rounds.length);
+    expect(replay.quitVoluntarily).toBe(true);
+    expect(replay.finalBankroll).toBe(original.finalBankroll);
+  });
+});
+
+describe('a human-set bankroll target stops the session (bots too, no reasoning needed)', () => {
+  // Stakes 90% of the CURRENT bankroll on red every round — one spin's outcome alone
+  // is enough to cross either target, so the seed alone (not luck across many rounds)
+  // determines which direction fires. Seeds picked so round 0 lands red / not-red.
+  const allInOnRed = async (req: { bankroll: number }) => ({
+    value: { bets: [{ type: 'red', amount: Math.floor(req.bankroll * 0.9) }], reasoning: 'testing target logic' },
+  });
+
+  it('take-profit: stops once bankroll reaches a target ABOVE starting bankroll', async () => {
+    const config = makeSessionConfig({
+      id: 's-tp', label: 'tp', seed: 'target-up', game: 'roulette', deciderId: 'baseline', // round 0 spin: 21 red (win)
+      createdAt: '2026-07-05T00:00:00.000Z', rounds: 10, startingBankroll: 1000, baseBet: 10,
+      stopTarget: 1200,
+    });
+    const session = await runSession(config, allInOnRed as any);
+    expect(session.rounds.length).toBe(1);
+    expect(session.finalBankroll).toBeGreaterThanOrEqual(1200);
+    expect(session.targetHit).toBe(true);
+    expect(session.bustedOut).toBe(false);
+  });
+
+  it('stop-loss: stops once bankroll falls to a target BELOW starting bankroll', async () => {
+    const config = makeSessionConfig({
+      id: 's-sl', label: 'sl', seed: 'target-down-3', game: 'roulette', deciderId: 'baseline', // round 0 spin: 22 black (loss)
+      createdAt: '2026-07-05T00:00:00.000Z', rounds: 10, startingBankroll: 1000, baseBet: 10,
+      stopTarget: 900,
+    });
+    const session = await runSession(config, allInOnRed as any);
+    expect(session.rounds.length).toBe(1);
+    expect(session.finalBankroll).toBeLessThanOrEqual(900);
+    expect(session.targetHit).toBe(true);
+  });
+
+  it('edge case: target equal to starting bankroll stops before any round is played', async () => {
+    const config = makeSessionConfig({
+      id: 's-eq', label: 'eq', seed: 'target-eq', game: 'roulette', deciderId: 'baseline',
+      createdAt: '2026-07-05T00:00:00.000Z', rounds: 10, startingBankroll: 1000, baseBet: 10,
+      stopTarget: 1000,
+    });
+    const session = await runSession(config, baselineDecide);
+    expect(session.rounds.length).toBe(0);
+    expect(session.targetHit).toBe(true);
+    expect(session.finalBankroll).toBe(1000);
+  });
+
+  it('default stopTarget of 0 disables the check (plays to rounds/bust as before)', async () => {
+    const config = makeSessionConfig({
+      id: 's-none', label: 'none', seed: 'no-target', game: 'roulette', deciderId: 'baseline',
+      createdAt: '2026-07-05T00:00:00.000Z', rounds: 40, startingBankroll: 1000, baseBet: 10,
+    });
+    expect(config.stopTarget).toBe(0);
+    const session = await runSession(config, baselineDecide);
+    expect(session.targetHit).toBe(false);
+  });
+});
