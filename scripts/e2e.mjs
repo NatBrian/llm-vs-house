@@ -13,8 +13,10 @@ const OUT = process.argv[2] ?? '/tmp';
 const URL = process.env.URL ?? 'http://localhost:5173/';
 const GAMES = ['Roulette', 'Blackjack', 'Baccarat', 'Sic Bo', 'Slot Machine'];
 
+const VW = Number(process.env.VW ?? 1440);
+const VH = Number(process.env.VH ?? 900);
 const browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const page = await browser.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: 2 });
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(`[console] ${m.text()}`); });
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));

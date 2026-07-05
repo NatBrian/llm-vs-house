@@ -67,7 +67,7 @@ export function Dashboard() {
         <ReactECharts option={bankrollOption} style={{ height: 300 }} notMerge lazyUpdate />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass rounded-xl p-4">
           <h2 className="text-sm font-semibold text-white/80 mb-2">Net result</h2>
           <ReactECharts option={netOption} style={{ height: 240 }} notMerge lazyUpdate />

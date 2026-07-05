@@ -27,13 +27,13 @@ export function GameStage() {
   const game = session.config.game;
 
   return (
-    <div className="felt rounded-2xl p-6 min-h-[360px] flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+    <div className="felt rounded-2xl p-4 sm:p-6 min-h-[300px] sm:min-h-[360px] flex flex-col">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">{GAME_META[game]!.icon}</span>
-          <span className="font-display text-gold-400 tracking-wide">{GAME_META[game]!.name}</span>
+          <span className="font-display text-gold-400 tracking-wide truncate">{GAME_META[game]!.name}</span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-white/60">
+        <div className="hidden sm:flex items-center gap-2 text-xs text-white/60">
           <span>{session.config.label}</span>
           <span>·</span>
           <span>seed {session.config.seed}</span>
@@ -82,8 +82,8 @@ function RouletteView({ outcome, variant }: { outcome: any; variant: string }) {
   const color = pocket === 0 || pocket === '00' ? '#23a06b' : RED.has(pocket) ? '#d23b3b' : '#1d2731';
 
   return (
-    <div className="flex items-center gap-8">
-      <div className="relative w-56 h-56">
+    <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+      <div className="relative w-48 h-48 sm:w-56 sm:h-56">
         <motion.div
           className="absolute inset-0 rounded-full"
           style={{
@@ -144,7 +144,7 @@ function BlackjackView({ outcome }: { outcome: any }) {
 function BaccaratView({ outcome }: { outcome: any }) {
   const r = outcome.result;
   return (
-    <div className="flex items-center gap-10">
+    <div className="flex items-center gap-4 sm:gap-10">
       <Hand cards={outcome.player} label="Player" total={outcome.playerTotal} tone={r === 'player' ? 'win' : 'neutral'} />
       <div className="text-center">
         <Badge tone={r === 'tie' ? 'gold' : 'neutral'}>{r === 'tie' ? 'TIE' : r === 'player' ? 'PLAYER' : 'BANKER'}</Badge>
