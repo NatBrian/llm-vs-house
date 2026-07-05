@@ -34,7 +34,7 @@ export const BaccaratDecisionSchema = z.object({
 
 // ---- Sic Bo ----
 export const SicBoBetSchema = z.object({
-  type: z.enum(['small', 'big', 'total', 'single', 'combo', 'double', 'triple', 'anytriple']),
+  type: z.enum(['small', 'big', 'odd', 'even', 'total', 'single', 'combo', 'double', 'triple', 'anytriple']),
   amount: z.number().positive(),
   total: z.number().int().min(4).max(17).optional(),
   face: z.number().int().min(1).max(6).optional(),

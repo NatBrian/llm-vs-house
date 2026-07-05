@@ -187,7 +187,7 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
   const staked: Record<string, number> = {};
   for (const b of placedBets ?? []) {
     let id = '';
-    if (b.type === 'small' || b.type === 'big' || b.type === 'anytriple') id = b.type;
+    if (b.type === 'small' || b.type === 'big' || b.type === 'odd' || b.type === 'even' || b.type === 'anytriple') id = b.type;
     else if (b.type === 'total') id = `total-${b.total}`;
     else if (b.type === 'single') id = `single-${b.face}`;
     else if (b.type === 'double') id = `double-${b.face}`;
@@ -203,6 +203,8 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
   // win predicates (mirror the engine)
   const winSmall = !triple && sum >= 4 && sum <= 10;
   const winBig = !triple && sum >= 11 && sum <= 17;
+  const winOdd = !triple && sum % 2 === 1;
+  const winEven = !triple && sum % 2 === 0;
   const winTotal = (n: number) => sum === n;
   const winSingle = (f: number) => count(f) >= 1;
   const winDouble = (f: number) => count(f) >= 2;
@@ -258,13 +260,20 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
 
           {/* band 1 */}
           <div className="grid" style={{ gridTemplateColumns: '2.2fr 3fr 3fr 1.9fr 3fr 3fr 2.2fr', minHeight: 96 }}>
-            {/* SMALL */}
-            <Cell state={st('small')} win={winSmall} reveal={reveal} className="p-1.5 text-center" title="Small: total 4–10, loses on any triple — 1 wins 1">
-              <span className="font-display text-gold-400 text-base leading-none">SMALL</span>
-              <span className="text-[8px] text-white/80 mt-1">Numbers 4 to 10</span>
-              <span className="text-[8px] text-gold-100/90">1 wins 1</span>
-              <span className="text-[7px] text-white/60">Lose on any triple</span>
-            </Cell>
+            {/* SMALL over ODD (even-money band, min 50) */}
+            <div className="flex flex-col">
+              <Cell state={st('small')} win={winSmall} reveal={reveal} className="flex-[2] p-1.5 text-center" title="Small: total 4–10, loses on any triple — 1 wins 1 · min 50">
+                <span className="font-display text-gold-400 text-base leading-none">SMALL</span>
+                <span className="text-[8px] text-white/80 mt-0.5">Numbers 4 to 10</span>
+                <span className="text-[8px] text-gold-100/90">1 wins 1</span>
+                <span className="text-[7px] text-white/60">Lose on any triple</span>
+                <span className="text-[7px] text-gold-300/90 mt-0.5">min 50</span>
+              </Cell>
+              <Cell state={st('odd')} win={winOdd} reveal={reveal} className="flex-1 flex-row gap-1 px-1 border-t border-gold-600/40" title="Odd total, loses on any triple — 1 wins 1 · min 50">
+                <span className="font-display text-gold-400 text-sm leading-none">ODD</span>
+                <span className="text-[7px] text-gold-300/90">min 50</span>
+              </Cell>
+            </div>
             {/* doubles 1-3 */}
             <div className="flex flex-col border-x border-gold-600/40">
               <div className={grpHdr}>Each double 1 wins 10</div>
@@ -292,13 +301,20 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
               <div className={grpHdr}>Each double 1 wins 10</div>
               <div className="flex flex-1">{[4, 5, 6].map(DoubleCell)}</div>
             </div>
-            {/* BIG */}
-            <Cell state={st('big')} win={winBig} reveal={reveal} className="p-1.5 text-center" title="Big: total 11–17, loses on any triple — 1 wins 1">
-              <span className="font-display text-gold-400 text-base leading-none">BIG</span>
-              <span className="text-[8px] text-white/80 mt-1">Numbers 11 to 17</span>
-              <span className="text-[8px] text-gold-100/90">1 wins 1</span>
-              <span className="text-[7px] text-white/60">Lose on any triple</span>
-            </Cell>
+            {/* BIG over EVEN (even-money band, min 50) */}
+            <div className="flex flex-col">
+              <Cell state={st('big')} win={winBig} reveal={reveal} className="flex-[2] p-1.5 text-center" title="Big: total 11–17, loses on any triple — 1 wins 1 · min 50">
+                <span className="font-display text-gold-400 text-base leading-none">BIG</span>
+                <span className="text-[8px] text-white/80 mt-0.5">Numbers 11 to 17</span>
+                <span className="text-[8px] text-gold-100/90">1 wins 1</span>
+                <span className="text-[7px] text-white/60">Lose on any triple</span>
+                <span className="text-[7px] text-gold-300/90 mt-0.5">min 50</span>
+              </Cell>
+              <Cell state={st('even')} win={winEven} reveal={reveal} className="flex-1 flex-row gap-1 px-1 border-t border-gold-600/40" title="Even total, loses on any triple — 1 wins 1 · min 50">
+                <span className="font-display text-gold-400 text-sm leading-none">EVEN</span>
+                <span className="text-[7px] text-gold-300/90">min 50</span>
+              </Cell>
+            </div>
           </div>
 
           {/* band 2 — totals */}
@@ -342,6 +358,9 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
           </div>
           <div className="grid grid-cols-3 text-center text-[8.5px] text-white/75 bg-black/25 border-t border-gold-600/40 py-0.5">
             <span>1:1 on one die</span><span>2:1 on two dice</span><span>3:1 on three dice</span>
+          </div>
+          <div className="text-center text-[8px] text-gold-200/70 bg-black/30 py-0.5">
+            Table minimums — even-money (Small · Big · Odd · Even) 50 · all inside bets 10
           </div>
         </div>
       </div>

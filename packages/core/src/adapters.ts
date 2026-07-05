@@ -5,7 +5,7 @@
 import {
   spinRoulette, resolveRouletteBet, type RouletteBet, type RouletteVariant,
   dealBaccarat, resolveBaccaratBet, type BaccaratBet,
-  rollSicBo, resolveSicBoBet, type SicBoBet,
+  rollSicBo, resolveSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, type SicBoBet,
   spinSlot, resolveSlot, EXAMPLE_SLOT, type SlotConfig,
   startBlackjack, legalActions, applyAction, handValue,
   DEFAULT_BLACKJACK_RULES, type BlackjackRules, type BlackjackState, type BlackjackAction,
@@ -49,6 +49,27 @@ function clampBets<T extends { amount: number }>(bets: T[], bankroll: number): T
   for (const b of bets) {
     const amt = Math.max(0, Math.min(Math.floor(b.amount), remaining));
     if (amt <= 0) continue;
+    out.push({ ...b, amount: amt });
+    remaining -= amt;
+  }
+  return out;
+}
+
+/**
+ * Faithful Sic Bo table rules for a set of placed bets:
+ *   1. stakes are whole points (chips), floored;
+ *   2. a stake below its family table-minimum is rejected (not accepted);
+ *   3. the running total may not exceed the bankroll — a bet whose remaining
+ *      budget can't cover its own table-minimum is rejected.
+ * Returns the accepted bets. Mirrors how a real dealer would take/refuse chips.
+ */
+function applySicBoTableRules(bets: SicBoBet[], bankroll: number): SicBoBet[] {
+  let remaining = bankroll;
+  const out: SicBoBet[] = [];
+  for (const b of bets) {
+    const min = SICBO_MIN_BET[b.type];
+    const amt = Math.min(Math.floor(b.amount), remaining);
+    if (amt < min) continue; // below table minimum (or bankroll can't cover it) -> refused
     out.push({ ...b, amount: amt });
     remaining -= amt;
   }
@@ -126,13 +147,19 @@ const sicboAdapter: GameAdapter = {
       kind: 'bet', game: 'sicbo', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
-        houseEdgePct: { small: 2.78, big: 2.78, anytriple: 13.89 },
-        note: 'Small/Big (2.78%) are the best bets; totals & triples pay more but cost more edge.',
+        houseEdgePct: { small: 2.78, big: 2.78, odd: 2.78, even: 2.78, anytriple: 13.89 },
+        tableMinimums: SICBO_MIN_BET, // even-money bets (small/big/odd/even) cost 50; inside bets 10
+        payouts: {
+          small: 1, big: 1, odd: 1, even: 1,
+          single: '1:1 / 2:1 / 3:1 by matching dice', combo: 5, double: 10, triple: 180, anytriple: 30,
+          total: SICBO_TOTAL_ODDS,
+        },
+        note: 'Small/Big/Odd/Even (2.78%) are the best bets but each costs a 50-point minimum; inside bets (min 10) pay more but cost more edge. A stake below its minimum is refused.',
       },
       schema: SicBoDecisionSchema, schemaName: 'SicBoDecision',
     };
     const { step, value } = await ask(ctx, req);
-    const bets = clampBets(value.bets as SicBoBet[], ctx.bankroll);
+    const bets = applySicBoTableRules(value.bets as SicBoBet[], ctx.bankroll);
     const dice = rollSicBo(ctx.rng);
     const net = bets.reduce((s, b) => s + resolveSicBoBet(b, dice), 0);
     return { steps: [step], outcome: { dice, placedBets: bets }, net };

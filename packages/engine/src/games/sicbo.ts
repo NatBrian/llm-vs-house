@@ -8,6 +8,7 @@ export type Dice = [number, number, number]; // each 1..6
 
 export type SicBoBetType =
   | 'small' | 'big'      // total 4-10 / 11-17, lose on any triple, 1:1
+  | 'odd' | 'even'       // total parity, lose on any triple, 1:1
   | 'total'              // exact three-dice sum 4..17
   | 'single'            // a face on 1/2/3 dice pays 1:1 / 2:1 / 3:1
   | 'combo'             // two specific different faces both appear, 5:1
@@ -23,13 +24,27 @@ export const SICBO_TOTAL_ODDS: Record<number, number> = {
 
 /** Fixed "to-one" odds for the non-total bet families (standard table). */
 export const SICBO_ODDS = {
-  smallBig: 1,
+  evenMoney: 1, // small / big / odd / even
   combo: 5,
   double: 10,
   triple: 180,
   anytriple: 30,
   // single number pays 1/2/3 to one by the number of dice that match
 } as const;
+
+/**
+ * Table minimum stake per bet family, in points. Mirrors a real casino: the
+ * even-money "outside" bets (Small/Big/Odd/Even) carry a higher minimum than
+ * the higher-paying "inside" bets. Enforced by the adapter — a stake below the
+ * family minimum is not accepted.
+ */
+export const SICBO_MIN_BET: Record<SicBoBetType, number> = {
+  small: 50, big: 50, odd: 50, even: 50,
+  total: 10, single: 10, combo: 10, double: 10, triple: 10, anytriple: 10,
+};
+
+/** The lowest table minimum across all families — the cheapest legal bet. */
+export const SICBO_TABLE_MIN = Math.min(...Object.values(SICBO_MIN_BET));
 
 export interface SicBoBet {
   type: SicBoBetType;
@@ -56,9 +71,13 @@ export function resolveSicBoBet(bet: SicBoBet, d: Dice): number {
   const { amount } = bet;
   switch (bet.type) {
     case 'small':
-      return !isTriple(d) && diceSum(d) >= 4 && diceSum(d) <= 10 ? amount * SICBO_ODDS.smallBig : -amount;
+      return !isTriple(d) && diceSum(d) >= 4 && diceSum(d) <= 10 ? amount * SICBO_ODDS.evenMoney : -amount;
     case 'big':
-      return !isTriple(d) && diceSum(d) >= 11 && diceSum(d) <= 17 ? amount * SICBO_ODDS.smallBig : -amount;
+      return !isTriple(d) && diceSum(d) >= 11 && diceSum(d) <= 17 ? amount * SICBO_ODDS.evenMoney : -amount;
+    case 'odd':
+      return !isTriple(d) && diceSum(d) % 2 === 1 ? amount * SICBO_ODDS.evenMoney : -amount;
+    case 'even':
+      return !isTriple(d) && diceSum(d) % 2 === 0 ? amount * SICBO_ODDS.evenMoney : -amount;
     case 'total': {
       if (bet.total === undefined) return -amount;
       return diceSum(d) === bet.total ? amount * (SICBO_TOTAL_ODDS[bet.total] ?? 0) : -amount;

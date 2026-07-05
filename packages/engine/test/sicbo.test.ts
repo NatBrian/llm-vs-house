@@ -15,6 +15,8 @@ describe('sic bo house edge vs verified table (docs/PAYOUTS.md)', () => {
   const cases: Array<[string, SicBoBet, number]> = [
     ['small', { type: 'small', amount: 1 }, 0.0278],
     ['big', { type: 'big', amount: 1 }, 0.0278],
+    ['odd', { type: 'odd', amount: 1 }, 0.0278],
+    ['even', { type: 'even', amount: 1 }, 0.0278],
     ['total 4', { type: 'total', amount: 1, total: 4 }, 0.1528],
     ['total 7', { type: 'total', amount: 1, total: 7 }, 0.0972],
     ['total 9', { type: 'total', amount: 1, total: 9 }, 0.1898],
@@ -37,6 +39,17 @@ describe('sic bo mechanics', () => {
     // [2,2,2] sum=6 in small range, but a triple => small loses
     expect(resolveSicBoBet({ type: 'small', amount: 10 }, [2, 2, 2])).toBe(-10);
     expect(isTriple([2, 2, 2])).toBe(true);
+  });
+  it('odd/even lose on a triple even when the parity matches', () => {
+    // [1,1,1] sum=3 is odd, but a triple => odd loses
+    expect(resolveSicBoBet({ type: 'odd', amount: 10 }, [1, 1, 1])).toBe(-10);
+    // [2,2,2] sum=6 is even, but a triple => even loses
+    expect(resolveSicBoBet({ type: 'even', amount: 10 }, [2, 2, 2])).toBe(-10);
+  });
+  it('odd/even pay 1:1 on the matching parity of a non-triple', () => {
+    expect(resolveSicBoBet({ type: 'odd', amount: 10 }, [1, 2, 4])).toBe(10);  // sum 7 odd
+    expect(resolveSicBoBet({ type: 'even', amount: 10 }, [1, 2, 4])).toBe(-10); // sum 7 odd -> even loses
+    expect(resolveSicBoBet({ type: 'even', amount: 10 }, [2, 2, 4])).toBe(10);  // sum 8 even
   });
   it('single number pays 1/2/3 by match count', () => {
     expect(resolveSicBoBet({ type: 'single', amount: 10, face: 5 }, [5, 1, 2])).toBe(10);

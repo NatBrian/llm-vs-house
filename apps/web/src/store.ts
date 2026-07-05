@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  runSession, replaySession, baselineDecide, makeSessionConfig, computeStats,
+  runSession, replaySession, baselineDecide, naiveDecide, makeSessionConfig, computeStats,
   type Session, type GameId, type Decide,
 } from '@casino/core';
 import type { LlmClientConfig, ProviderId } from './lib/providers';
@@ -14,7 +14,7 @@ export interface FormState {
   rounds: number;
   startingBankroll: number;
   baseBet: number;
-  player: 'baseline' | 'llm';
+  player: 'baseline' | 'naive' | 'llm';
   llm: LlmClientConfig;
 }
 
@@ -88,9 +88,10 @@ export const useStore = create<StoreState>()(
         const ac = new AbortController();
         set({ running: true, stopping: false, abortController: ac, error: null, progress: { done: 0, label: isLlm ? 'Contacting model…' : 'Running…' } });
         try {
-          const deciderId = isLlm ? `llm:${form.llm.provider}:${form.llm.model}` : 'baseline';
+          const deciderId = isLlm ? `llm:${form.llm.provider}:${form.llm.model}` : form.player;
+          const botLabel = form.player === 'naive' ? 'Naive human' : 'Baseline';
           const label = form.label.trim()
-            || `${isLlm ? form.llm.model : 'Baseline'} · ${form.game}`;
+            || `${isLlm ? form.llm.model : botLabel} · ${form.game}`;
 
           const config = makeSessionConfig({
             id,
@@ -110,7 +111,7 @@ export const useStore = create<StoreState>()(
 
           let decide: Decide;
           if (!isLlm) {
-            decide = baselineDecide;
+            decide = form.player === 'naive' ? naiveDecide : baselineDecide;
           } else {
             decide = createClientLlmDecide(form.llm, () => {
               if (!get().stopping) set({ progress: { done: 0, label: 'Model deciding…' } });
