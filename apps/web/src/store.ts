@@ -18,6 +18,9 @@ export interface FormState {
   llm: LlmClientConfig;
   /** Human-chosen fixed bet + sizing strategy for the "Rule bot" player. */
   ruleBot: RuleBotConfig;
+  /** Which real casino table to play: MBS (single-zero) or RWS (double-zero,
+   *  adds the 0/00 combo box, Top Line, and wheel-sector Series bets). */
+  rouletteVariant: 'european' | 'american';
 }
 
 interface RunProgress { done: number; label: string }
@@ -61,6 +64,7 @@ const defaultForm: FormState = {
   player: 'baseline',
   llm: { provider: 'anthropic' as ProviderId, model: 'claude-sonnet-5', apiKey: '', baseURL: '' },
   ruleBot: DEFAULT_RULE_BOT_CONFIG,
+  rouletteVariant: 'european',
 };
 
 export const useStore = create<StoreState>()(
@@ -108,6 +112,7 @@ export const useStore = create<StoreState>()(
             startingBankroll: form.startingBankroll,
             baseBet: form.baseBet,
             rounds: form.rounds,
+            ...(form.game === 'roulette' ? { gameConfig: { variant: form.rouletteVariant } } : {}),
           });
 
           // Push a live placeholder so the table renders as rounds stream in (esp. for slow LLM runs).

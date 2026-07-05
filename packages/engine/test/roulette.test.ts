@@ -31,8 +31,6 @@ describe('roulette house edge (European = 2.70%)', () => {
     { type: 'even', amount: 1 },
     { type: 'low', amount: 1 },
     { type: 'high', amount: 1 },
-    { type: 'series3', amount: 1, seriesGroup: 1 },
-    { type: 'series6', amount: 1, seriesGroup: 1 },
   ];
   for (const bet of cases) {
     it(`${bet.type} => 2.70%`, () => {
@@ -130,10 +128,10 @@ describe('isValidRouletteBet — real felt cells only', () => {
       { type: 'column', amount: 1, selector: 1 },
       { type: 'dozen', amount: 1, selector: 2 },
       { type: 'red', amount: 1 },
-      { type: 'series3', amount: 1, seriesGroup: 1 },
-      { type: 'series6', amount: 1, seriesGroup: 6 },
     ];
     for (const bet of valid) expect(isValidRouletteBet(bet, 'european')).toBe(true);
+    expect(isValidRouletteBet({ type: 'series3', amount: 1, seriesGroup: 1 }, 'american')).toBe(true);
+    expect(isValidRouletteBet({ type: 'series6', amount: 1, seriesGroup: 6 }, 'american')).toBe(true);
   });
 
   it('rejects invented combinations', () => {
@@ -143,10 +141,15 @@ describe('isValidRouletteBet — real felt cells only', () => {
       { type: 'street', amount: 1, numbers: [0, 2, 3] },     // requires '00' — not a real European (or American) street
       { type: 'corner', amount: 1, numbers: [1, 36, 17, 5] }, // not a real square
       { type: 'sixline', amount: 1, numbers: [1, 2, 3, 4, 5, 7] }, // not two adjacent streets
-      { type: 'series3', amount: 1, seriesGroup: 13 }, // only 12 groups exist
     ];
     for (const bet of invalid) expect(isValidRouletteBet(bet, 'european')).toBe(false);
     expect(isValidRouletteBet({ type: 'street', amount: 1, numbers: [0, 2, 3] }, 'american')).toBe(false);
+    expect(isValidRouletteBet({ type: 'series3', amount: 1, seriesGroup: 13 }, 'american')).toBe(false); // only 12 groups exist
+  });
+
+  it('series3/series6 (RWS wheel-sector bets) are American-only', () => {
+    expect(isValidRouletteBet({ type: 'series3', amount: 1, seriesGroup: 1 }, 'european')).toBe(false);
+    expect(isValidRouletteBet({ type: 'series6', amount: 1, seriesGroup: 1 }, 'european')).toBe(false);
   });
 
   it('five-number Top Line is American-only', () => {

@@ -1,18 +1,26 @@
-// Authentic Sic Bo table — mirrors the standard Macau / Wizard-of-Odds layout
-// (see docs reference image: online-gambling.com sic-bo-game-board). Four bands,
-// top → bottom:
-//   1. SMALL | doubles + specific-triples + ANY TRIPLE | BIG
-//   2. Totals 4..17 (each with its "1 wins N" odds)
-//   3. Fifteen two-dice combinations (dominoes), 1 wins 5
-//   4. Single numbers ONE..SIX (1:1 / 2:1 / 3:1 by match count)
+// Authentic Sic Bo table — mirrors the real Singapore/Macau felt (GRA-approved
+// "SIC BO (MBS) Game Rules Version 6" Appendix A/B, verified against the
+// rendered appendix image), not the generic international layout:
+//   - Left column: Double+Single combos (50:1, 28 exact cells) stacked above
+//     Three-Single-Dice combos (30:1, 20 exact cells) — both blocks target one
+//     EXACT dice outcome each, not a group of alternatives.
+//   - Main block, top row: EVEN paired with BIG on the left, ODD paired with
+//     SMALL on the right (the real felt's corner pairing — NOT Small/Odd and
+//     Big/Even, which is backwards), flanking the doubles/specific-triples/
+//     ANY TRIPLE fan in the centre.
+//   - Totals 4..17, the fifteen two-dice combos, the four Three-From-Four
+//     cells, then the six single-number cells (1:1 / 2:1 / 12:1 — not 3:1).
 //
-// It is a *replay* board: the bot's placedBets drop chips on the matching cells,
-// the three dice tumble inside a glass shaker dome, the dome lifts, then every
-// winning cell lights up and a result banner pops. Win predicates here mirror
-// packages/engine/src/games/sicbo.ts exactly.
+// It is a *replay* board: the bot's placedBets drop chips on the matching
+// cells, the three dice tumble inside a glass shaker dome, the dome lifts,
+// then every winning cell lights up together and a result banner pops. Win
+// predicates here mirror packages/engine/src/games/sicbo.ts exactly.
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import {
+  SICBO_TOTAL_ODDS, SICBO_ODDS, SICBO_DOUBLE_ANY_PAIRS, SICBO_THREE_SINGLE_COMBO_GROUPS, SICBO_THREE_FROM_FOUR_GROUPS,
+} from '@casino/engine';
 import { Chip } from './primitives';
 
 type Dice = [number, number, number];
@@ -50,7 +58,9 @@ const MiniDie = ({ value, size = 22 }: { value: number; size?: number }) => <Pip
 
 // ---------------------------------------------------------------- shaker dome
 // The signature Sic Bo look: three dice vibrate under a glass dome on a lit
-// pedestal, then the dome lifts and the dice settle with a bounce.
+// pedestal, then the dome lifts and the dice settle with a bounce. Each die
+// gets its own randomized tumble arc (not a uniform shake) for a more
+// physical, less mechanical read.
 function DiceShaker({ dice, roundKey, onSettle }: { dice: Dice; roundKey: number; onSettle: () => void }) {
   const [shown, setShown] = useState<Dice>(dice);
   const [rolling, setRolling] = useState(true);
@@ -84,6 +94,22 @@ function DiceShaker({ dice, roundKey, onSettle }: { dice: Dice; roundKey: number
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundKey]);
 
+  // Per-die randomized tumble arcs (seeded once per round) so the three dice
+  // don't all rattle in lockstep — each has its own amplitude/phase/rate.
+  const arcsRef = useRef<Array<{ rot: number[]; y: number[]; dur: number }>>([]);
+  if (arcsRef.current.length === 0 || (arcsRef as any)._round !== roundKey) {
+    arcsRef.current = [0, 1, 2].map(() => {
+      const amp = 16 + Math.random() * 14;
+      const lift = 8 + Math.random() * 8;
+      return {
+        rot: [0, -amp, amp * 0.8, -amp * 0.5, 0],
+        y: [0, -lift, 0, -lift * 0.6, 0],
+        dur: 0.22 + Math.random() * 0.1,
+      };
+    });
+    (arcsRef as any)._round = roundKey;
+  }
+
   return (
     <div className="relative flex flex-col items-center" style={{ width: 210, height: 132 }}>
       {/* glass dome — always translucent, lifts away on settle */}
@@ -104,19 +130,20 @@ function DiceShaker({ dice, roundKey, onSettle }: { dice: Dice; roundKey: number
 
       {/* dice */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-end gap-3" style={{ top: 40 }}>
-        {shown.map((v, i) => (
-          <motion.div
-            key={i}
-            animate={rolling
-              ? { rotate: [0, -22, 24, -14, 0], y: [0, -12, 0, -7, 0] }
-              : { rotate: 0, y: 0, scale: [1.15, 0.92, 1] }}
-            transition={rolling
-              ? { duration: 0.26, repeat: Infinity, ease: 'easeInOut', delay: i * 0.04 }
-              : { duration: 0.45, ease: 'easeOut' }}
-          >
-            <Pips value={v} size={48} />
-          </motion.div>
-        ))}
+        {shown.map((v, i) => {
+          const arc = arcsRef.current[i]!;
+          return (
+            <motion.div
+              key={i}
+              animate={rolling ? { rotate: arc.rot, y: arc.y } : { rotate: 0, y: 0, scale: [1.15, 0.92, 1] }}
+              transition={rolling
+                ? { duration: arc.dur, repeat: Infinity, ease: 'easeInOut', delay: i * 0.05 }
+                : { duration: 0.45, ease: 'easeOut' }}
+            >
+              <Pips value={v} size={48} />
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* pedestal / lit base */}
@@ -168,16 +195,49 @@ function Cell({
   );
 }
 
+/** Real casino "trend" reading: Big/Small and Odd/Even streaks over recent rounds. */
+function TrendPanel({ history }: { history: Array<{ sum: number; triple: boolean }> }) {
+  if (history.length < 3) return null;
+  const window = history.slice(0, 40);
+  const bigSmall = (h: { sum: number; triple: boolean }) => (h.triple ? null : h.sum >= 11 ? 'Big' : 'Small');
+  const oddEven = (h: { sum: number; triple: boolean }) => (h.triple ? null : h.sum % 2 === 1 ? 'Odd' : 'Even');
+
+  function streak(label: (h: { sum: number; triple: boolean }) => string | null): [string, number] | null {
+    const first = label(window[0]!);
+    if (!first) return null;
+    let n = 1;
+    for (let i = 1; i < window.length; i++) {
+      if (label(window[i]!) === first) n++; else break;
+    }
+    return [first, n];
+  }
+  const bs = streak(bigSmall);
+  const oe = streak(oddEven);
+  const tripleCount = window.filter((h) => h.triple).length;
+
+  return (
+    <div className="flex flex-col items-center gap-1 text-[10px] text-white/70">
+      <div className="flex items-center gap-3">
+        {bs && bs[1] >= 2 && <span className="text-gold-300">{bs[1]}x {bs[0]} streak</span>}
+        {oe && oe[1] >= 2 && <span className="text-gold-300">{oe[1]}x {oe[0]} streak</span>}
+      </div>
+      <span>🎲 {tripleCount} triple{tripleCount === 1 ? '' : 's'} in last {window.length}</span>
+    </div>
+  );
+}
+
 const grpHdr = 'text-[8.5px] leading-tight text-center text-gold-100/90 py-0.5 border-b border-gold-600/40 font-semibold tracking-wide';
+const FACE_WORD = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
 
 // ---------------------------------------------------------------- board
-export function SicBoBoard({ dice, placedBets, roundKey }: {
-  dice: number[]; placedBets: any[]; roundKey: number;
+export function SicBoBoard({ dice, placedBets, roundKey, history = [] }: {
+  dice: number[]; placedBets: any[]; roundKey: number; history?: Array<{ sum: number; triple: boolean }>;
 }) {
   const d = dice as Dice;
   const sum = d[0] + d[1] + d[2];
   const triple = d[0] === d[1] && d[1] === d[2];
   const count = (f: number) => (d[0] === f ? 1 : 0) + (d[1] === f ? 1 : 0) + (d[2] === f ? 1 : 0);
+  const sortedDice = [...d].sort().join('');
 
   // win highlights + result banner only appear once the dice have settled
   const [reveal, setReveal] = useState(false);
@@ -195,12 +255,14 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
     else if (b.type === 'combo' && b.faces) {
       const [x, y] = [...b.faces].sort((p: number, q: number) => p - q);
       id = `combo-${x}-${y}`;
-    }
+    } else if (b.type === 'doubleAny') id = `da-${b.face}-${b.partner}`;
+    else if (b.type === 'threeSingleCombo' && b.triple) id = `tsc-${[...b.triple].sort().join('')}`;
+    else if (b.type === 'threeFromFour') id = `fromfour-${b.group}`;
     if (id) staked[id] = (staked[id] ?? 0) + (b.amount ?? 0);
   }
   const st = (id: string): CellState => ({ placed: staked[id] ?? 0, win: false });
 
-  // win predicates (mirror the engine)
+  // win predicates (mirror the engine exactly)
   const winSmall = !triple && sum >= 4 && sum <= 10;
   const winBig = !triple && sum >= 11 && sum <= 17;
   const winOdd = !triple && sum % 2 === 1;
@@ -210,30 +272,52 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
   const winDouble = (f: number) => count(f) >= 2;
   const winTriple = (f: number) => count(f) === 3;
   const winCombo = (x: number, y: number) => count(x) >= 1 && count(y) >= 1;
-
-  const TOTAL_ODDS: Record<number, number> = {
-    4: 60, 5: 30, 6: 17, 7: 12, 8: 8, 9: 6, 10: 6, 11: 6, 12: 6, 13: 8, 14: 12, 15: 17, 16: 30, 17: 60,
+  const winDoubleAny = (face: number, partner: number) => sortedDice === [face, face, partner].sort().join('');
+  const winThreeSingle = (triple3: number[]) => sortedDice === [...triple3].sort().join('');
+  const winFromFour = (group: number) => {
+    const set = SICBO_THREE_FROM_FOUR_GROUPS[group]!;
+    const distinct = new Set(d);
+    return distinct.size === 3 && [...distinct].every((f) => (set as number[]).includes(f));
   };
+
   const combos: [number, number][] = [];
   for (let x = 1; x <= 6; x++) for (let y = x + 1; y <= 6; y++) combos.push([x, y]);
 
   const DoubleCell = (f: number) => (
-    <Cell key={`d${f}`} state={st(`double-${f}`)} win={winDouble(f)} reveal={reveal} title={`Double ${f} — 1 wins 10`} className="flex-1 py-1 gap-1">
+    <Cell key={`d${f}`} state={st(`double-${f}`)} win={winDouble(f)} reveal={reveal} title={`Double ${f} — 1 wins ${SICBO_ODDS.double}`} className="flex-1 py-1 gap-1">
       <div className="flex gap-0.5"><MiniDie value={f} size={16} /><MiniDie value={f} size={16} /></div>
-      <span className="text-[8px] text-gold-100/70">double {['', 'one', 'two', 'three', 'four', 'five', 'six'][f]}</span>
+      <span className="text-[8px] text-gold-100/70">double {FACE_WORD[f]}</span>
     </Cell>
   );
   const TripleCell = (f: number) => (
-    <Cell key={`t${f}`} state={st(`triple-${f}`)} win={winTriple(f)} reveal={reveal} title={`Triple ${f}${f}${f} — 1 wins 180`} className="flex-1 py-1 gap-0.5">
+    <Cell key={`t${f}`} state={st(`triple-${f}`)} win={winTriple(f)} reveal={reveal} title={`Triple ${f}${f}${f} — 1 wins ${SICBO_ODDS.triple}`} className="flex-1 py-1 gap-0.5">
       <div className="flex gap-0.5"><MiniDie value={f} size={13} /><MiniDie value={f} size={13} /><MiniDie value={f} size={13} /></div>
     </Cell>
   );
 
   const resultLabel = triple ? `TRIPLE ${d[0]}` : sum <= 10 ? 'SMALL' : 'BIG';
+  const winCount = placedBets?.filter((b) => {
+    // cheap re-derivation just for the summary count, not used for cell rendering
+    const id = (() => {
+      if (b.type === 'small') return winSmall; if (b.type === 'big') return winBig;
+      if (b.type === 'odd') return winOdd; if (b.type === 'even') return winEven;
+      if (b.type === 'anytriple') return triple;
+      if (b.type === 'total') return winTotal(b.total);
+      if (b.type === 'single') return winSingle(b.face);
+      if (b.type === 'double') return winDouble(b.face);
+      if (b.type === 'triple') return winTriple(b.face);
+      if (b.type === 'combo' && b.faces) return winCombo(b.faces[0], b.faces[1]);
+      if (b.type === 'doubleAny') return winDoubleAny(b.face, b.partner);
+      if (b.type === 'threeSingleCombo' && b.triple) return winThreeSingle(b.triple);
+      if (b.type === 'threeFromFour') return winFromFour(b.group);
+      return false;
+    })();
+    return id;
+  }).length ?? 0;
 
   return (
     <div className="w-full overflow-x-auto">
-      <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 720 }}>
+      <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 900 }}>
         {/* shaker + result banner */}
         <div className="flex items-center justify-center gap-6 pb-1 min-h-[132px]">
           <DiceShaker dice={d} roundKey={roundKey} onSettle={() => setReveal(true)} />
@@ -249,118 +333,160 @@ export function SicBoBoard({ dice, placedBets, roundKey }: {
                 <span className="text-[10px] uppercase tracking-widest text-gold-100/70">Total</span>
                 <span className="font-display text-gold-400 text-4xl leading-none">{sum}</span>
                 <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-white">{resultLabel}</span>
+                {winCount > 0 && <span className="mt-0.5 text-[10px] text-chip-green">{winCount} bet{winCount === 1 ? '' : 's'} won</span>}
               </motion.div>
             )}
           </AnimatePresence>
+          <TrendPanel history={history} />
         </div>
 
         {/* board — bright emerald felt to match the real table */}
-        <div className="rounded-lg overflow-hidden border-2 border-gold-500/60 select-none shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+        <div className="rounded-lg overflow-hidden border-2 border-gold-500/60 select-none shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex"
           style={{ background: 'linear-gradient(180deg,#1a7f56,#0f5c3d)' }}>
 
-          {/* band 1 */}
-          <div className="grid" style={{ gridTemplateColumns: '2.2fr 3fr 3fr 1.9fr 3fr 3fr 2.2fr', minHeight: 96 }}>
-            {/* SMALL over ODD (even-money band, min 50) */}
-            <div className="flex flex-col">
-              <Cell state={st('small')} win={winSmall} reveal={reveal} className="flex-[2] p-1.5 text-center" title="Small: total 4–10, loses on any triple — 1 wins 1 · min 50">
-                <span className="font-display text-gold-400 text-base leading-none">SMALL</span>
-                <span className="text-[8px] text-white/80 mt-0.5">Numbers 4 to 10</span>
-                <span className="text-[8px] text-gold-100/90">1 wins 1</span>
-                <span className="text-[7px] text-white/60">Lose on any triple</span>
-                <span className="text-[7px] text-gold-300/90 mt-0.5">min 50</span>
-              </Cell>
-              <Cell state={st('odd')} win={winOdd} reveal={reveal} className="flex-1 flex-row gap-1 px-1 border-t border-gold-600/40" title="Odd total, loses on any triple — 1 wins 1 · min 50">
-                <span className="font-display text-gold-400 text-sm leading-none">ODD</span>
-                <span className="text-[7px] text-gold-300/90">min 50</span>
-              </Cell>
-            </div>
-            {/* doubles 1-3 */}
-            <div className="flex flex-col border-x border-gold-600/40">
-              <div className={grpHdr}>Each double 1 wins 10</div>
-              <div className="flex flex-1">{[1, 2, 3].map(DoubleCell)}</div>
-            </div>
-            {/* triples 1-3 */}
-            <div className="flex flex-col">
-              <div className={grpHdr}>Each triple 1 wins 180</div>
-              <div className="flex flex-1">{[1, 2, 3].map(TripleCell)}</div>
-            </div>
-            {/* any triple */}
-            <div className="flex flex-col border-x border-gold-600/40">
-              <div className={grpHdr}>1 wins 30</div>
-              <Cell state={st('anytriple')} win={triple} reveal={reveal} className="flex-1 p-1" title="Any triple — 1 wins 30">
-                <span className="font-display text-gold-400 text-xs leading-tight text-center">ANY<br />TRIPLE</span>
-              </Cell>
-            </div>
-            {/* triples 4-6 */}
-            <div className="flex flex-col">
-              <div className={grpHdr}>Each triple 1 wins 180</div>
-              <div className="flex flex-1">{[4, 5, 6].map(TripleCell)}</div>
-            </div>
-            {/* doubles 4-6 */}
-            <div className="flex flex-col border-x border-gold-600/40">
-              <div className={grpHdr}>Each double 1 wins 10</div>
-              <div className="flex flex-1">{[4, 5, 6].map(DoubleCell)}</div>
-            </div>
-            {/* BIG over EVEN (even-money band, min 50) */}
-            <div className="flex flex-col">
-              <Cell state={st('big')} win={winBig} reveal={reveal} className="flex-[2] p-1.5 text-center" title="Big: total 11–17, loses on any triple — 1 wins 1 · min 50">
-                <span className="font-display text-gold-400 text-base leading-none">BIG</span>
-                <span className="text-[8px] text-white/80 mt-0.5">Numbers 11 to 17</span>
-                <span className="text-[8px] text-gold-100/90">1 wins 1</span>
-                <span className="text-[7px] text-white/60">Lose on any triple</span>
-                <span className="text-[7px] text-gold-300/90 mt-0.5">min 50</span>
-              </Cell>
-              <Cell state={st('even')} win={winEven} reveal={reveal} className="flex-1 flex-row gap-1 px-1 border-t border-gold-600/40" title="Even total, loses on any triple — 1 wins 1 · min 50">
-                <span className="font-display text-gold-400 text-sm leading-none">EVEN</span>
-                <span className="text-[7px] text-gold-300/90">min 50</span>
-              </Cell>
-            </div>
-          </div>
-
-          {/* band 2 — totals */}
-          <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `repeat(14,1fr)`, minHeight: 46 }}>
-            {Object.keys(TOTAL_ODDS).map((k) => {
-              const n = Number(k);
-              return (
-                <Cell key={n} state={st(`total-${n}`)} win={winTotal(n)} reveal={reveal} className="py-1 border-l border-gold-600/30" title={`Total ${n} — 1 wins ${TOTAL_ODDS[n]}`}>
-                  <span className="font-display text-gold-400 text-sm leading-none">{n}</span>
-                  <span className="text-[7.5px] text-white/70">1 wins {TOTAL_ODDS[n]}</span>
+          {/* left column: Double+Single (50:1) over Three-Single-Dice (30:1) — exact combos, real felt groups */}
+          <div className="flex flex-col border-r-2 border-gold-500/60" style={{ width: 210 }}>
+            <div className={grpHdr}>Double + Single — 1 wins {SICBO_ODDS.doubleAny}</div>
+            <div className="grid grid-cols-5 flex-1">
+              {SICBO_DOUBLE_ANY_PAIRS.map(([face, partner]) => (
+                <Cell key={`da-${face}-${partner}`} state={st(`da-${face}-${partner}`)} win={winDoubleAny(face, partner)} reveal={reveal}
+                  className="py-0.5 gap-0.5 border-t border-l border-gold-600/25" title={`Double ${face} + ${partner} — 1 wins ${SICBO_ODDS.doubleAny}`}>
+                  <div className="flex gap-0.5"><MiniDie value={face} size={10} /><MiniDie value={face} size={10} /><MiniDie value={partner} size={10} /></div>
                 </Cell>
-              );
-            })}
-          </div>
-
-          {/* band 3 — two dice combos */}
-          <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `2fr repeat(15,1fr)`, minHeight: 52 }}>
-            <div className="flex flex-col items-center justify-center border-r border-gold-600/40 px-1 text-center">
-              <span className="font-display text-gold-400 text-xs leading-tight">TWO<br />DICE</span>
-              <span className="text-[8px] text-gold-100/90 mt-0.5">1 wins 5</span>
+              ))}
             </div>
-            {combos.map(([x, y]) => (
-              <Cell key={`${x}-${y}`} state={st(`combo-${x}-${y}`)} win={winCombo(x, y)} reveal={reveal} className="py-1 gap-0.5 border-l border-gold-600/30" title={`${x} & ${y} — 1 wins 5`}>
-                <div className="flex gap-0.5"><MiniDie value={x} size={13} /><MiniDie value={y} size={13} /></div>
-                <span className="text-[7px] text-white/60">{x} &amp; {y}</span>
-              </Cell>
-            ))}
+            <div className={`${grpHdr} border-t-2`}>Three Single Dice — 1 wins {SICBO_ODDS.threeSingleCombo}</div>
+            <div className="grid grid-cols-5 flex-1">
+              {Object.values(SICBO_THREE_SINGLE_COMBO_GROUPS).flat().map((code) => {
+                const t = code.split('').map(Number);
+                return (
+                  <Cell key={`tsc-${code}`} state={st(`tsc-${code}`)} win={winThreeSingle(t)} reveal={reveal}
+                    className="py-0.5 gap-0.5 border-t border-l border-gold-600/25" title={`${code} — 1 wins ${SICBO_ODDS.threeSingleCombo}`}>
+                    <div className="flex gap-0.5">{t.map((f, i) => <MiniDie key={i} value={f} size={11} />)}</div>
+                  </Cell>
+                );
+              })}
+            </div>
           </div>
 
-          {/* band 4 — singles */}
-          <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `repeat(6,1fr)`, minHeight: 54 }}>
-            {[1, 2, 3, 4, 5, 6].map((f) => (
-              <Cell key={f} state={st(`single-${f}`)} win={winSingle(f)} reveal={reveal} className="flex-row gap-2 py-1 border-l border-gold-600/30"
-                title={`Single ${f} — pays by match count (1:1 / 2:1 / 3:1)`}>
-                <span className="font-display text-gold-400 text-sm">
-                  {['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'][f]}
-                </span>
-                <MiniDie value={f} size={22} />
-              </Cell>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 text-center text-[8.5px] text-white/75 bg-black/25 border-t border-gold-600/40 py-0.5">
-            <span>1:1 on one die</span><span>2:1 on two dice</span><span>3:1 on three dice</span>
-          </div>
-          <div className="text-center text-[8px] text-gold-200/70 bg-black/30 py-0.5">
-            Table minimums — even-money (Small · Big · Odd · Even) 50 · all inside bets 10
+          <div className="flex-1 flex flex-col">
+            {/* band 1: EVEN/BIG (left) — doubles/triples/ANY TRIPLE fan (centre) — ODD/SMALL (right) */}
+            <div className="grid" style={{ gridTemplateColumns: '2.2fr 3fr 3fr 1.9fr 3fr 3fr 2.2fr', minHeight: 96 }}>
+              {/* EVEN over BIG — the real felt's left-corner pairing */}
+              <div className="flex flex-col">
+                <Cell state={st('even')} win={winEven} reveal={reveal} className="flex-1 flex-row gap-1 px-1" title="Even total, loses on any triple — 1 wins 1 · min 50">
+                  <span className="font-display text-gold-400 text-sm leading-none">EVEN</span>
+                  <span className="text-[7px] text-gold-300/90">min 50</span>
+                </Cell>
+                <Cell state={st('big')} win={winBig} reveal={reveal} className="flex-[2] p-1.5 text-center border-t border-gold-600/40" title="Big: total 11–17, loses on any triple — 1 wins 1 · min 50">
+                  <span className="font-display text-gold-400 text-base leading-none">BIG</span>
+                  <span className="text-[8px] text-white/80 mt-0.5">Numbers 11 to 17</span>
+                  <span className="text-[8px] text-gold-100/90">1 wins 1</span>
+                  <span className="text-[7px] text-white/60">Lose on any triple</span>
+                  <span className="text-[7px] text-gold-300/90 mt-0.5">min 50</span>
+                </Cell>
+              </div>
+              {/* doubles 1-3 */}
+              <div className="flex flex-col border-x border-gold-600/40">
+                <div className={grpHdr}>Each double 1 wins {SICBO_ODDS.double}</div>
+                <div className="flex flex-1">{[1, 2, 3].map(DoubleCell)}</div>
+              </div>
+              {/* triples 1-3 */}
+              <div className="flex flex-col">
+                <div className={grpHdr}>Each triple 1 wins {SICBO_ODDS.triple}</div>
+                <div className="flex flex-1">{[1, 2, 3].map(TripleCell)}</div>
+              </div>
+              {/* any triple */}
+              <div className="flex flex-col border-x border-gold-600/40">
+                <div className={grpHdr}>1 wins {SICBO_ODDS.anytriple}</div>
+                <Cell state={st('anytriple')} win={triple} reveal={reveal} className="flex-1 p-1" title={`Any triple — 1 wins ${SICBO_ODDS.anytriple}`}>
+                  <span className="font-display text-gold-400 text-xs leading-tight text-center">ANY<br />TRIPLE</span>
+                </Cell>
+              </div>
+              {/* triples 4-6 */}
+              <div className="flex flex-col">
+                <div className={grpHdr}>Each triple 1 wins {SICBO_ODDS.triple}</div>
+                <div className="flex flex-1">{[4, 5, 6].map(TripleCell)}</div>
+              </div>
+              {/* doubles 4-6 */}
+              <div className="flex flex-col border-x border-gold-600/40">
+                <div className={grpHdr}>Each double 1 wins {SICBO_ODDS.double}</div>
+                <div className="flex flex-1">{[4, 5, 6].map(DoubleCell)}</div>
+              </div>
+              {/* ODD over SMALL — the real felt's right-corner pairing */}
+              <div className="flex flex-col">
+                <Cell state={st('odd')} win={winOdd} reveal={reveal} className="flex-1 flex-row gap-1 px-1" title="Odd total, loses on any triple — 1 wins 1 · min 50">
+                  <span className="font-display text-gold-400 text-sm leading-none">ODD</span>
+                  <span className="text-[7px] text-gold-300/90">min 50</span>
+                </Cell>
+                <Cell state={st('small')} win={winSmall} reveal={reveal} className="flex-[2] p-1.5 text-center border-t border-gold-600/40" title="Small: total 4–10, loses on any triple — 1 wins 1 · min 50">
+                  <span className="font-display text-gold-400 text-base leading-none">SMALL</span>
+                  <span className="text-[8px] text-white/80 mt-0.5">Numbers 4 to 10</span>
+                  <span className="text-[8px] text-gold-100/90">1 wins 1</span>
+                  <span className="text-[7px] text-white/60">Lose on any triple</span>
+                  <span className="text-[7px] text-gold-300/90 mt-0.5">min 50</span>
+                </Cell>
+              </div>
+            </div>
+
+            {/* band 2 — totals */}
+            <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `repeat(14,1fr)`, minHeight: 46 }}>
+              {Object.keys(SICBO_TOTAL_ODDS).map((k) => {
+                const n = Number(k);
+                return (
+                  <Cell key={n} state={st(`total-${n}`)} win={winTotal(n)} reveal={reveal} className="py-1 border-l border-gold-600/30" title={`Total ${n} — 1 wins ${SICBO_TOTAL_ODDS[n]}`}>
+                    <span className="font-display text-gold-400 text-sm leading-none">{n}</span>
+                    <span className="text-[7.5px] text-white/70">1 wins {SICBO_TOTAL_ODDS[n]}</span>
+                  </Cell>
+                );
+              })}
+            </div>
+
+            {/* band 3 — two dice combos */}
+            <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `2fr repeat(15,1fr)`, minHeight: 52 }}>
+              <div className="flex flex-col items-center justify-center border-r border-gold-600/40 px-1 text-center">
+                <span className="font-display text-gold-400 text-xs leading-tight">TWO<br />DICE</span>
+                <span className="text-[8px] text-gold-100/90 mt-0.5">1 wins {SICBO_ODDS.combo}</span>
+              </div>
+              {combos.map(([x, y]) => (
+                <Cell key={`${x}-${y}`} state={st(`combo-${x}-${y}`)} win={winCombo(x, y)} reveal={reveal} className="py-1 gap-0.5 border-l border-gold-600/30" title={`${x} & ${y} — 1 wins ${SICBO_ODDS.combo}`}>
+                  <div className="flex gap-0.5"><MiniDie value={x} size={13} /><MiniDie value={y} size={13} /></div>
+                  <span className="text-[7px] text-white/60">{x} &amp; {y}</span>
+                </Cell>
+              ))}
+            </div>
+
+            {/* band 3b — three dice from four possible combinations (NEW) */}
+            <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `2fr repeat(4,1fr)`, minHeight: 44 }}>
+              <div className="flex flex-col items-center justify-center border-r border-gold-600/40 px-1 text-center">
+                <span className="font-display text-gold-400 text-[10px] leading-tight">3 FROM<br />4</span>
+                <span className="text-[8px] text-gold-100/90 mt-0.5">1 wins {SICBO_ODDS.threeFromFour}</span>
+              </div>
+              {Object.entries(SICBO_THREE_FROM_FOUR_GROUPS).map(([g, set]) => (
+                <Cell key={g} state={st(`fromfour-${g}`)} win={winFromFour(Number(g))} reveal={reveal} className="py-1 gap-0.5 border-l border-gold-600/30" title={`${set.join('-')} — 1 wins ${SICBO_ODDS.threeFromFour}`}>
+                  <span className="text-[11px] text-white/85 font-semibold">{set.join('-')}</span>
+                </Cell>
+              ))}
+            </div>
+
+            {/* band 4 — singles */}
+            <div className="grid border-t-2 border-gold-500/60" style={{ gridTemplateColumns: `repeat(6,1fr)`, minHeight: 54 }}>
+              {[1, 2, 3, 4, 5, 6].map((f) => (
+                <Cell key={f} state={st(`single-${f}`)} win={winSingle(f)} reveal={reveal} className="flex-row gap-2 py-1 border-l border-gold-600/30"
+                  title={`Single ${f} — pays by match count (1:1 / 2:1 / 12:1)`}>
+                  <span className="font-display text-gold-400 text-sm">
+                    {['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'][f]}
+                  </span>
+                  <MiniDie value={f} size={22} />
+                </Cell>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 text-center text-[8.5px] text-white/75 bg-black/25 border-t border-gold-600/40 py-0.5">
+              <span>1:1 on one die</span><span>2:1 on two dice</span><span>12:1 on three dice</span>
+            </div>
+            <div className="text-center text-[8px] text-gold-200/70 bg-black/30 py-0.5">
+              Table minimums — even-money (Small · Big · Odd · Even) 50 · all inside bets 10
+            </div>
           </div>
         </div>
       </div>

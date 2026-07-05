@@ -73,7 +73,17 @@ export function GameStage() {
             roundKey={idx}
           />
         )}
-        {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
+        {game === 'sicbo' && (
+          <SicBoBoard
+            dice={(round.outcome as any).dice}
+            placedBets={(round.outcome as any).placedBets ?? []}
+            roundKey={idx}
+            history={session.rounds.slice(0, idx).map((r) => {
+              const dd = (r.outcome as any).dice as number[];
+              return { sum: dd[0]! + dd[1]! + dd[2]!, triple: dd[0] === dd[1] && dd[1] === dd[2] };
+            }).reverse()}
+          />
+        )}
         {game === 'slot' && (
           <Suspense fallback={<div className="text-white/40 text-sm">Loading slot machine…</div>}>
             <SlotBoard outcome={round.outcome as any} roundKey={idx} />
