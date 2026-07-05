@@ -5053,6 +5053,159 @@ var GAME_LABELS = Object.fromEntries(
   Object.values(ADAPTERS).map((a) => [a.id, a.label])
 );
 
+// ../../packages/core/src/bots.ts
+function blackjackBasic(req) {
+  const legal = req.legalActions ?? [];
+  const o = req.observation;
+  if (legal.includes("decline-insurance")) {
+    return { action: "decline-insurance", reasoning: "Insurance is a negative-EV side bet (~6% edge); decline." };
+  }
+  const total = o.player.total;
+  const soft = o.player.soft;
+  const up = o.dealerUpcard.value;
+  if (legal.includes("split")) {
+    const pv = o.player.pairValue;
+    if (pv === 1) return { action: "split", reasoning: "Always split aces." };
+    if (pv === 8) return { action: "split", reasoning: "Always split eights." };
+  }
+  if (legal.includes("double") && !soft) {
+    if (total === 11) return { action: "double", reasoning: "Double hard 11 \u2014 strongest doubling spot." };
+    if (total === 10 && up <= 9) return { action: "double", reasoning: `Double hard 10 vs dealer ${up}.` };
+  }
+  if (soft) {
+    if (total >= 19) return pick(legal, "stand", `Stand soft ${total}.`);
+    if (total <= 17) return pick(legal, "hit", `Hit soft ${total} \u2014 free to improve.`);
+    return pick(legal, "stand", `Stand soft ${total}.`);
+  }
+  if (total >= 17) return pick(legal, "stand", `Stand hard ${total}.`);
+  if (total <= 11) return pick(legal, "hit", `Hit hard ${total} \u2014 cannot bust.`);
+  if (up >= 7) return pick(legal, "hit", `Hit ${total} vs strong dealer ${up}.`);
+  return pick(legal, "stand", `Stand ${total} vs weak dealer ${up}; let the dealer risk busting.`);
+}
+function pick(legal, want, reasoning2) {
+  return { action: legal.includes(want) ? want : legal[0] ?? "stand", reasoning: reasoning2 };
+}
+var DEFAULT_RULE_BOT_CONFIG = {
+  roulette: { type: "red" },
+  baccarat: { type: "banker" },
+  sicbo: { type: "small" },
+  sizing: "flat"
+};
+var ROULETTE_LABEL = {
+  straight: "Straight",
+  split: "Split",
+  street: "Street",
+  corner: "Corner",
+  sixline: "Six Line",
+  column: "Column",
+  dozen: "Dozen",
+  red: "Red",
+  black: "Black",
+  odd: "Odd",
+  even: "Even",
+  high: "High (19-36)",
+  low: "Low (1-18)",
+  five: "Basket (0/00/1/2/3)"
+};
+var BACCARAT_LABEL = {
+  player: "Player",
+  banker: "Banker",
+  tie: "Tie",
+  playerPair: "Player Pair",
+  bankerPair: "Banker Pair"
+};
+var SICBO_LABEL = {
+  small: "Small",
+  big: "Big",
+  odd: "Odd",
+  even: "Even",
+  anytriple: "Any Triple",
+  total: "Total",
+  single: "Single",
+  double: "Double",
+  triple: "Triple",
+  combo: "Two-Dice Combo"
+};
+var SIZING_CAP_MULTIPLE = 32;
+function computeStake(sizing, unit, bankroll, state) {
+  let stake;
+  if (sizing === "flat" || state.prevBankroll === null) {
+    stake = unit;
+  } else {
+    const prevNet = bankroll - state.prevBankroll;
+    if (sizing === "martingale") {
+      stake = prevNet < 0 ? state.prevStake * 2 : unit;
+    } else {
+      stake = prevNet > 0 ? state.prevStake * 2 : unit;
+    }
+  }
+  stake = Math.min(stake, unit * SIZING_CAP_MULTIPLE);
+  return Math.max(1, Math.min(Math.floor(stake), bankroll));
+}
+function sizingLabel(sizing, stake, unit) {
+  if (sizing === "flat" || stake === unit) return `Flat ${stake} pts`;
+  return sizing === "martingale" ? `Martingale ${stake} pts (doubled after a loss)` : `Paroli ${stake} pts (doubled after a win)`;
+}
+function makeRuleBot(config2 = {}) {
+  const cfg = {
+    roulette: { ...DEFAULT_RULE_BOT_CONFIG.roulette, ...config2.roulette },
+    baccarat: { ...DEFAULT_RULE_BOT_CONFIG.baccarat, ...config2.baccarat },
+    sicbo: { ...DEFAULT_RULE_BOT_CONFIG.sicbo, ...config2.sicbo },
+    sizing: config2.sizing ?? DEFAULT_RULE_BOT_CONFIG.sizing
+  };
+  const state = { prevBankroll: null, prevStake: 0 };
+  return async (req) => {
+    if (req.game === "blackjack" && req.kind === "action") {
+      return { value: blackjackBasic(req) };
+    }
+    const recordAndReturn = (value, stake) => {
+      state.prevBankroll = req.bankroll;
+      state.prevStake = stake;
+      return { value };
+    };
+    switch (req.game) {
+      case "roulette": {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        const b = cfg.roulette;
+        return recordAndReturn({
+          bets: [{ type: b.type, amount: stake, ...b.numbers ? { numbers: b.numbers } : {}, ...b.selector ? { selector: b.selector } : {} }],
+          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${ROULETTE_LABEL[b.type]}.`
+        }, stake);
+      }
+      case "baccarat": {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        return recordAndReturn({
+          bets: [{ type: cfg.baccarat.type, amount: stake }],
+          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${BACCARAT_LABEL[cfg.baccarat.type]}.`
+        }, stake);
+      }
+      case "sicbo": {
+        const min = SICBO_MIN_BET[cfg.sicbo.type];
+        const unit = Math.max(min, req.baseBet);
+        const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
+        const b = cfg.sicbo;
+        const bet = { type: b.type, amount: stake };
+        if (b.type === "total") bet.total = b.total ?? 9;
+        if (b.type === "single" || b.type === "double" || b.type === "triple") bet.face = b.face ?? 4;
+        if (b.type === "combo") bet.faces = b.faces ?? [1, 2];
+        return recordAndReturn({
+          bets: [bet],
+          reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${SICBO_LABEL[b.type]} (table min ${min}).`
+        }, stake);
+      }
+      case "slot": {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        return recordAndReturn({ amount: stake, reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} spin.` }, stake);
+      }
+      case "blackjack": {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        return recordAndReturn({ amount: stake, reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)}; edge comes from correct play, not bet sizing.` }, stake);
+      }
+    }
+  };
+}
+var baselineDecide = makeRuleBot();
+
 // ../../node_modules/.pnpm/@ai-sdk+provider@1.1.3/node_modules/@ai-sdk/provider/dist/index.mjs
 var marker = "vercel.ai.error";
 var symbol = Symbol.for(marker);

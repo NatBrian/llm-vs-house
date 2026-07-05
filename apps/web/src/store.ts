@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  runSession, replaySession, baselineDecide, naiveDecide, makeSessionConfig, computeStats,
-  type Session, type GameId, type Decide,
+  runSession, replaySession, naiveDecide, makeRuleBot, DEFAULT_RULE_BOT_CONFIG, makeSessionConfig, computeStats,
+  type Session, type GameId, type Decide, type RuleBotConfig,
 } from '@casino/core';
 import type { LlmClientConfig, ProviderId } from './lib/providers';
 import { createClientLlmDecide, CancelledError } from './lib/decide-client';
@@ -16,6 +16,8 @@ export interface FormState {
   baseBet: number;
   player: 'baseline' | 'naive' | 'llm';
   llm: LlmClientConfig;
+  /** Human-chosen fixed bet + sizing strategy for the "Rule bot" player. */
+  ruleBot: RuleBotConfig;
 }
 
 interface RunProgress { done: number; label: string }
@@ -34,6 +36,7 @@ interface StoreState {
 
   setForm: (patch: Partial<FormState>) => void;
   setLlm: (patch: Partial<LlmClientConfig>) => void;
+  setRuleBot: (patch: Partial<RuleBotConfig>) => void;
   run: () => Promise<void>;
   stop: () => void;
   selectSession: (id: string) => void;
@@ -57,6 +60,7 @@ const defaultForm: FormState = {
   baseBet: 10,
   player: 'baseline',
   llm: { provider: 'anthropic' as ProviderId, model: 'claude-sonnet-5', apiKey: '', baseURL: '' },
+  ruleBot: DEFAULT_RULE_BOT_CONFIG,
 };
 
 export const useStore = create<StoreState>()(
@@ -75,6 +79,7 @@ export const useStore = create<StoreState>()(
 
       setForm: (patch) => set((s) => ({ form: { ...s.form, ...patch } })),
       setLlm: (patch) => set((s) => ({ form: { ...s.form, llm: { ...s.form.llm, ...patch } } })),
+      setRuleBot: (patch) => set((s) => ({ form: { ...s.form, ruleBot: { ...s.form.ruleBot, ...patch } } })),
 
       stop: () => {
         get().abortController?.abort();
@@ -111,7 +116,10 @@ export const useStore = create<StoreState>()(
 
           let decide: Decide;
           if (!isLlm) {
-            decide = form.player === 'naive' ? naiveDecide : baselineDecide;
+            // A fresh makeRuleBot() instance per run: its sizing strategy (martingale/
+            // paroli) tracks a streak in closure state, so reusing one across runs
+            // would leak a previous session's streak into the next.
+            decide = form.player === 'naive' ? naiveDecide : makeRuleBot(form.ruleBot);
           } else {
             decide = createClientLlmDecide(form.llm, () => {
               if (!get().stopping) set({ progress: { done: 0, label: 'Model deciding…' } });
@@ -187,10 +195,10 @@ export const useStore = create<StoreState>()(
     {
       name: 'llm-vs-house',
       // Bump when the persisted shape changes (e.g. new Sic Bo bet types / player
-      // options). A version mismatch discards incompatible old state instead of
-      // rendering it into a crash loop.
-      version: 1,
-      migrate: () => ({ sessions: [], form: defaultForm }), // drop any pre-v1 persisted state, start clean
+      // options, new rule-bot config). A version mismatch discards incompatible
+      // old state instead of rendering it into a crash loop.
+      version: 2,
+      migrate: () => ({ sessions: [], form: defaultForm }), // drop any pre-version persisted state, start clean
       partialize: (s) => ({ sessions: s.sessions, form: { ...s.form, llm: { ...s.form.llm, apiKey: '' } } }),
     },
   ),

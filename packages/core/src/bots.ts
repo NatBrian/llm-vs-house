@@ -2,8 +2,13 @@
 // and emits human-readable reasoning — so the reasoning trace has content even with
 // no LLM, and the deployed demo runs with zero API keys. Also the "baseline bot" the
 // brief calls for to compare an LLM against.
+//
+// The rule bot's bet choice and stake-sizing strategy are both human-configurable
+// (see RuleBotConfig / makeRuleBot below) — a human picks a fixed bet (e.g. always
+// Black, always Total 9) and a sizing strategy (flat / martingale / paroli), then
+// watches how that specific rule performs over a session.
 
-import { SICBO_MIN_BET } from '@casino/engine';
+import { SICBO_MIN_BET, type RouletteBetType, type BaccaratBetType, type SicBoBetType } from '@casino/engine';
 import type { Decide, DecisionRequest } from './types.js';
 
 /** Deterministic PRNG seeded per round, so the naive bot replays bit-for-bit. */
@@ -52,28 +57,147 @@ function pick(legal: string[], want: string, reasoning: string): { action: strin
   return { action: legal.includes(want) ? want : (legal[0] ?? 'stand'), reasoning };
 }
 
-export const baselineDecide: Decide = async (req) => {
-  const bet = req.baseBet;
-  switch (req.game) {
-    case 'roulette':
-      return { value: { bets: [{ type: 'red', amount: bet }], reasoning: 'Flat even-money bet on red — lowest variance at the table minimum (European edge 2.70%).' } };
-    case 'baccarat':
-      return { value: { bets: [{ type: 'banker', amount: bet }], reasoning: 'Bet Banker: lowest house edge (1.06%) even after the 5% commission.' } };
-    case 'sicbo': {
-      // Small is the best bet but carries the 50-point even-money minimum; stake
-      // the table minimum (or the base bet if that is somehow higher).
-      const stake = Math.max(SICBO_MIN_BET.small, bet);
-      return { value: { bets: [{ type: 'small', amount: stake }], reasoning: `Bet Small at the ${SICBO_MIN_BET.small}-point table minimum: 2.78% edge, the best value on the Sic Bo table.` } };
-    }
-    case 'slot':
-      return { value: { amount: bet, reasoning: 'Flat base stake; slots are pure chance (~93% RTP), so bet size is the only lever.' } };
-    case 'blackjack':
-      if (req.kind === 'bet') {
-        return { value: { amount: bet, reasoning: 'Flat base stake; edge comes from correct play, not bet sizing.' } };
-      }
-      return { value: blackjackBasic(req) };
-  }
+// ---------------------------------------------------------------- configurable rule bot
+
+export type SizingStrategy = 'flat' | 'martingale' | 'paroli';
+
+export interface RuleBotConfig {
+  /** Fixed bet the bot flat-stakes every roulette round. */
+  roulette: { type: RouletteBetType; numbers?: (number | '00')[]; selector?: 1 | 2 | 3 };
+  /** Fixed bet the bot flat-stakes every baccarat round. */
+  baccarat: { type: BaccaratBetType };
+  /** Fixed bet the bot flat-stakes every Sic Bo round. */
+  sicbo: { type: SicBoBetType; face?: number; total?: number; faces?: [number, number] };
+  /** Stake-sizing progression applied on top of the chosen bet (all games). */
+  sizing: SizingStrategy;
+}
+
+export const DEFAULT_RULE_BOT_CONFIG: RuleBotConfig = {
+  roulette: { type: 'red' },
+  baccarat: { type: 'banker' },
+  sicbo: { type: 'small' },
+  sizing: 'flat',
 };
+
+const ROULETTE_LABEL: Record<RouletteBetType, string> = {
+  straight: 'Straight', split: 'Split', street: 'Street', corner: 'Corner', sixline: 'Six Line',
+  column: 'Column', dozen: 'Dozen', red: 'Red', black: 'Black', odd: 'Odd', even: 'Even',
+  high: 'High (19-36)', low: 'Low (1-18)', five: 'Basket (0/00/1/2/3)',
+};
+const BACCARAT_LABEL: Record<BaccaratBetType, string> = {
+  player: 'Player', banker: 'Banker', tie: 'Tie', playerPair: 'Player Pair', bankerPair: 'Banker Pair',
+};
+const SICBO_LABEL: Record<SicBoBetType, string> = {
+  small: 'Small', big: 'Big', odd: 'Odd', even: 'Even', anytriple: 'Any Triple',
+  total: 'Total', single: 'Single', double: 'Double', triple: 'Triple', combo: 'Two-Dice Combo',
+};
+
+/**
+ * Stake for this round given a sizing strategy and the bot's own running state.
+ * `state.prevBankroll` is the bankroll this closure last saw — since a session
+ * calls decide with ctx.bankroll = the bankroll BEFORE the round, the delta
+ * between this call's bankroll and the previous call's bankroll is exactly the
+ * previous round's net (win/loss/push), with no need to see the outcome directly.
+ */
+const SIZING_CAP_MULTIPLE = 32; // safety cap so a losing/winning streak can't run away forever
+
+function computeStake(
+  sizing: SizingStrategy,
+  unit: number,
+  bankroll: number,
+  state: { prevBankroll: number | null; prevStake: number },
+): number {
+  let stake: number;
+  if (sizing === 'flat' || state.prevBankroll === null) {
+    stake = unit;
+  } else {
+    const prevNet = bankroll - state.prevBankroll; // previous round's net
+    if (sizing === 'martingale') {
+      stake = prevNet < 0 ? state.prevStake * 2 : unit; // double after a loss, reset after win/push
+    } else {
+      stake = prevNet > 0 ? state.prevStake * 2 : unit; // paroli: double after a win, reset after loss/push
+    }
+  }
+  stake = Math.min(stake, unit * SIZING_CAP_MULTIPLE);
+  return Math.max(1, Math.min(Math.floor(stake), bankroll));
+}
+
+function sizingLabel(sizing: SizingStrategy, stake: number, unit: number): string {
+  if (sizing === 'flat' || stake === unit) return `Flat ${stake} pts`;
+  return sizing === 'martingale' ? `Martingale ${stake} pts (doubled after a loss)` : `Paroli ${stake} pts (doubled after a win)`;
+}
+
+/** Build a rule bot from a human-chosen fixed bet + sizing strategy. Stateful
+ *  per instance (tracks the sizing streak) — create a fresh one per session. */
+export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
+  const cfg: RuleBotConfig = {
+    roulette: { ...DEFAULT_RULE_BOT_CONFIG.roulette, ...config.roulette },
+    baccarat: { ...DEFAULT_RULE_BOT_CONFIG.baccarat, ...config.baccarat },
+    sicbo: { ...DEFAULT_RULE_BOT_CONFIG.sicbo, ...config.sicbo },
+    sizing: config.sizing ?? DEFAULT_RULE_BOT_CONFIG.sizing,
+  };
+  const state = { prevBankroll: null as number | null, prevStake: 0 };
+
+  return async (req) => {
+    if (req.game === 'blackjack' && req.kind === 'action') {
+      return { value: blackjackBasic(req) }; // action strategy is unaffected by bet config
+    }
+
+    const recordAndReturn = (value: unknown, stake: number) => {
+      state.prevBankroll = req.bankroll;
+      state.prevStake = stake;
+      return { value };
+    };
+
+    switch (req.game) {
+      case 'roulette': {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        const b = cfg.roulette;
+        return recordAndReturn({
+          bets: [{ type: b.type, amount: stake, ...(b.numbers ? { numbers: b.numbers } : {}), ...(b.selector ? { selector: b.selector } : {}) }],
+          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${ROULETTE_LABEL[b.type]}.`,
+        }, stake);
+      }
+      case 'baccarat': {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        return recordAndReturn({
+          bets: [{ type: cfg.baccarat.type, amount: stake }],
+          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${BACCARAT_LABEL[cfg.baccarat.type]}.`,
+        }, stake);
+      }
+      case 'sicbo': {
+        // The even-money families carry a higher table minimum; the bot's unit
+        // stake floors to whatever minimum its chosen bet requires.
+        const min = SICBO_MIN_BET[cfg.sicbo.type];
+        const unit = Math.max(min, req.baseBet);
+        const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
+        const b = cfg.sicbo;
+        const bet: Record<string, unknown> = { type: b.type, amount: stake };
+        if (b.type === 'total') bet.total = b.total ?? 9;
+        if (b.type === 'single' || b.type === 'double' || b.type === 'triple') bet.face = b.face ?? 4;
+        if (b.type === 'combo') bet.faces = b.faces ?? [1, 2];
+        return recordAndReturn({
+          bets: [bet],
+          reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${SICBO_LABEL[b.type]} (table min ${min}).`,
+        }, stake);
+      }
+      case 'slot': {
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        return recordAndReturn({ amount: stake, reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} spin.` }, stake);
+      }
+      case 'blackjack': {
+        // kind === 'bet' here (action is handled above)
+        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        return recordAndReturn({ amount: stake, reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)}; edge comes from correct play, not bet sizing.` }, stake);
+      }
+    }
+  };
+}
+
+/** The rule bot with default choices (Red / Banker / Small, flat stakes) — used
+ *  as the zero-config baseline and by tests. The app builds a fresh, human-
+ *  configured instance per run via makeRuleBot(form.ruleBot). */
+export const baselineDecide: Decide = makeRuleBot();
 
 export const BASELINE_DECIDER_ID = 'baseline';
 
