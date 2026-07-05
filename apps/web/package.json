@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build:api": "node scripts/build-api.mjs",
+    "build": "node scripts/build-api.mjs && vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit"
   },
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.1.0",
     "@vercel/node": "^5.1.16",
     "@vitejs/plugin-react": "^4.3.4",
+    "esbuild": "^0.28.1",
     "tailwindcss": "^4.1.11",
     "typescript": "^5.7.3",
     "vite": "^6.0.11"

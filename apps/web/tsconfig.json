@@ -22,5 +22,5 @@
       "@casino/llm": ["../../packages/llm/src/index.ts"]
     }
   },
-  "include": ["src", "api", "vite.config.ts"]
+  "include": ["src", "server", "vite.config.ts"]
 }

@@ -1,5 +1,5 @@
 // Netlify function: POST /api/decide (mapped via netlify.toml redirect).
-import { handleDecide, type DecidePayload } from '../../api/_handler';
+import { handleDecide, type DecidePayload } from '../../server/handler';
 
 export default async (req: Request): Promise<Response> => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'method not allowed' }), { status: 405 });

@@ -37,7 +37,7 @@ function apiDevServer(): Plugin {
         req.on('data', (c) => { body += c; });
         req.on('end', async () => {
           try {
-            const mod = await server.ssrLoadModule('/api/_handler.ts');
+            const mod = await server.ssrLoadModule('/server/handler.ts');
             const payload = JSON.parse(body || '{}');
             const { status, json } = await mod.handleDecide(payload);
             res.statusCode = status;

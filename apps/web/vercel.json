@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "pnpm --filter @casino/engine build && pnpm --filter @casino/core build && pnpm --filter @casino/llm build && pnpm --filter @casino/web build",
+  "buildCommand": "pnpm --filter @casino/web build",
   "outputDirectory": "dist"
 }

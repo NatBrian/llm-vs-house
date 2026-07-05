@@ -1,6 +1,6 @@
 // Vercel serverless function: POST /api/decide -> one schema-validated LLM decision.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleDecide, type DecidePayload } from './_handler';
+import { handleDecide, type DecidePayload } from './handler';
 
 export const config = { maxDuration: 60 };
 
