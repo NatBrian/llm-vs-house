@@ -50,7 +50,7 @@ export function GameStage() {
         </div>
       </div>
 
-      <div key={idx} className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         {game === 'roulette' && (
           <RouletteBoard
             pocket={(round.outcome as any).pocket}
