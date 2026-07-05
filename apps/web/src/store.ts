@@ -89,7 +89,7 @@ export const useStore = create<StoreState>()(
         set({ running: true, stopping: false, abortController: ac, error: null, progress: { done: 0, label: isLlm ? 'Contacting model…' : 'Running…' } });
         try {
           const deciderId = isLlm ? `llm:${form.llm.provider}:${form.llm.model}` : form.player;
-          const botLabel = form.player === 'naive' ? 'Naive human' : 'Baseline';
+          const botLabel = form.player === 'naive' ? 'Naive bot' : 'Baseline';
           const label = form.label.trim()
             || `${isLlm ? form.llm.model : botLabel} · ${form.game}`;
 
@@ -186,6 +186,11 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'llm-vs-house',
+      // Bump when the persisted shape changes (e.g. new Sic Bo bet types / player
+      // options). A version mismatch discards incompatible old state instead of
+      // rendering it into a crash loop.
+      version: 1,
+      migrate: () => ({ sessions: [], form: defaultForm }), // drop any pre-v1 persisted state, start clean
       partialize: (s) => ({ sessions: s.sessions, form: { ...s.form, llm: { ...s.form.llm, apiKey: '' } } }),
     },
   ),

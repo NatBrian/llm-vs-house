@@ -74,12 +74,15 @@ export function NewSessionForm() {
           {(['baseline', 'naive', 'llm'] as const).map((p) => (
             <button key={p} onClick={() => setForm({ player: p })}
               className={`flex-1 py-1.5 text-sm capitalize transition ${form.player === p ? 'bg-gold-500 text-ink-950 font-medium' : 'text-white/60 hover:text-white'}`}>
-              {p === 'baseline' ? 'Rule bot' : p === 'naive' ? 'Naive human' : 'LLM'}
+              {p === 'baseline' ? 'Rule bot' : p === 'naive' ? 'Naive bot' : 'LLM'}
             </button>
           ))}
         </div>
+        {form.player === 'baseline' && (
+          <p className="mt-1 text-[11px] text-white/45">Disciplined baseline: one lowest-edge bet at the table minimum (Sic Bo: Small).</p>
+        )}
         {form.player === 'naive' && (
-          <p className="mt-1 text-[11px] text-white/45">Casual player: sprays 2–5 bets across the Sic Bo table, respecting table minimums (Sic Bo only; other games use the rule bot).</p>
+          <p className="mt-1 text-[11px] text-white/45">Casual player: sprays 2–5 random bets across the Sic Bo table, respecting minimums (Sic Bo only; other games fall back to the rule bot).</p>
         )}
       </div>
 

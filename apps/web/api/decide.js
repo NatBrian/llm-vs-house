@@ -4215,7 +4215,7 @@ var BaccaratDecisionSchema = external_exports.object({
   reasoning
 });
 var SicBoBetSchema = external_exports.object({
-  type: external_exports.enum(["small", "big", "total", "single", "combo", "double", "triple", "anytriple"]),
+  type: external_exports.enum(["small", "big", "odd", "even", "total", "single", "combo", "double", "triple", "anytriple"]),
   amount: external_exports.number().positive(),
   total: external_exports.number().int().min(4).max(17).optional(),
   face: external_exports.number().int().min(1).max(6).optional(),
@@ -4346,13 +4346,27 @@ var SICBO_TOTAL_ODDS = {
   17: 60
 };
 var SICBO_ODDS = {
-  smallBig: 1,
+  evenMoney: 1,
+  // small / big / odd / even
   combo: 5,
   double: 10,
   triple: 180,
   anytriple: 30
   // single number pays 1/2/3 to one by the number of dice that match
 };
+var SICBO_MIN_BET = {
+  small: 50,
+  big: 50,
+  odd: 50,
+  even: 50,
+  total: 10,
+  single: 10,
+  combo: 10,
+  double: 10,
+  triple: 10,
+  anytriple: 10
+};
+var SICBO_TABLE_MIN = Math.min(...Object.values(SICBO_MIN_BET));
 function isTriple(d) {
   return d[0] === d[1] && d[1] === d[2];
 }
@@ -4366,9 +4380,13 @@ function resolveSicBoBet(bet, d) {
   const { amount } = bet;
   switch (bet.type) {
     case "small":
-      return !isTriple(d) && diceSum(d) >= 4 && diceSum(d) <= 10 ? amount * SICBO_ODDS.smallBig : -amount;
+      return !isTriple(d) && diceSum(d) >= 4 && diceSum(d) <= 10 ? amount * SICBO_ODDS.evenMoney : -amount;
     case "big":
-      return !isTriple(d) && diceSum(d) >= 11 && diceSum(d) <= 17 ? amount * SICBO_ODDS.smallBig : -amount;
+      return !isTriple(d) && diceSum(d) >= 11 && diceSum(d) <= 17 ? amount * SICBO_ODDS.evenMoney : -amount;
+    case "odd":
+      return !isTriple(d) && diceSum(d) % 2 === 1 ? amount * SICBO_ODDS.evenMoney : -amount;
+    case "even":
+      return !isTriple(d) && diceSum(d) % 2 === 0 ? amount * SICBO_ODDS.evenMoney : -amount;
     case "total": {
       if (bet.total === void 0) return -amount;
       return diceSum(d) === bet.total ? amount * (SICBO_TOTAL_ODDS[bet.total] ?? 0) : -amount;
@@ -4786,6 +4804,18 @@ function clampBets(bets, bankroll) {
   }
   return out;
 }
+function applySicBoTableRules(bets, bankroll) {
+  let remaining = bankroll;
+  const out = [];
+  for (const b of bets) {
+    const min = SICBO_MIN_BET[b.type];
+    const amt = Math.min(Math.floor(b.amount), remaining);
+    if (amt < min) continue;
+    out.push({ ...b, amount: amt });
+    remaining -= amt;
+  }
+  return out;
+}
 var labels = (cards) => cards.map(cardLabel);
 var rouletteAdapter = {
   id: "roulette",
@@ -4871,14 +4901,28 @@ var sicboAdapter = {
       observation: {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: { small: 2.78, big: 2.78, anytriple: 13.89 },
-        note: "Small/Big (2.78%) are the best bets; totals & triples pay more but cost more edge."
+        houseEdgePct: { small: 2.78, big: 2.78, odd: 2.78, even: 2.78, anytriple: 13.89 },
+        tableMinimums: SICBO_MIN_BET,
+        // even-money bets (small/big/odd/even) cost 50; inside bets 10
+        payouts: {
+          small: 1,
+          big: 1,
+          odd: 1,
+          even: 1,
+          single: "1:1 / 2:1 / 3:1 by matching dice",
+          combo: 5,
+          double: 10,
+          triple: 180,
+          anytriple: 30,
+          total: SICBO_TOTAL_ODDS
+        },
+        note: "Small/Big/Odd/Even (2.78%) are the best bets but each costs a 50-point minimum; inside bets (min 10) pay more but cost more edge. A stake below its minimum is refused."
       },
       schema: SicBoDecisionSchema,
       schemaName: "SicBoDecision"
     };
     const { step, value } = await ask(ctx, req);
-    const bets = clampBets(value.bets, ctx.bankroll);
+    const bets = applySicBoTableRules(value.bets, ctx.bankroll);
     const dice = rollSicBo(ctx.rng);
     const net = bets.reduce((s, b) => s + resolveSicBoBet(b, dice), 0);
     return { steps: [step], outcome: { dice, placedBets: bets }, net };
