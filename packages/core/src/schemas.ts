@@ -51,7 +51,7 @@ export const SlotDecisionSchema = z.object({
   reasoning,
 });
 
-// ---- Blackjack ----
+// ---- Blackjack (DEPRECATED — excluded from GAME_IDS, see index.ts) ----
 export const BlackjackBetSchema = z.object({
   amount: z.number().positive(),
   reasoning,

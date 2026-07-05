@@ -37,36 +37,7 @@ Sources: wizardofodds.com/games/roulette/basics/ · primedope.com/in-depth-guide
 
 ---
 
-## 2. BLACKJACK
-
-Card values: 2–9 pip; 10/J/Q/K = 10; Ace = 1 or 11 (Ace-as-11 = "soft").
-**Blackjack (natural)** = Ace + 10-value as the first two cards. 21 from 3+ cards or after a split = ordinary 21, not blackjack.
-
-**Baseline rule set:** 6 decks · dealer **stands soft 17 (S17)** · blackjack pays **3:2** · double any first two · DAS allowed · resplit to 4 hands (split aces get one card each) · no surrender.
-**House edge with perfect basic strategy ≈ 0.40%.** (Mimic-dealer naive play = 5.48%.)
-
-| Outcome | Payout | Note |
-|---|---|---|
-| Blackjack | **3:2** | fair standard |
-| Blackjack 6:5 variant | 6:5 | **+1.39% edge — avoid** |
-| Blackjack even money | 1:1 | +2.27% — worst |
-| Winning hand | 1:1 | |
-| Push | stake returned | |
-| Insurance | **2:1** | sucker side bet; ~5.9–7.5% edge; basic strategy = never take |
-
-Rule-variation effect on **house edge** (Wizard of Odds, anchored to 8-deck S17 DAS ref):
-single deck −0.48% · early surrender vs Ace −0.39% · double any # cards −0.23% · double deck −0.19% ·
-draw to split aces −0.19% · late surrender −0.08% · resplit aces −0.08% · six decks −0.02% ·
-no DAS +0.14% · **dealer hits soft 17 (H17) +0.22%** · European no-hole-card +0.11% ·
-blackjack 7:5 +0.45% · **blackjack 6:5 +1.39%** · even money +2.27%.
-
-Options: **Double** (double bet, exactly one card). **Split** (equal-rank into two hands; split aces one card each, 10 on split ace = 21 not blackjack, pays 1:1). **Surrender** (forfeit half bet; late ≈ +0.08%, early stronger).
-
-Sources: wizardofodds.com/games/blackjack/basics/ · /rule-variations/ · /ask-the-wizard/blackjack/house-edge/
-
----
-
-## 3. BACCARAT (Punto Banco, 8-deck shoe)
+## 2. BACCARAT (Punto Banco, 8-deck shoe)
 
 Card values: Ace = 1; 2–9 pip; 10/J/Q/K = 0. **Total = sum mod 10** (can't bust).
 **Natural** = 8 or 9 on first two cards (Player or Banker) → both stand.
@@ -103,7 +74,7 @@ Sources: wizardofodds.com/games/baccarat/basics/ · /appendix/2/
 
 ---
 
-## 4. SIC BO (three dice, 216 = 6³ outcomes)
+## 3. SIC BO (three dice, 216 = 6³ outcomes)
 
 **Payouts vary by casino** — expose as configurable. Below = common Wizard of Odds standard set; variants noted.
 
@@ -139,7 +110,7 @@ Sources: wizardofodds.com/games/sic-bo/ · /appendix/1/ · playsmart.ca/novelty-
 
 ---
 
-## 5. SLOT MACHINE (example configuration — no single standard exists)
+## 4. SLOT MACHINE (example configuration — no single standard exists)
 
 **RTP** = long-run fraction paid back; **house edge = 100% − RTP**. Land-based ~88–94%, online ~94–98%.
 **Virtual reels / RNG:** RNG picks outcome; symbols weighted by number of stops mapped to them (weighting baked into strip).
@@ -169,5 +140,5 @@ Sources: wizardofodds.com/games/slots/ · easy.vegas/games/slots/how-they-work �
 ---
 
 ### Cross-game notes
-- All house edges here are exact/derivable from combinatorics except Blackjack (depends on full rule set + error-free basic strategy) and Slots (whatever the config computes to).
+- All house edges here are exact/derivable from combinatorics except Slots (whatever the config computes to).
 - Sic Bo & Slots payouts are casino-dependent — ship a defensible standard table but keep it **configurable**.

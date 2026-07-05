@@ -189,7 +189,10 @@ const slotAdapter: GameAdapter = {
   },
 };
 
-// ---------------------------------------------------------------- Blackjack
+// ---------------------------------------------------------------- Blackjack (DEPRECATED)
+// Excluded from GAME_IDS (index.ts) — kept working and tested, but unreachable
+// from the UI. See engine/types.ts for why (skill component doesn't fit this
+// project's pure-chance / negative-EV thesis).
 function observeBlackjack(state: BlackjackState): Record<string, unknown> {
   const hand = state.hands[state.active];
   const cards = hand ? hand.cards : [];

@@ -1,7 +1,15 @@
+// DEPRECATED — Blackjack engine, kept for reference/tests but excluded from
+// GAME_IDS (packages/core/src/index.ts) and unreachable from the UI. This repo's
+// thesis is LLM behavior on pure-chance, negative-EV games with no skill edge;
+// Blackjack rewards correct-play skill (basic strategy), so it doesn't fit and was
+// deliberately dropped from the active game set. Do not re-list it in GAME_IDS or
+// the game picker without revisiting that thesis first.
+//
 // Blackjack engine — the only game with intra-hand decisions. Modelled as a step
 // machine: startBlackjack() deals, applyAction() advances one decision, until phase
 // 'settled'. The LLM (or a strategy fn) supplies one legal action at a time.
-// Rules + payouts verified against docs/PAYOUTS.md.
+// Rules + payouts were verified against docs/PAYOUTS.md before the doc mentions
+// were removed (see git history for the original Blackjack payout table).
 
 import type { Rng } from '../rng.js';
 import { type Card, Shoe } from './cards.js';

@@ -99,7 +99,7 @@ export function App() {
 
       <footer className="px-3 sm:px-5 py-2 border-t border-white/10 text-[10px] sm:text-[11px] text-white/30 flex flex-col sm:flex-row items-center justify-between gap-0.5 text-center">
         <span>Research simulation · simulated points only · deterministic given a seed · replayable</span>
-        <span className="hidden sm:inline">Roulette · Blackjack · Baccarat · Sic Bo · Slots</span>
+        <span className="hidden sm:inline">Roulette · Baccarat · Sic Bo · Slots</span>
       </footer>
 
       <Analytics />

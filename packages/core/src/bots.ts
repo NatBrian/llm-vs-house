@@ -22,6 +22,8 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+/** DEPRECATED — Blackjack basic strategy. Excluded from GAME_IDS (index.ts), kept
+ *  working/tested but unreachable from the UI. See engine/types.ts for why. */
 function blackjackBasic(req: DecisionRequest): { action: string; reasoning: string } {
   const legal = req.legalActions ?? [];
   const o = req.observation as any;

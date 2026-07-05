@@ -59,11 +59,9 @@ Two visually distinct classes → potentially different answers, but one base co
 ## 5. OSS reference repos (verified last-push dates + licenses)
 Safe to borrow (MIT/permissive + fresh):
 - Slots: **johakr/html5-slot-machine** (616★, 2026-02, MIT) — complete, polished reels, safe to borrow.
-- Blackjack: **KSmith8888/TypeScript-Blackjack** (2025-07, MIT) — only fresh permissive TS one.
 - Sic Bo: **wy/PySicBo** (MIT, Python) — verify payout table only; no good UI ref exists.
 
 Study-only for logic (copyleft / non-standard license — reimplement, don't copy):
-- **kedoska/engine-blackjack** (GPL-2.0) — authoritative BJ state machine.
 - **jconradi/baccarat-engine** (non-standard license) — best ref for fiddly third-card rules.
 
 Visual/UX inspiration (no/unclear license — look, don't vendor):

@@ -10,7 +10,7 @@ Legend: **CC0/PD** = zero obligations (safest for a private/proprietary project)
 ## Recommended all-CC0 core (max legal safety, zero attribution)
 | Category | Pick | License | URL |
 |---|---|---|---|
-| Cards (BJ/Baccarat) | **Byron Knoll — Vector Playing Cards** | Public Domain | github.com/notpeter/Vector-Playing-Cards |
+| Cards (Baccarat) | **Byron Knoll — Vector Playing Cards** | Public Domain | github.com/notpeter/Vector-Playing-Cards |
 | Chips + dice | **Kenney — Board Game Pack** (+ 2D Poker Pack for chip colors) | CC0 | kenney.nl/assets/boardgame-pack · opengameart.org/content/2d-poker-pack |
 | Roulette wheel | **Basic roulette wheel.svg** (D. Perkins) | CC0 | commons.wikimedia.org/wiki/File:Basic_roulette_wheel.svg |
 | Roulette felt | redraw PD layout as our own SVG + **ambientCG Fabric019** texture | PD + CC0 | ambientcg.com/view?id=Fabric019 |
@@ -22,7 +22,7 @@ Legend: **CC0/PD** = zero obligations (safest for a private/proprietary project)
 Freesound CC0 fills: roulette spin Joao_Janz #482663 · card deal el_boss #571575 · dice roll nettimato #353975.
 
 ## Per-game mapping
-- **Blackjack / Baccarat** → Byron Knoll cards · Kenney chips · card/chip SFX · felt texture
+- **Baccarat** → Byron Knoll cards · Kenney chips · card/chip SFX · felt texture
 - **Sic Bo** → CC0 glTF die (Poly Pizza, filter CC0) for 3D-physics route, OR Kenney dice sprites for 2D · nettimato dice SFX
 - **Roulette** → CC0 wheel SVG + self-drawn felt SVG · Joao_Janz spin loop
 - **Slot** → Good Fruits M484 symbols + self-built reel frame · Kenney reel-stop/spin SFX + Fupi win jingle

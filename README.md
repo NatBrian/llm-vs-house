@@ -2,9 +2,9 @@
 
 A harness for studying **how large language models take risk when there is no edge to find.**
 
-Most "AI plays casino" projects choose *beatable* games — card-counting in Blackjack,
-solved-strategy Poker, computer-vision ball tracking in Roulette — and measure whether a model
-can execute a known positive-expectation strategy. That is a skill benchmark.
+Most "AI plays casino" projects choose *beatable* games — solved-strategy Poker,
+computer-vision ball tracking in Roulette — and measure whether a model can execute a known
+positive-expectation strategy. That is a skill benchmark.
 
 This project asks a different, behavioral question. On games that are **pure chance and
 negative expectation** — principally **Sic Bo**, with Slots and even-money Roulette as
@@ -24,7 +24,7 @@ no gambling infrastructure, and no payment processing.**
 
 ## What it does
 
-- Puts an LLM in one of five games (Sic Bo, Slots, Roulette, Baccarat, Blackjack) and requires a
+- Puts an LLM in one of four games (Sic Bo, Slots, Roulette, Baccarat) and requires a
   **schema-validated** decision every round. Bets are never parsed from free-form text — the model
   returns a typed object or the round is retried.
 - Records, per round, the observation shown to the model, its raw response, the parsed decision,
@@ -60,7 +60,7 @@ A TypeScript pnpm monorepo. The simulation core is independent of any model or U
 
 Payout tables and house edges are verified against a reputable source (Wizard of Odds) and
 checked in code — by full enumeration where the outcome space is small (Roulette, Sic Bo, Slots)
-and by fixed-shoe rule tests plus Monte Carlo where it is not (Baccarat, Blackjack). See
+and by fixed-shoe rule tests plus Monte Carlo where it is not (Baccarat). See
 [`docs/PAYOUTS.md`](docs/PAYOUTS.md). Incorrect payouts would silently invalidate every run, so
 this is treated as the source of truth.
 
@@ -89,7 +89,7 @@ Configuration for Vercel and Netlify (free tier) is included — see [`DEPLOY.md
 
 ## Status
 
-The harness is complete and tested: five deterministic engines, the full logging / replay /
+The harness is complete and tested: four deterministic engines, the full logging / replay /
 compare pipeline, six model providers, and the interface. Unit tests and a browser end-to-end run
 pass across all games. What it does *not* yet include is a battery of published behavioral results
 — that is the study the harness exists to run.
