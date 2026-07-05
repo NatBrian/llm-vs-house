@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useStore, activeSession } from '../store';
-import { PlayingCard, Die, Chip, Badge } from './primitives';
+import { PlayingCard, Chip, Badge } from './primitives';
+import { SicBoBoard } from './SicBoBoard';
 import { fmt, signed, GAME_META } from '../lib/format';
 
 const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
@@ -54,7 +55,7 @@ export function GameStage() {
         {game === 'roulette' && <RouletteView outcome={round.outcome} variant={(session.config.gameConfig as any).variant} />}
         {game === 'blackjack' && <BlackjackView outcome={round.outcome} />}
         {game === 'baccarat' && <BaccaratView outcome={round.outcome} />}
-        {game === 'sicbo' && <SicBoView outcome={round.outcome} />}
+        {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
         {game === 'slot' && <SlotView outcome={round.outcome} />}
       </div>
 
@@ -161,24 +162,6 @@ function BaccaratView({ outcome }: { outcome: any }) {
         {(outcome.playerPair || outcome.bankerPair) && <p className="text-[10px] text-gold-400 mt-1">pair!</p>}
       </div>
       <Hand cards={outcome.banker} label="Banker" total={outcome.bankerTotal} tone={r === 'banker' ? 'win' : 'neutral'} />
-    </div>
-  );
-}
-
-function SicBoView({ outcome }: { outcome: any }) {
-  const dice: number[] = outcome.dice;
-  const sum = dice.reduce((a, b) => a + b, 0);
-  const triple = dice[0] === dice[1] && dice[1] === dice[2];
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex gap-3">
-        {dice.map((d, i) => <Die key={i} value={d} delay={i * 0.12} />)}
-      </div>
-      <div className="flex items-center gap-2">
-        <Badge tone="gold">Total {sum}</Badge>
-        {!triple && <Badge>{sum <= 10 ? 'Small' : 'Big'}</Badge>}
-        {triple && <Badge tone="gold">Triple {dice[0]}</Badge>}
-      </div>
     </div>
   );
 }
