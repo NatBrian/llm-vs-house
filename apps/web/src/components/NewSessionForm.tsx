@@ -30,12 +30,12 @@ const SICBO_BETS: Array<{ value: RuleBotConfig['sicbo']['type']; label: string }
   { value: 'big', label: 'Big 11-17 (1:1, 2.78% edge)' },
   { value: 'odd', label: 'Odd (1:1, 2.78% edge)' },
   { value: 'even', label: 'Even (1:1, 2.78% edge)' },
-  { value: 'total', label: 'Total (varies, pick 4-17)' },
-  { value: 'single', label: 'Single number (1:1/2:1/3:1)' },
-  { value: 'double', label: 'Double (10:1)' },
-  { value: 'triple', label: 'Specific triple (180:1)' },
-  { value: 'anytriple', label: 'Any triple (30:1)' },
-  { value: 'combo', label: 'Two-dice combo (5:1)' },
+  { value: 'combo', label: 'Two-dice combo (6:1, 2.78% edge)' },
+  { value: 'total', label: 'Total (varies, 7.41-12.5% edge, pick 4-17)' },
+  { value: 'anytriple', label: 'Any triple (31:1, 11.11% edge)' },
+  { value: 'double', label: 'Double (11:1, 11.11% edge)' },
+  { value: 'single', label: 'Single number (1:1/2:1/12:1, 3.70% edge)' },
+  { value: 'triple', label: 'Specific triple (180:1, 16.20% edge)' },
 ];
 const SIZING_OPTIONS: Array<{ value: RuleBotConfig['sizing']; label: string; hint: string }> = [
   { value: 'flat', label: 'Flat', hint: 'Same stake every round.' },

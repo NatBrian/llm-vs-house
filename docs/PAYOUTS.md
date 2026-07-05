@@ -139,37 +139,74 @@ Sources: wizardofodds.com/games/baccarat/basics/ · /appendix/2/
 
 ## 3. SIC BO (three dice, 216 = 6³ outcomes)
 
-**Payouts vary by casino** — expose as configurable. Below = common Wizard of Odds standard set; variants noted.
+**Verified directly against the primary source**: GRA-approved "SIC BO (MBS) Game Rules Version 7"
+(w.e.f. 19 Sep 2025), read in full (rule text extracted and cross-checked against the rendered
+Appendix A/B page images, not a secondary paraphrase). Every payout below is rule 4.1's settlement
+table, not the generic international/Wizard-of-Odds set most secondary sources quote — several
+figures differ, always in the **player's** favor (GRA pays more than the generic table on 8 of the
+13 bet families).
 
-Small/Big: total 4–10 / 11–17, **loses on any triple**, prob 48.61%, payout 1:1, house edge **2.78%** (best bets).
+**Bet definitions** (rule 3.5): Small (3.5.1) and Big (3.5.2) win on totals 4–10 / 11–17
+respectively and **lose on any total outside that range or on any triple** — the triple exclusion
+applies to Small/Big/Odd/Even only. Odd (3.5.3) and Even (3.5.4) are the same shape, by parity,
+also losing on any triple. Three Dice Totals (3.5.8) has **no triple exclusion** — a wager on Total
+9 wins on 3-3-3 exactly like any other combination summing to 9 (confirmed by rule 3.5.8.1's
+wording, which never mentions Any Triple, unlike 3.5.1–3.5.4). Specific Double (3.5.6) wins on 2 or
+3 of a face; Specific Triple (3.5.5) needs all 3; Any Triple (3.5.7) is any three-of-a-kind; Two
+Dice Combinations (3.5.9) needs both named faces present anywhere among the three dice; Single Dice
+Wager (3.5.12) needs the named face on 1 or more dice, paid by match count.
 
-Three-dice totals:
+Small/Big/Odd/Even: **loses on any triple**, prob 48.61%, payout 1:1, house edge **2.78%** (rule
+4.1.1).
 
-| Total | Ways/216 | Payout (std) | House edge | Variant |
+Three-dice totals (rule 4.1.2 — no triple exclusion):
+
+| Total | Ways/216 | Payout (GRA) | House edge |
+|---|---|---|---|
+| 4 / 17 | 3 | **62:1** | 12.50% |
+| 5 / 16 | 6 | **31:1** | 11.11% |
+| 6 / 15 | 10 | **18:1** | 12.04% |
+| 7 / 14 | 15 | 12:1 | 9.72% (best total) |
+| 8 / 13 | 21 | 8:1 | 12.50% |
+| 9 / 12 | 25 | **7:1** | **7.41%** (2nd-best total) |
+| 10 / 11 | 27 | 6:1 | 12.50% |
+
+(Totals 3 and 18 are the specific-triple bet, not "total" bets — rule 3.5.8's range is 4–17.)
+
+Singles/doubles/triples/combos (rule 4.1.1 named sections; 4.1.6 single dice; 4.1.3 two-dice combo):
+
+| Bet | Detail | Prob | Payout (GRA) | House edge |
 |---|---|---|---|---|
-| 4 / 17 | 3 | 60:1 | 15.28% | — |
-| 5 / 16 | 6 | 30:1 | 13.89% | — |
-| 6 / 15 | 10 | 17:1 | 16.67% | 18:1 → 12.04% |
-| 7 / 14 | 15 | 12:1 | 9.72% | — (best total) |
-| 8 / 13 | 21 | 8:1 | 12.50% | — |
-| 9 / 12 | 25 | 6:1 | 18.98% | — |
-| 10 / 11 | 27 | 6:1 | 12.50% | — |
+| Single number (1 die) | shows on 1 die | 34.72% | 1:1 | combined |
+| Single number (2 dice) | | 6.94% | 2:1 | combined |
+| Single number (3 dice) | | 0.46% | **12:1** | overall **3.70%** |
+| Two-dice combo (domino) | two specific faces both appear | 13.89% | **6:1** | **2.78%** |
+| Specific double | chosen pair (≥2 of a face) | 7.41% | **11:1** | **11.11%** |
+| Any triple | any three-of-a-kind | 2.78% | **31:1** | **11.11%** |
+| Specific triple | chosen three-of-a-kind | 0.46% | 180:1 | **16.20%** |
 
-(Totals 3 and 18 are the specific-triple bet, not "total" bets.)
+**Notable finding**: the Two-Dice Combo at 6:1 computes to exactly −2.78% (−1/36), tying
+Small/Big/Odd/Even as the best bet on the table — under the generic 5:1 table it was one of the
+*worst* (16.67%). This flips the naive "even-money bets are always best" heuristic a rule-bot or
+LLM might otherwise assume, and is why the adapter's `houseEdgePct` observation enumerates every
+family exactly rather than summarizing.
 
-Singles/doubles/triples/combos:
+**Table minimums**: same generic-limits pattern as Roulette/Baccarat — rule 5.10–5.12 only say
+wagers stay "within the minimum and maximum" displayed at the table, no figures gazetted. This
+simulation uses the same 50 (even-money outside: Small/Big/Odd/Even) / 10 (everything else inside)
+convention as Roulette/Baccarat. Enforced by the adapter.
 
-| Bet | Detail | Prob | Payout (std) | House edge | Variant |
-|---|---|---|---|---|---|
-| Single number (1 die) | shows on 1 die | 34.72% | 1:1 | combined | |
-| Single number (2 dice) | | 6.94% | 2:1 | combined | |
-| Single number (3 dice) | | 0.46% | 3:1 | overall **7.87%** | AU 12:1 → 3.70% |
-| Two-dice combo (domino) | two specific faces both appear | 13.89% | 5:1 | **16.67%** | — |
-| Specific double | chosen pair (≥2 of a face) | 7.41% | 10:1 | **18.52%** | 8:1 → 33.33% |
-| Any triple | any three-of-a-kind | 2.78% | 30:1 | **13.89%** | 24:1 → 30.56% |
-| Specific triple | chosen three-of-a-kind | 0.46% | 180:1 | **16.20%** | 150:1 → 30.09% |
+**Known simplification**: the real MBS felt (Appendix A/B) also offers three exotic side-bet
+families not implemented here — **Three Single Dice Combinations** (rule 3.5.10/4.1.4, pick one
+exact 3-distinct-face triple, 30:1), **Double Numbers With Single Dice Combinations** (rule
+3.5.11/4.1.5, pick one exact double+single-face combination, 50:1 — the printed felt omits exactly
+2 of the 30 possible double+single pairs, (1,2) and (6,5)), and **Three Dice From Four Possible
+Combinations** (rule 3.5.13/4.1.7, four fixed 4-number windows — 1234/2345/2356/3456 — win if the
+three dice are a 3-subset of the chosen window, 7:1). These are rare novelty bets real players
+mostly ignore; out of scope for this engine by deliberate choice, not oversight.
 
-Sources: wizardofodds.com/games/sic-bo/ · /appendix/1/ · playsmart.ca/novelty-games/sic-bo/odds/
+Sources: gra.gov.sg "SIC BO (MBS) Game Rules Version 7" (w.e.f. 19 Sep 2025) — read in full, rules
+1–6, rule 4.1 settlement tables, and Appendix A/B · wizardofodds.com/games/sic-bo/ · /appendix/1/.
 
 ---
 
@@ -204,4 +241,6 @@ Sources: wizardofodds.com/games/slots/ · easy.vegas/games/slots/how-they-work �
 
 ### Cross-game notes
 - All house edges here are exact/derivable from combinatorics except Slots (whatever the config computes to).
-- Sic Bo & Slots payouts are casino-dependent — ship a defensible standard table but keep it **configurable**.
+- Roulette, Baccarat, and Sic Bo payouts are verified directly against gazetted GRA (Singapore)
+  rule sheets, read in full. Slots payouts are casino-dependent — ship a defensible example
+  configuration but keep it **configurable**.

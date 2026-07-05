@@ -1,6 +1,9 @@
 // Sic Bo engine. Three dice, 216 equally-likely outcomes.
-// Payouts vary by casino; this is the common Wizard of Odds "standard" set (docs/PAYOUTS.md).
-// Payouts are configurable via SICBO_PAYOUTS so alternate house tables can be swapped in.
+// Payouts match Singapore's gazetted "SIC BO (MBS) Game Rules Version 7" (GRA, w.e.f.
+// 19 Sep 2025), rule 4.1 settlement tables — read directly from the primary source, not
+// a secondary paraphrase (docs/PAYOUTS.md). Three exotic side-bet families present on
+// the real felt (Three-Single-Dice-Combo, Double+Single-Combo, Four-Number-Combo) are a
+// deliberate, documented simplification — out of scope for this engine.
 
 import type { Rng } from '../rng.js';
 
@@ -10,26 +13,26 @@ export type SicBoBetType =
   | 'small' | 'big'      // total 4-10 / 11-17, lose on any triple, 1:1
   | 'odd' | 'even'       // total parity, lose on any triple, 1:1
   | 'total'              // exact three-dice sum 4..17
-  | 'single'            // a face on 1/2/3 dice pays 1:1 / 2:1 / 3:1
-  | 'combo'             // two specific different faces both appear, 5:1
-  | 'double'            // a specific face appears >= 2 times, 10:1
+  | 'single'            // a face on 1/2/3 dice pays 1:1 / 2:1 / 12:1 (GRA rule 4.1.6)
+  | 'combo'             // two specific different faces both appear, 6:1
+  | 'double'            // a specific face appears >= 2 times, 11:1
   | 'triple'            // a specific face appears 3 times, 180:1
-  | 'anytriple';        // any three-of-a-kind, 30:1
+  | 'anytriple';        // any three-of-a-kind, 31:1
 
-/** Total-bet "to-one" odds by three-dice sum (standard table). */
+/** Total-bet "to-one" odds by three-dice sum. GRA rule 4.1.2. */
 export const SICBO_TOTAL_ODDS: Record<number, number> = {
-  4: 60, 5: 30, 6: 17, 7: 12, 8: 8, 9: 6, 10: 6,
-  11: 6, 12: 6, 13: 8, 14: 12, 15: 17, 16: 30, 17: 60,
+  4: 62, 5: 31, 6: 18, 7: 12, 8: 8, 9: 7, 10: 6,
+  11: 6, 12: 7, 13: 8, 14: 12, 15: 18, 16: 31, 17: 62,
 };
 
-/** Fixed "to-one" odds for the non-total bet families (standard table). */
+/** Fixed "to-one" odds for the non-total bet families. GRA rule 4.1.1/4.1.6. */
 export const SICBO_ODDS = {
   evenMoney: 1, // small / big / odd / even
-  combo: 5,
-  double: 10,
+  combo: 6,
+  double: 11,
   triple: 180,
-  anytriple: 30,
-  // single number pays 1/2/3 to one by the number of dice that match
+  anytriple: 31,
+  // single number pays 1/2/12 to one by the number of dice that match (rule 4.1.6)
 } as const;
 
 /**
@@ -85,7 +88,9 @@ export function resolveSicBoBet(bet: SicBoBet, d: Dice): number {
     case 'single': {
       if (bet.face === undefined) return -amount;
       const n = countFace(d, bet.face);
-      return n > 0 ? amount * n : -amount; // 1:1 / 2:1 / 3:1
+      if (n === 0) return -amount;
+      if (n === 3) return amount * 12; // rule 4.1.6: three-of-a-kind on a single-number bet pays 12:1
+      return amount * n; // 1:1 / 2:1
     }
     case 'combo': {
       if (!bet.faces) return -amount;

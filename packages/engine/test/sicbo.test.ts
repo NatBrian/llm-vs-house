@@ -11,21 +11,25 @@ function houseEdge(bet: SicBoBet): number {
   return -sum / 216;
 }
 
-describe('sic bo house edge vs verified table (docs/PAYOUTS.md)', () => {
+describe('sic bo house edge vs verified table (docs/PAYOUTS.md, GRA MBS v7)', () => {
   const cases: Array<[string, SicBoBet, number]> = [
     ['small', { type: 'small', amount: 1 }, 0.0278],
     ['big', { type: 'big', amount: 1 }, 0.0278],
     ['odd', { type: 'odd', amount: 1 }, 0.0278],
     ['even', { type: 'even', amount: 1 }, 0.0278],
-    ['total 4', { type: 'total', amount: 1, total: 4 }, 0.1528],
+    ['total 4', { type: 'total', amount: 1, total: 4 }, 0.1250],
+    ['total 5', { type: 'total', amount: 1, total: 5 }, 0.1111],
+    ['total 6', { type: 'total', amount: 1, total: 6 }, 0.1204],
     ['total 7', { type: 'total', amount: 1, total: 7 }, 0.0972],
-    ['total 9', { type: 'total', amount: 1, total: 9 }, 0.1898],
+    ['total 9', { type: 'total', amount: 1, total: 9 }, 0.0741],
     ['total 10', { type: 'total', amount: 1, total: 10 }, 0.1250],
-    ['single face', { type: 'single', amount: 1, face: 4 }, 0.0787],
-    ['combo', { type: 'combo', amount: 1, faces: [2, 5] }, 0.1667],
-    ['specific double', { type: 'double', amount: 1, face: 3 }, 0.1852],
+    ['total 16', { type: 'total', amount: 1, total: 16 }, 0.1111],
+    ['total 17', { type: 'total', amount: 1, total: 17 }, 0.1250],
+    ['single face', { type: 'single', amount: 1, face: 4 }, 0.0370],
+    ['combo', { type: 'combo', amount: 1, faces: [2, 5] }, 0.0278],
+    ['specific double', { type: 'double', amount: 1, face: 3 }, 0.1111],
     ['specific triple', { type: 'triple', amount: 1, face: 6 }, 0.1620],
-    ['any triple', { type: 'anytriple', amount: 1 }, 0.1389],
+    ['any triple', { type: 'anytriple', amount: 1 }, 0.1111],
   ];
   for (const [name, bet, edge] of cases) {
     it(`${name} => ${(edge * 100).toFixed(2)}%`, () => {
@@ -51,10 +55,10 @@ describe('sic bo mechanics', () => {
     expect(resolveSicBoBet({ type: 'even', amount: 10 }, [1, 2, 4])).toBe(-10); // sum 7 odd -> even loses
     expect(resolveSicBoBet({ type: 'even', amount: 10 }, [2, 2, 4])).toBe(10);  // sum 8 even
   });
-  it('single number pays 1/2/3 by match count', () => {
+  it('single number pays 1/2/12 by match count (GRA rule 4.1.6)', () => {
     expect(resolveSicBoBet({ type: 'single', amount: 10, face: 5 }, [5, 1, 2])).toBe(10);
     expect(resolveSicBoBet({ type: 'single', amount: 10, face: 5 }, [5, 5, 2])).toBe(20);
-    expect(resolveSicBoBet({ type: 'single', amount: 10, face: 5 }, [5, 5, 5])).toBe(30);
+    expect(resolveSicBoBet({ type: 'single', amount: 10, face: 5 }, [5, 5, 5])).toBe(120);
     expect(resolveSicBoBet({ type: 'single', amount: 10, face: 5 }, [1, 2, 3])).toBe(-10);
   });
   it('roll is deterministic for a seed and dice are 1..6', () => {

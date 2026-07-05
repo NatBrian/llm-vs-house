@@ -182,14 +182,24 @@ const sicboAdapter: GameAdapter = {
       kind: 'bet', game: 'sicbo', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
-        houseEdgePct: { small: 2.78, big: 2.78, odd: 2.78, even: 2.78, anytriple: 13.89 },
+        houseEdgePct: {
+          small: 2.78, big: 2.78, odd: 2.78, even: 2.78, combo: 2.78,
+          double: 11.11, anytriple: 11.11, single: 3.70, triple: 16.20,
+          total: {
+            4: 12.5, 5: 11.11, 6: 12.04, 7: 9.72, 8: 12.5, 9: 7.41, 10: 12.5,
+            11: 12.5, 12: 7.41, 13: 12.5, 14: 9.72, 15: 12.04, 16: 11.11, 17: 12.5,
+          },
+        },
         tableMinimums: SICBO_MIN_BET, // even-money bets (small/big/odd/even) cost 50; inside bets 10
         payouts: {
           small: 1, big: 1, odd: 1, even: 1,
-          single: '1:1 / 2:1 / 3:1 by matching dice', combo: 5, double: 10, triple: 180, anytriple: 30,
+          single: '1:1 / 2:1 / 12:1 by matching dice', combo: 6, double: 11, triple: 180, anytriple: 31,
           total: SICBO_TOTAL_ODDS,
         },
-        note: 'Small/Big/Odd/Even (2.78%) are the best bets but each costs a 50-point minimum; inside bets (min 10) pay more but cost more edge. A stake below its minimum is refused.',
+        note: 'Small/Big/Odd/Even and the Two-Dice Combo all sit at 2.78% — the best bets at this '
+          + 'table (GRA MBS rule 4.1 payouts). Even-money bets cost a 50-point minimum; inside bets '
+          + '(min 10) vary from 7.41% (Total 9/12) to 16.20% (a specific Triple). A stake below its '
+          + "bet's minimum is refused.",
       },
       schema: SicBoDecisionSchema, schemaName: 'SicBoDecision',
     };

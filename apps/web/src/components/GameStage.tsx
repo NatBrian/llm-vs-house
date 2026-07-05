@@ -72,7 +72,14 @@ export function GameStage() {
             roundKey={idx}
           />
         )}
-        {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
+        {game === 'sicbo' && (
+          <SicBoBoard
+            dice={(round.outcome as any).dice}
+            placedBets={(round.outcome as any).placedBets ?? []}
+            history={session.rounds.slice(0, idx).map((r) => (r.outcome as any).dice).reverse()}
+            roundKey={idx}
+          />
+        )}
         {game === 'slot' && <SlotView outcome={round.outcome} />}
       </div>
 
