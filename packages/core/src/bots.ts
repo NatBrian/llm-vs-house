@@ -11,6 +11,8 @@
 import {
   SICBO_MIN_BET, ROULETTE_MIN_BET, BACCARAT_MIN_BET, type RouletteBetType, type RouletteVariant,
   type BaccaratBetType, type SicBoBetType,
+  SLOT_DENOMINATIONS, SLOT_MAX_LEVEL, SLOT_MIN_BET, SLOT_MAX_BET,
+  SICBO_DOUBLE_ANY_PAIRS, SERIES3_GROUPS, SERIES6_GROUPS,
 } from '@casino/engine';
 import type { Decide, DecisionRequest } from './types.js';
 
@@ -68,11 +70,16 @@ export type SizingStrategy = 'flat' | 'martingale' | 'paroli';
 
 export interface RuleBotConfig {
   /** Fixed bet the bot flat-stakes every roulette round. */
-  roulette: { type: RouletteBetType; numbers?: (number | '00')[]; selector?: 1 | 2 | 3 };
+  roulette: { type: RouletteBetType; numbers?: (number | '00')[]; selector?: 1 | 2 | 3; seriesGroup?: number };
   /** Fixed bet the bot flat-stakes every baccarat round. */
   baccarat: { type: BaccaratBetType };
   /** Fixed bet the bot flat-stakes every Sic Bo round. */
-  sicbo: { type: SicBoBetType; face?: number; total?: number; faces?: [number, number] };
+  sicbo: {
+    type: SicBoBetType; face?: number; total?: number; faces?: [number, number];
+    partner?: number; triple?: [number, number, number]; group?: number;
+  };
+  /** Fixed machine controls the bot starts from every Slot round (denomination x betLevel = base unit stake). */
+  slot: { denomination: number; betLevel: number; useMax?: boolean };
   /** Stake-sizing progression applied on top of the chosen bet (all games). */
   sizing: SizingStrategy;
 }
@@ -81,13 +88,30 @@ export const DEFAULT_RULE_BOT_CONFIG: RuleBotConfig = {
   roulette: { type: 'red' },
   baccarat: { type: 'banker' },
   sicbo: { type: 'small' },
+  slot: { denomination: 1, betLevel: 10 },
   sizing: 'flat',
 };
+
+/** Closest achievable (denomination, betLevel) combination to a target stake — used
+ *  by both the rule bot (after its sizing strategy scales the base unit) and the
+ *  naive bot (after its reactive mood picks a target). Shared so "which physical
+ *  control combination best hits this number" isn't implemented twice. */
+export function pickBetControls(target: number): { denomination: number; betLevel: number } {
+  let best: { denomination: number; betLevel: number } = { denomination: SLOT_DENOMINATIONS[0], betLevel: 1 };
+  let bestDiff = Infinity;
+  for (const denomination of SLOT_DENOMINATIONS) {
+    const betLevel = Math.max(1, Math.min(SLOT_MAX_LEVEL, Math.round(target / denomination)));
+    const diff = Math.abs(denomination * betLevel - target);
+    if (diff < bestDiff) { bestDiff = diff; best = { denomination, betLevel }; }
+  }
+  return best;
+}
 
 const ROULETTE_LABEL: Record<RouletteBetType, string> = {
   straight: 'Straight', split: 'Split', street: 'Street', corner: 'Corner', sixline: 'Six Line',
   column: 'Column', dozen: 'Dozen', red: 'Red', black: 'Black', odd: 'Odd', even: 'Even',
-  high: 'High (19-36)', low: 'Low (1-18)', five: 'Basket (0/00/1/2/3)',
+  high: 'High (19-36)', low: 'Low (1-18)', five: 'Top Line (0/00/1/2/3)',
+  zeroCombo: '0/00 Combo', series3: '3 Numbers Series', series6: '6 Numbers Series',
 };
 const BACCARAT_LABEL: Record<BaccaratBetType, string> = {
   player: 'Player', banker: 'Banker', tie: 'Tie', playerPair: 'Player Pair', bankerPair: 'Banker Pair',
@@ -95,6 +119,7 @@ const BACCARAT_LABEL: Record<BaccaratBetType, string> = {
 const SICBO_LABEL: Record<SicBoBetType, string> = {
   small: 'Small', big: 'Big', odd: 'Odd', even: 'Even', anytriple: 'Any Triple',
   total: 'Total', single: 'Single', double: 'Double', triple: 'Triple', combo: 'Two-Dice Combo',
+  doubleAny: 'Double + Single', threeSingleCombo: 'Three Single Dice', threeFromFour: 'Three From Four',
 };
 
 /**
@@ -139,6 +164,7 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
     roulette: { ...DEFAULT_RULE_BOT_CONFIG.roulette, ...config.roulette },
     baccarat: { ...DEFAULT_RULE_BOT_CONFIG.baccarat, ...config.baccarat },
     sicbo: { ...DEFAULT_RULE_BOT_CONFIG.sicbo, ...config.sicbo },
+    slot: { ...DEFAULT_RULE_BOT_CONFIG.slot, ...config.slot },
     sizing: config.sizing ?? DEFAULT_RULE_BOT_CONFIG.sizing,
   };
   const state = { prevBankroll: null as number | null, prevStake: 0 };
@@ -163,7 +189,12 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
         const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
         const b = cfg.roulette;
         return recordAndReturn({
-          bets: [{ type: b.type, amount: stake, ...(b.numbers ? { numbers: b.numbers } : {}), ...(b.selector ? { selector: b.selector } : {}) }],
+          bets: [{
+            type: b.type, amount: stake,
+            ...(b.numbers ? { numbers: b.numbers } : {}),
+            ...(b.selector ? { selector: b.selector } : {}),
+            ...(b.seriesGroup ? { seriesGroup: b.seriesGroup } : {}),
+          }],
           reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${ROULETTE_LABEL[b.type]} (table min ${min}).`,
         }, stake);
       }
@@ -188,14 +219,30 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
         if (b.type === 'total') bet.total = b.total ?? 9;
         if (b.type === 'single' || b.type === 'double' || b.type === 'triple') bet.face = b.face ?? 4;
         if (b.type === 'combo') bet.faces = b.faces ?? [1, 2];
+        if (b.type === 'doubleAny') { bet.face = b.face ?? 2; bet.partner = b.partner ?? 3; }
+        if (b.type === 'threeSingleCombo') bet.triple = b.triple ?? [1, 2, 6];
+        if (b.type === 'threeFromFour') bet.group = b.group ?? 1;
         return recordAndReturn({
           bets: [bet],
           reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${SICBO_LABEL[b.type]} (table min ${min}).`,
         }, stake);
       }
       case 'slot': {
-        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
-        return recordAndReturn({ amount: stake, reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} spin.` }, stake);
+        const s = cfg.slot;
+        if (s.useMax) {
+          return recordAndReturn({
+            denomination: s.denomination, betLevel: SLOT_MAX_LEVEL, betMax: true,
+            reasoning: `Bet Max every spin (denomination ${s.denomination}).`,
+          }, SLOT_MAX_BET);
+        }
+        const unit = Math.max(SLOT_MIN_BET, s.denomination * s.betLevel);
+        const target = computeStake(cfg.sizing, unit, req.bankroll, state);
+        const { denomination, betLevel } = pickBetControls(target);
+        const amount = denomination * betLevel;
+        return recordAndReturn({
+          denomination, betLevel,
+          reasoning: `${sizingLabel(cfg.sizing, amount, unit)} — denomination ${denomination}, bet level ${betLevel}.`,
+        }, amount);
       }
       case 'blackjack': {
         // kind === 'bet' here (action is handled above)
@@ -234,11 +281,29 @@ function randomSicBoBet(type: string, amount: number, rnd: () => number): any {
       if (b === a) b = (a % 6) + 1; // force two distinct faces
       return { type, amount, faces: [a, b] };
     }
+    case 'doubleAny': {
+      const [f, p] = SICBO_DOUBLE_ANY_PAIRS[Math.floor(rnd() * SICBO_DOUBLE_ANY_PAIRS.length)]!;
+      return { type, amount, face: f, partner: p };
+    }
+    case 'threeSingleCombo': {
+      const faces = [1, 2, 3, 4, 5, 6];
+      const triple: number[] = [];
+      while (triple.length < 3) {
+        const f = faces[Math.floor(rnd() * faces.length)]!;
+        if (!triple.includes(f)) triple.push(f);
+      }
+      return { type, amount, triple: triple as [number, number, number] };
+    }
+    case 'threeFromFour':
+      return { type, amount, group: 1 + Math.floor(rnd() * 4) };
     default: return { type, amount }; // small / big / odd / even / anytriple
   }
 }
 
-const NAIVE_SICBO_FAMILIES = ['small', 'big', 'odd', 'even', 'total', 'single', 'combo', 'double', 'triple', 'anytriple'];
+const NAIVE_SICBO_FAMILIES = [
+  'small', 'big', 'odd', 'even', 'total', 'single', 'combo', 'double', 'triple', 'anytriple',
+  'doubleAny', 'threeSingleCombo', 'threeFromFour',
+];
 
 function naiveSicBo(req: DecisionRequest): { bets: any[]; reasoning: string } {
   const rnd = mulberry32(req.index * 2654435761 + 1);
@@ -301,7 +366,11 @@ function randomRouletteBet(type: RouletteBetType, amount: number, rnd: () => num
     }
     case 'column': case 'dozen':
       return { type, amount, selector: (1 + Math.floor(rnd() * 3)) as 1 | 2 | 3 };
-    default: // red / black / odd / even / high / low / five
+    case 'series3':
+      return { type, amount, seriesGroup: 1 + Math.floor(rnd() * SERIES3_GROUPS.length) };
+    case 'series6':
+      return { type, amount, seriesGroup: 1 + Math.floor(rnd() * SERIES6_GROUPS.length) };
+    default: // red / black / odd / even / high / low / five / zeroCombo
       return { type, amount };
   }
 }
@@ -310,8 +379,8 @@ function naiveRoulette(req: DecisionRequest): { bets: any[]; reasoning: string }
   const variant = ((req.observation as any).variant as RouletteVariant) ?? 'european';
   const families: RouletteBetType[] = [
     'red', 'black', 'odd', 'even', 'high', 'low', 'dozen', 'column',
-    'straight', 'split', 'street', 'corner', 'sixline',
-    ...(variant === 'american' ? (['five'] as RouletteBetType[]) : []),
+    'straight', 'split', 'street', 'corner', 'sixline', 'series3', 'series6',
+    ...(variant === 'american' ? (['five', 'zeroCombo'] as RouletteBetType[]) : []),
   ];
   const rnd = mulberry32(req.index * 2654435761 + 7);
   let remaining = req.bankroll;
@@ -378,6 +447,51 @@ function naiveBaccarat(req: DecisionRequest): { bets: any[]; reasoning: string }
   return { bets, reasoning: `Casual spread of ${bets.length} bet(s) (${staked} pts) — ${BACCARAT_LABEL[main as BaccaratBetType]} as the main line, no edge discipline.` };
 }
 
+// ---------------------------------------------------------------- naive human (slot)
+// A casual slot player: mostly sits near the minimum, but reacts to what just
+// happened — "letting it ride" (bumping denomination/bet level) after a win, chasing
+// the loss back after one, and occasionally slamming BET MAX chasing the jackpot
+// regardless of history. Stateful (tracks the actual previous stake/bankroll) so the
+// reactivity is genuine, not just a memoryless mood roll — reset at req.index === 0
+// since naiveDecide is a process-wide singleton reused across sessions run one at a
+// time (see makeRuleBot's identical computeStake state-tracking trick).
+let slotNaiveState = { prevBankroll: null as number | null, prevStake: 0 };
+
+function naiveSlot(req: DecisionRequest): { denomination: number; betLevel: number; betMax?: boolean; reasoning: string } {
+  if (req.index === 0) slotNaiveState = { prevBankroll: null, prevStake: 0 };
+  const rnd = mulberry32(req.index * 2654435761 + 19); // salt distinct from sicbo(1)/roulette(7)/baccarat(13)
+  const unit = Math.max(SLOT_MIN_BET, req.baseBet);
+  const prevNet = slotNaiveState.prevBankroll === null ? 0 : req.bankroll - slotNaiveState.prevBankroll;
+
+  let target: number;
+  let mood: string;
+  if (rnd() < 0.06) {
+    target = SLOT_MAX_BET;
+    mood = 'chasing the jackpot — slammed Bet Max';
+  } else {
+    const roll = rnd();
+    if (prevNet > 0 && roll < 0.5) {
+      target = Math.max(unit, slotNaiveState.prevStake * (1.5 + rnd()));
+      mood = 'letting it ride after that win';
+    } else if (prevNet < 0 && roll < 0.45) {
+      target = Math.max(unit, slotNaiveState.prevStake * (1.2 + rnd()));
+      mood = 'chasing the loss back';
+    } else {
+      target = unit;
+      mood = 'casual spin near the minimum';
+    }
+  }
+
+  const clampedTarget = Math.max(Math.min(SLOT_MIN_BET, req.bankroll), Math.min(target, SLOT_MAX_BET, req.bankroll));
+  const { denomination, betLevel } = pickBetControls(clampedTarget);
+  const amount = Math.min(denomination * betLevel, req.bankroll);
+  slotNaiveState = { prevBankroll: req.bankroll, prevStake: amount };
+  return {
+    denomination, betLevel, betMax: amount >= SLOT_MAX_BET && target >= SLOT_MAX_BET,
+    reasoning: `${mood} — denomination ${denomination}, bet level ${betLevel}.`,
+  };
+}
+
 export const naiveDecide: Decide = async (req) => {
   if (req.game === 'sicbo' && req.kind === 'bet') {
     return { value: naiveSicBo(req) };
@@ -387,6 +501,9 @@ export const naiveDecide: Decide = async (req) => {
   }
   if (req.game === 'baccarat' && req.kind === 'bet') {
     return { value: naiveBaccarat(req) };
+  }
+  if (req.game === 'slot' && req.kind === 'bet') {
+    return { value: naiveSlot(req) };
   }
   return baselineDecide(req); // other games: reuse the disciplined baseline
 };

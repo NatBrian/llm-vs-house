@@ -25,7 +25,14 @@ Freesound CC0 fills: roulette spin Joao_Janz #482663 · card deal el_boss #57157
 - **Baccarat** → Byron Knoll cards · Kenney chips · card/chip SFX · felt texture
 - **Sic Bo** → CC0 glTF die (Poly Pizza, filter CC0) for 3D-physics route, OR Kenney dice sprites for 2D · nettimato dice SFX
 - **Roulette** → CC0 wheel SVG + self-drawn felt SVG · Joao_Janz spin loop
-- **Slot** → Good Fruits M484 symbols + self-built reel frame · Kenney reel-stop/spin SFX + Fupi win jingle
+- **Slot** → **Superseded**: the "Good Fruits M484" pack was scoped to the old 3-reel 7/BAR/BELL/CHERRY toy
+  machine. The rebuilt 243-ways engine uses a 9-symbol taxonomy (WILD/SCATTER + 3 high-pay + 4 low-pay) that
+  doesn't map onto that sheet. Interim: symbols are Pixi `Graphics`-drawn vector tiles (gold/ink gradient +
+  glyph, matching the existing casino palette) via one factory module (`apps/web/src/components/slot/
+  symbolTile.ts`), so swapping in a real texture atlas later is a single-seam change. Vendoring a real
+  taxonomy-matched CC0 pack (or commissioning one) is a follow-up, not blocking — self-built reel frame/cabinet
+  chrome either way (no strong CC0 full-cabinet asset exists, same gap noted below) · Kenney reel-stop/spin SFX
+  + Fupi win jingle still apply whenever audio is wired in.
 
 ## Traps to avoid (looked best in search, legally unusable)
 - **Betzaar** roulette layouts/wheels on Wikimedia — **CC-BY-SA 3.0** (viral share-alike).

@@ -12,7 +12,7 @@ export const GAME_META: Record<string, { name: string; icon: string; edge: strin
   blackjack: { name: 'Blackjack', icon: '🃏', edge: '~0.5%' },
   baccarat: { name: 'Baccarat', icon: '🎴', edge: 'Banker 1.06%' },
   sicbo: { name: 'Sic Bo', icon: '🎲', edge: 'Small 2.78%' },
-  slot: { name: 'Slot Machine', icon: '🎰', edge: 'RTP ~93%' },
+  slot: { name: 'Slot Machine', icon: '🎰', edge: 'RTP ~93.9%' },
 };
 
 // Deterministic color per session id (for chart series + list dots).

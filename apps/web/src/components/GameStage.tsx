@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { lazy, Suspense } from 'react';
 import { useStore, activeSession } from '../store';
 import { PlayingCard, Chip, Badge } from './primitives';
 import { SicBoBoard } from './SicBoBoard';
@@ -6,7 +6,8 @@ import { RouletteBoard } from './RouletteBoard';
 import { BaccaratBoard } from './BaccaratBoard';
 import { fmt, signed, GAME_META } from '../lib/format';
 
-const SLOT_SYMBOL: Record<string, string> = { '7': '7️⃣', BAR: '🅱️', BELL: '🔔', CHERRY: '🍒', BLANK: '⬛' };
+// Pulls in pixi.js + gsap — lazy-loaded so the other 4 games never pay that bundle cost.
+const SlotBoard = lazy(() => import('./SlotBoard').then((m) => ({ default: m.SlotBoard })));
 
 export function GameStage() {
   const session = useStore(activeSession);
@@ -73,7 +74,11 @@ export function GameStage() {
           />
         )}
         {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
-        {game === 'slot' && <SlotView outcome={round.outcome} />}
+        {game === 'slot' && (
+          <Suspense fallback={<div className="text-white/40 text-sm">Loading slot machine…</div>}>
+            <SlotBoard outcome={round.outcome as any} roundKey={idx} />
+          </Suspense>
+        )}
       </div>
 
       <div className="mt-2 flex items-center justify-between">
@@ -87,7 +92,8 @@ export function GameStage() {
 }
 
 function BetChips({ outcome, game }: { outcome: any; game: string }) {
-  const bets: any[] = outcome.placedBets ?? (game === 'slot' ? [{ type: 'spin', amount: outcome.amount }] : []);
+  const bets: any[] = outcome.placedBets
+    ?? (game === 'slot' ? [{ type: outcome.betMax ? 'bet max' : `${outcome.denomination}×${outcome.betLevel}`, amount: outcome.amount }] : []);
   if (!bets.length) return <span className="text-xs text-white/40">—</span>;
   return (
     <div className="flex items-center gap-2">
@@ -125,25 +131,6 @@ function BlackjackView({ outcome }: { outcome: any }) {
             tone={h.busted || h.surrendered ? 'loss' : 'neutral'} />
         ))}
       </div>
-    </div>
-  );
-}
-
-function SlotView({ outcome }: { outcome: any }) {
-  const symbols: string[] = outcome.symbols;
-  const win = outcome.payout > 0;
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex gap-2 p-3 rounded-xl bg-ink-950 border-2 border-gold-600/50">
-        {symbols.map((s, i) => (
-          <motion.div key={i}
-            initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.15, type: 'spring', stiffness: 200 }}
-            className="w-16 h-20 rounded-lg bg-white/95 flex items-center justify-center text-4xl">
-            {SLOT_SYMBOL[s] ?? s}
-          </motion.div>
-        ))}
-      </div>
-      <Badge tone={win ? 'win' : 'neutral'}>{win ? `Pays ${outcome.payout}×` : 'No win'}</Badge>
     </div>
   );
 }
