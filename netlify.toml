@@ -1,0 +1,23 @@
+# Netlify deploy (repo root). Publishes the static Vite app + the LLM function.
+[build]
+  command = "pnpm --filter @casino/engine build && pnpm --filter @casino/core build && pnpm --filter @casino/llm build && pnpm --filter @casino/web build"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  directory = "apps/web/netlify/functions"
+  node_bundler = "esbuild"
+
+# Map the client's /api/decide to the Netlify function.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA fallback (single page, no client routes, but harmless).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
