@@ -5,7 +5,7 @@
 import {
   spinRoulette, resolveRouletteBet, isValidRouletteBet, ROULETTE_MIN_BET, ROULETTE_ODDS,
   type RouletteBet, type RouletteVariant,
-  dealBaccarat, resolveBaccaratBet, type BaccaratBet,
+  dealBaccarat, resolveBaccaratBet, BACCARAT_MIN_BET, BACCARAT_BANKER_COMMISSION, type BaccaratBet,
   rollSicBo, resolveSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, type SicBoBet,
   spinSlot, resolveSlot, EXAMPLE_SLOT, type SlotConfig,
   startBlackjack, legalActions, applyAction, handValue,
@@ -43,13 +43,18 @@ async function ask(ctx: RoundContext, req: DecisionRequest): Promise<{ step: Dec
   return { step, value: parsed };
 }
 
-/** Clamp bet amounts so total staked never exceeds the bankroll. */
-function clampBets<T extends { amount: number }>(bets: T[], bankroll: number): T[] {
+/**
+ * Faithful Baccarat table rules: stakes are whole points, a stake below its
+ * bet family's table minimum is refused, running total never exceeds the
+ * bankroll. Mirrors applySicBoTableRules/applyRouletteTableRules.
+ */
+function applyBaccaratTableRules(bets: BaccaratBet[], bankroll: number): BaccaratBet[] {
   let remaining = bankroll;
-  const out: T[] = [];
+  const out: BaccaratBet[] = [];
   for (const b of bets) {
-    const amt = Math.max(0, Math.min(Math.floor(b.amount), remaining));
-    if (amt <= 0) continue;
+    const min = BACCARAT_MIN_BET[b.type];
+    const amt = Math.min(Math.floor(b.amount), remaining);
+    if (amt < min) continue; // below table minimum (or bankroll can't cover it) -> refused
     out.push({ ...b, amount: amt });
     remaining -= amt;
   }
@@ -141,13 +146,17 @@ const baccaratAdapter: GameAdapter = {
       kind: 'bet', game: 'baccarat', index: ctx.index, bankroll: ctx.bankroll, baseBet: ctx.baseBet,
       observation: {
         bankroll: ctx.bankroll, baseBet: ctx.baseBet,
-        houseEdgePct: { banker: 1.06, player: 1.24, tie: 14.36 },
-        note: 'Banker has the lowest edge (1.06%) despite 5% commission.',
+        houseEdgePct: { banker: 1.06, player: 1.24, tie: 14.36, playerPair: 10.36, bankerPair: 10.36 },
+        payouts: { player: 1, banker: 1 - BACCARAT_BANKER_COMMISSION, tie: 8, playerPair: 11, bankerPair: 11 },
+        tableMinimums: BACCARAT_MIN_BET, // Player/Banker cost 50; Tie/Pair side bets cost 10
+        note: 'Banker has the lowest edge (1.06%) despite 5% commission, paid immediately per hand '
+          + '(mini-baccarat convention, confirmed by MBS/RWS rule sheets — no deferred marker). '
+          + "A stake below its bet's table minimum is refused.",
       },
       schema: BaccaratDecisionSchema, schemaName: 'BaccaratDecision',
     };
     const { step, value } = await ask(ctx, req);
-    const bets = clampBets(value.bets as BaccaratBet[], ctx.bankroll);
+    const bets = applyBaccaratTableRules(value.bets as BaccaratBet[], ctx.bankroll);
     const coup = dealBaccarat(ctx.rng, config.decks);
     const net = bets.reduce((s, b) => s + resolveBaccaratBet(b, coup), 0);
     return {

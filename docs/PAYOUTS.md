@@ -47,11 +47,35 @@ Sources: wizardofodds.com/games/roulette/basics/ · primedope.com/in-depth-guide
 
 ---
 
-## 2. BACCARAT (Punto Banco, 8-deck shoe)
+## 2. BACCARAT (Punto Banco)
+
+**Verified directly against the primary source**: GRA-approved "BACCARAT (MBS) Game Rules Version 8"
+(w.e.f. 23 Jan 2020), read in full (not a secondary paraphrase). Every rule below — card values, deal
+order, the full third-card table, payouts, tie push, pair definition — is checked word-for-word
+against that document, not just Wizard of Odds.
+
+**Decks**: the rule permits **4 to 10 decks** (rule 2.1), not a fixed number — this simulation uses
+**8**, both a common real-world choice and the deck count the Monte Carlo-verified edges below assume.
 
 Card values: Ace = 1; 2–9 pip; 10/J/Q/K = 0. **Total = sum mod 10** (can't bust).
 **Natural** = 8 or 9 on first two cards (Player or Banker) → both stand.
-Probabilities: Banker win 0.458597, Player win 0.446247, Tie 0.095156.
+Probabilities (8-deck): Banker win 0.458597, Player win 0.446247, Tie 0.095156.
+
+**Deal order** (rule 3.12): 1st card → Player, 2nd → Banker, 3rd → Player, 4th → Banker (P,B,P,B),
+then the 3rd-card table below governs whether either hand draws a 5th/6th card.
+
+**Pair definition** (rule 1.1.6): "Player Pair"/"Banker Pair" = the hand's first two cards have the
+same point value **or are the same face card** (J, Q, or K) — "two face cards that are not identical
+(e.g. KQ, KJ, QJ) do not constitute a Pair." K+Q both being worth 0 does **not** make them a pair;
+only identical ranks do. The engine compares raw card rank (not point value) so this is correct
+without a special case — see `playBaccaratCoup` in `packages/engine/src/games/baccarat.ts`.
+
+**Table layout** (`apps/web/src/components/BaccaratBoard.tsx`): matches rule Appendices "D"/"E" — the
+single-playing-position felt (this sim has one bettor per session, same as a lone player at a
+1-position table). Order top-to-bottom is a small **P Pair — Tie — B Pair** circle row, then a wide
+**Banker** rectangle, then a wide **Player** rectangle beneath it — Banker sits above Player on the
+real felt, not side-by-side. An earlier draft of this board used a single left-to-right row and was
+corrected after reading Appendix D/E directly.
 
 | Bet | Payout | House edge |
 |---|---|---|
@@ -62,6 +86,35 @@ Probabilities: Banker win 0.458597, Player win 0.446247, Tie 0.095156.
 | Player/Banker Pair | 11:1 | ~10.36% |
 
 Ties **push** on Player/Banker bets. 8:1 tie is near-universal standard.
+
+**Table minimums** (this simulation): Player/Banker **50**; Tie/Player Pair/Banker Pair **10** —
+mirrors the Roulette/Sic Bo outside-vs-inside convention (main two-way bets cost more, high-payout
+proposition bets cost less). The GRA rule sheet confirms this is a genuine gap, not an oversight —
+rule 3.5.1 only requires wagers stay "within the minimum and maximum limits displayed at the table,"
+with no number gazetted (floor discretion, same gap as Roulette) — Vegas mini-baccarat commonly runs
+a **$25** table minimum as a real-world reference point. Enforced by the adapter: a stake below its
+minimum is refused.
+
+**Commission — confirmed directly from rule 4.1's settlement table**: "Banker" pays **0.95 to 1**,
+full stop — the 5% commission is baked into the per-hand payout, not tracked via a marker/lammer for
+end-of-shoe settlement. The rule text never mentions a commission marker/buck at all; MBS settles
+every winning Banker wager immediately, every hand. This matches this engine's behavior exactly.
+(Classic Vegas/Macau "big table" high-limit baccarat commonly defers commission via lammer chips
+settled at shoe-end instead — not the convention this simulation targets, and not what MBS's own
+rule sheet describes.)
+
+**Known simplification**: the shoe is freshly shuffled every coup rather than dealt continuously
+through one physical shoe until a cutting card ends the shoe (rule 3.17 — the rule sheet doesn't
+specify a burn-card procedure or cut-card depth; that's left to internal casino SOP, not gazetted, so
+no specific number is claimed here). Per-hand probabilities are unaffected (each coup is still drawn
+from a genuine shuffled 4-to-10-deck composition), but this removes the very slight
+composition-dependent edge drift a real continuous shoe exhibits near the cut card — a niche effect
+professional shoe-trackers/edge-sorters exploit, not something a casual or LLM bettor would perceive
+or exploit in practice.
+
+Sources: gra.gov.sg "BACCARAT (MBS) Game Rules Version 8" (w.e.f. 23 Jan 2020) — read in full, rules
+1–6 and Appendices A–E · wizardofodds.com/games/baccarat/basics/ · baccarat.net/guide/table-layout/ ·
+wizardofodds.com/games/baccarat/history/ (Bead Plate / Big Road).
 
 **Third-card drawing rules (fixed, no player choice):**
 - Step 0 — either hand natural (8/9) → both stand.

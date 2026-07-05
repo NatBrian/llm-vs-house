@@ -4275,6 +4275,22 @@ var ROULETTE_ODDS = {
   low: 1,
   five: 6
 };
+var ROULETTE_MIN_BET = {
+  red: 50,
+  black: 50,
+  odd: 50,
+  even: 50,
+  high: 50,
+  low: 50,
+  straight: 10,
+  split: 10,
+  street: 10,
+  corner: 10,
+  sixline: 10,
+  column: 10,
+  dozen: 10,
+  five: 10
+};
 function columnNumbers(sel) {
   const out = [];
   for (let n = sel; n <= 36; n += 3) out.push(n);
@@ -4313,6 +4329,60 @@ function rouletteWins(bet, result) {
       return num > 0 && columnNumbers(bet.selector ?? 1).includes(num);
     case "dozen":
       return num > 0 && dozenNumbers(bet.selector ?? 1).includes(num);
+  }
+}
+var col = (n) => (n - 1) % 3 + 1;
+var row = (n) => Math.ceil(n / 3);
+var ZERO_SPLITS = [[0, 1], [0, 2], [0, 3], ["00", 2], ["00", 3], [0, "00"]];
+var ZERO_TRIOS = [[0, 1, 2], [0, 2, 3]];
+var sameSet = (a, b) => {
+  if (a.length !== b.length) return false;
+  const as = [...a].sort().join(",");
+  const bs = [...b].sort().join(",");
+  return as === bs;
+};
+function isValidRouletteBet(bet, variant) {
+  const nums = bet.numbers ?? [];
+  switch (bet.type) {
+    case "straight":
+      return nums.length === 1;
+    case "split": {
+      if (nums.length !== 2) return false;
+      if (ZERO_SPLITS.some((z) => sameSet(z, nums))) return variant === "american" || !nums.includes("00");
+      const [a, b] = nums;
+      if (typeof a !== "number" || typeof b !== "number") return false;
+      if (row(a) === row(b) && Math.abs(col(a) - col(b)) === 1) return true;
+      return col(a) === col(b) && Math.abs(row(a) - row(b)) === 1;
+    }
+    case "street": {
+      if (nums.length !== 3) return false;
+      if (variant === "european" && ZERO_TRIOS.some((z) => sameSet(z, nums))) return true;
+      const ns = [...nums].map(Number).sort((x, y) => x - y);
+      return ns[0] % 3 === 1 && ns[1] === ns[0] + 1 && ns[2] === ns[0] + 2;
+    }
+    case "corner": {
+      if (nums.length !== 4) return false;
+      const ns = [...nums].map(Number).sort((x, y) => x - y);
+      const n = ns[0];
+      return n % 3 !== 0 && sameSet(ns, [n, n + 1, n + 3, n + 4]);
+    }
+    case "sixline": {
+      if (nums.length !== 6) return false;
+      const ns = [...nums].map(Number).sort((x, y) => x - y);
+      const n = ns[0];
+      return n % 3 === 1 && sameSet(ns, [n, n + 1, n + 2, n + 3, n + 4, n + 5]);
+    }
+    case "five":
+      return variant === "american";
+    case "column":
+    case "dozen":
+    case "red":
+    case "black":
+    case "odd":
+    case "even":
+    case "high":
+    case "low":
+      return true;
   }
 }
 function resolveRouletteBet(bet, result) {
@@ -4568,6 +4638,13 @@ function playBaccaratCoup(shoe) {
   return { player, banker, playerTotal: pt, bankerTotal: bt, result, playerPair, bankerPair };
 }
 var BACCARAT_BANKER_COMMISSION = 0.05;
+var BACCARAT_MIN_BET = {
+  player: 50,
+  banker: 50,
+  tie: 10,
+  playerPair: 10,
+  bankerPair: 10
+};
 function resolveBaccaratBet(bet, coup) {
   const { amount } = bet;
   switch (bet.type) {
@@ -4793,12 +4870,13 @@ async function ask(ctx, req) {
   };
   return { step, value: parsed };
 }
-function clampBets(bets, bankroll) {
+function applyBaccaratTableRules(bets, bankroll) {
   let remaining = bankroll;
   const out = [];
   for (const b of bets) {
-    const amt = Math.max(0, Math.min(Math.floor(b.amount), remaining));
-    if (amt <= 0) continue;
+    const min = BACCARAT_MIN_BET[b.type];
+    const amt = Math.min(Math.floor(b.amount), remaining);
+    if (amt < min) continue;
     out.push({ ...b, amount: amt });
     remaining -= amt;
   }
@@ -4817,6 +4895,19 @@ function applySicBoTableRules(bets, bankroll) {
   return out;
 }
 var labels = (cards) => cards.map(cardLabel);
+function applyRouletteTableRules(bets, bankroll, variant) {
+  let remaining = bankroll;
+  const out = [];
+  for (const b of bets) {
+    if (!isValidRouletteBet(b, variant)) continue;
+    const min = ROULETTE_MIN_BET[b.type];
+    const amt = Math.min(Math.floor(b.amount), remaining);
+    if (amt < min) continue;
+    out.push({ ...b, amount: amt });
+    remaining -= amt;
+  }
+  return out;
+}
 var rouletteAdapter = {
   id: "roulette",
   label: "Roulette",
@@ -4834,13 +4925,16 @@ var rouletteAdapter = {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
         houseEdgePct: config2.variant === "european" ? 2.7 : 5.26,
-        note: "Place one or more bets. Outside even-money bets minimise variance."
+        payouts: ROULETTE_ODDS,
+        tableMinimums: ROULETTE_MIN_BET,
+        // even-money outside bets cost 50; everything else 10
+        note: "Place one or more bets. Outside even-money bets minimise variance. Zero loses every non-zero bet outright (no la partage / en prison at this table). A stake below its bet's table minimum, or numbers that don't form a real split/street/corner/sixline, is refused."
       },
       schema: RouletteDecisionSchema,
       schemaName: "RouletteDecision"
     };
     const { step, value } = await ask(ctx, req);
-    const bets = clampBets(value.bets, ctx.bankroll);
+    const bets = applyRouletteTableRules(value.bets, ctx.bankroll, config2.variant);
     const pocket = spinRoulette(ctx.rng, config2.variant);
     const net = bets.reduce((s, b) => s + resolveRouletteBet(b, pocket), 0);
     return { steps: [step], outcome: { pocket, placedBets: bets }, net };
@@ -4861,14 +4955,17 @@ var baccaratAdapter = {
       observation: {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
-        houseEdgePct: { banker: 1.06, player: 1.24, tie: 14.36 },
-        note: "Banker has the lowest edge (1.06%) despite 5% commission."
+        houseEdgePct: { banker: 1.06, player: 1.24, tie: 14.36, playerPair: 10.36, bankerPair: 10.36 },
+        payouts: { player: 1, banker: 1 - BACCARAT_BANKER_COMMISSION, tie: 8, playerPair: 11, bankerPair: 11 },
+        tableMinimums: BACCARAT_MIN_BET,
+        // Player/Banker cost 50; Tie/Pair side bets cost 10
+        note: "Banker has the lowest edge (1.06%) despite 5% commission, paid immediately per hand (mini-baccarat convention, confirmed by MBS/RWS rule sheets \u2014 no deferred marker). A stake below its bet's table minimum is refused."
       },
       schema: BaccaratDecisionSchema,
       schemaName: "BaccaratDecision"
     };
     const { step, value } = await ask(ctx, req);
-    const bets = clampBets(value.bets, ctx.bankroll);
+    const bets = applyBaccaratTableRules(value.bets, ctx.bankroll);
     const coup = dealBaccarat(ctx.rng, config2.decks);
     const net = bets.reduce((s, b) => s + resolveBaccaratBet(b, coup), 0);
     return {
@@ -5165,18 +5262,22 @@ function makeRuleBot(config2 = {}) {
     };
     switch (req.game) {
       case "roulette": {
-        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        const min = ROULETTE_MIN_BET[cfg.roulette.type];
+        const unit = Math.max(min, req.baseBet);
+        const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
         const b = cfg.roulette;
         return recordAndReturn({
           bets: [{ type: b.type, amount: stake, ...b.numbers ? { numbers: b.numbers } : {}, ...b.selector ? { selector: b.selector } : {} }],
-          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${ROULETTE_LABEL[b.type]}.`
+          reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${ROULETTE_LABEL[b.type]} (table min ${min}).`
         }, stake);
       }
       case "baccarat": {
-        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        const min = BACCARAT_MIN_BET[cfg.baccarat.type];
+        const unit = Math.max(min, req.baseBet);
+        const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
         return recordAndReturn({
           bets: [{ type: cfg.baccarat.type, amount: stake }],
-          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${BACCARAT_LABEL[cfg.baccarat.type]}.`
+          reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${BACCARAT_LABEL[cfg.baccarat.type]} (table min ${min}).`
         }, stake);
       }
       case "sicbo": {

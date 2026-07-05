@@ -9,7 +9,7 @@
 // watches how that specific rule performs over a session.
 
 import {
-  SICBO_MIN_BET, ROULETTE_MIN_BET, type RouletteBetType, type RouletteVariant,
+  SICBO_MIN_BET, ROULETTE_MIN_BET, BACCARAT_MIN_BET, type RouletteBetType, type RouletteVariant,
   type BaccaratBetType, type SicBoBetType,
 } from '@casino/engine';
 import type { Decide, DecisionRequest } from './types.js';
@@ -168,10 +168,13 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
         }, stake);
       }
       case 'baccarat': {
-        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        // Player/Banker carry a higher table minimum than Tie/Pair, same shape as roulette/sicbo.
+        const min = BACCARAT_MIN_BET[cfg.baccarat.type];
+        const unit = Math.max(min, req.baseBet);
+        const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
         return recordAndReturn({
           bets: [{ type: cfg.baccarat.type, amount: stake }],
-          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${BACCARAT_LABEL[cfg.baccarat.type]}.`,
+          reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${BACCARAT_LABEL[cfg.baccarat.type]} (table min ${min}).`,
         }, stake);
       }
       case 'sicbo': {
@@ -334,12 +337,56 @@ function naiveRoulette(req: DecisionRequest): { bets: any[]; reasoning: string }
   return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table — no edge discipline, just playing hunches.` };
 }
 
+// ---------------------------------------------------------------- naive human (baccarat)
+// A casual bettor: picks Player or Banker as the main bet (the two a real mini-baccarat
+// player actually chooses between), then sometimes throws a Tie and/or a Pair on top
+// "for fun" — the classic pattern of chasing a big proposition payout alongside the
+// main line, same spirit as naiveSicBo/naiveRoulette spraying side bets.
+
+function naiveBaccarat(req: DecisionRequest): { bets: any[]; reasoning: string } {
+  const rnd = mulberry32(req.index * 2654435761 + 13);
+  let remaining = req.bankroll;
+  const bets: any[] = [];
+
+  const main = rnd() < 0.55 ? 'banker' : 'player'; // Banker is the popular/favored side at real tables
+  const mainMin = BACCARAT_MIN_BET[main];
+  if (remaining >= mainMin) {
+    const units = 1 + Math.floor(rnd() * 3); // 1..3 chips above the minimum
+    const amount = Math.min(mainMin * units, remaining);
+    bets.push({ type: main, amount });
+    remaining -= amount;
+  }
+
+  if (rnd() < 0.3 && remaining >= BACCARAT_MIN_BET.tie) {
+    const amount = Math.min(BACCARAT_MIN_BET.tie * (1 + Math.floor(rnd() * 2)), remaining);
+    bets.push({ type: 'tie', amount });
+    remaining -= amount;
+  }
+  if (rnd() < 0.25) {
+    const pairType = rnd() < 0.5 ? 'playerPair' : 'bankerPair';
+    if (remaining >= BACCARAT_MIN_BET[pairType]) {
+      const amount = Math.min(BACCARAT_MIN_BET[pairType] * (1 + Math.floor(rnd() * 2)), remaining);
+      bets.push({ type: pairType, amount });
+      remaining -= amount;
+    }
+  }
+
+  if (bets.length === 0) {
+    bets.push({ type: main, amount: Math.min(mainMin, req.bankroll || mainMin) });
+  }
+  const staked = bets.reduce((s, b) => s + b.amount, 0);
+  return { bets, reasoning: `Casual spread of ${bets.length} bet(s) (${staked} pts) — ${BACCARAT_LABEL[main as BaccaratBetType]} as the main line, no edge discipline.` };
+}
+
 export const naiveDecide: Decide = async (req) => {
   if (req.game === 'sicbo' && req.kind === 'bet') {
     return { value: naiveSicBo(req) };
   }
   if (req.game === 'roulette' && req.kind === 'bet') {
     return { value: naiveRoulette(req) };
+  }
+  if (req.game === 'baccarat' && req.kind === 'bet') {
+    return { value: naiveBaccarat(req) };
   }
   return baselineDecide(req); // other games: reuse the disciplined baseline
 };

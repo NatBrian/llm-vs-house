@@ -215,7 +215,7 @@ export function NewSessionForm() {
           ))}
         </div>
         {form.player === 'naive' && (
-          <p className="mt-1 text-[11px] text-white/45">Casual player: sprays 2–5 random bets across the Sic Bo table, respecting minimums (Sic Bo only; other games fall back to a flat Rule Bot bet).</p>
+          <p className="mt-1 text-[11px] text-white/45">Casual player: sprays a few random bets across the table respecting table minimums (Sic Bo, Roulette, Baccarat — Player/Banker as the main line plus an occasional Tie/Pair side bet); Slot and Blackjack fall back to a flat Rule Bot bet.</p>
         )}
       </div>
 

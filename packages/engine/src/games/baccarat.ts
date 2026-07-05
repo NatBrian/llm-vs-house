@@ -35,6 +35,10 @@ export function playBaccaratCoup(shoe: Shoe): BaccaratCoup {
   player.push(shoe.draw());
   banker.push(shoe.draw());
 
+  // "Pair" = same point value OR same face card — but two DIFFERENT face cards (e.g.
+  // K+Q) do NOT count, even though both are worth 0 (GRA MBS Baccarat Game Rules v8,
+  // rule 1.1.6). Comparing raw rank (J=11/Q=12/K=13 stay distinct) rather than
+  // baccaratValue() gets this right without special-casing face cards.
   const playerPair = player[0]!.rank === player[1]!.rank;
   const bankerPair = banker[0]!.rank === banker[1]!.rank;
 
@@ -84,6 +88,19 @@ export interface BaccaratBet {
 }
 
 export const BACCARAT_BANKER_COMMISSION = 0.05;
+
+/**
+ * Table minimum stake per bet family, in points — mirrors ROULETTE_MIN_BET /
+ * SICBO_MIN_BET. Neither GRA (MBS/RWS) rule sheet publishes a dollar minimum
+ * (floor discretion, posted table-side), so this reuses the project-wide
+ * convention: the two even-money-ish main bets (Player/Banker) carry the
+ * higher minimum, the high-payout proposition bets (Tie/Pair) the lower one —
+ * same split as Sic Bo/Roulette's outside-vs-inside distinction. Real Vegas
+ * mini-baccarat pits commonly run a $25 table min as a reference point.
+ */
+export const BACCARAT_MIN_BET: Record<BaccaratBetType, number> = {
+  player: 50, banker: 50, tie: 10, playerPair: 10, bankerPair: 10,
+};
 
 /** Net points for a bet given a resolved coup. Player/Banker push on a tie. */
 export function resolveBaccaratBet(bet: BaccaratBet, coup: BaccaratCoup): number {

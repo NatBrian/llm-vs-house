@@ -3,6 +3,7 @@ import { useStore, activeSession } from '../store';
 import { PlayingCard, Chip, Badge } from './primitives';
 import { SicBoBoard } from './SicBoBoard';
 import { RouletteBoard } from './RouletteBoard';
+import { BaccaratBoard } from './BaccaratBoard';
 import { fmt, signed, GAME_META } from '../lib/format';
 
 const SLOT_SYMBOL: Record<string, string> = { '7': '7️⃣', BAR: '🅱️', BELL: '🔔', CHERRY: '🍒', BLANK: '⬛' };
@@ -59,7 +60,18 @@ export function GameStage() {
           />
         )}
         {game === 'blackjack' && <BlackjackView outcome={round.outcome} />}
-        {game === 'baccarat' && <BaccaratView outcome={round.outcome} />}
+        {game === 'baccarat' && (
+          <BaccaratBoard
+            outcome={round.outcome}
+            placedBets={(round.outcome as any).placedBets ?? []}
+            history={session.rounds.slice(0, idx).map((r) => ({
+              result: (r.outcome as any).result,
+              playerPair: !!(r.outcome as any).playerPair,
+              bankerPair: !!(r.outcome as any).bankerPair,
+            }))}
+            roundKey={idx}
+          />
+        )}
         {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
         {game === 'slot' && <SlotView outcome={round.outcome} />}
       </div>
@@ -113,20 +125,6 @@ function BlackjackView({ outcome }: { outcome: any }) {
             tone={h.busted || h.surrendered ? 'loss' : 'neutral'} />
         ))}
       </div>
-    </div>
-  );
-}
-
-function BaccaratView({ outcome }: { outcome: any }) {
-  const r = outcome.result;
-  return (
-    <div className="flex items-center gap-4 sm:gap-10">
-      <Hand cards={outcome.player} label="Player" total={outcome.playerTotal} tone={r === 'player' ? 'win' : 'neutral'} />
-      <div className="text-center">
-        <Badge tone={r === 'tie' ? 'gold' : 'neutral'}>{r === 'tie' ? 'TIE' : r === 'player' ? 'PLAYER' : 'BANKER'}</Badge>
-        {(outcome.playerPair || outcome.bankerPair) && <p className="text-[10px] text-gold-400 mt-1">pair!</p>}
-      </div>
-      <Hand cards={outcome.banker} label="Banker" total={outcome.bankerTotal} tone={r === 'banker' ? 'win' : 'neutral'} />
     </div>
   );
 }
