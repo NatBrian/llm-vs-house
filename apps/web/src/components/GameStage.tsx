@@ -22,7 +22,17 @@ export function GameStage() {
     );
   }
 
-  const idx = Math.min(playhead, session.rounds.length - 1);
+  if (session.rounds.length === 0) {
+    return (
+      <div className="felt rounded-2xl min-h-[300px] sm:min-h-[360px] flex flex-col items-center justify-center text-white/60 gap-3">
+        <div className="text-4xl animate-pulse">{GAME_META[session.config.game]!.icon}</div>
+        <p className="text-sm">Waiting for the first round…</p>
+        <p className="text-xs text-white/35">{session.config.deciderId.startsWith('llm') ? 'The model is deciding — this can take a few seconds per round.' : 'Dealing…'}</p>
+      </div>
+    );
+  }
+
+  const idx = Math.max(0, Math.min(playhead, session.rounds.length - 1));
   const round = session.rounds[idx]!;
   const game = session.config.game;
 

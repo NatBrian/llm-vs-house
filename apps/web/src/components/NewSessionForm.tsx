@@ -81,25 +81,26 @@ export function NewSessionForm() {
       {form.player === 'llm' && (
         <div className="flex flex-col gap-2 rounded-lg bg-ink-850/60 p-2.5 border border-white/5">
           <Field label="Provider">
-            <select value={form.llm.provider} onChange={(e) => setLlm({ provider: e.target.value as any })} className={inputCls}>
+            <select name="llm-provider" value={form.llm.provider} onChange={(e) => setLlm({ provider: e.target.value as any })} className={inputCls}>
               {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </Field>
           <Field label="Model">
-            <input value={form.llm.model} placeholder={provider.exampleModel} onChange={(e) => setLlm({ model: e.target.value })} className={inputCls} />
+            <input name="llm-model" value={form.llm.model} placeholder={provider.exampleModel} onChange={(e) => setLlm({ model: e.target.value })} className={inputCls} />
           </Field>
           {provider.needsKey && (
             <Field label="API key (kept in memory, sent per request)">
-              <input type="password" value={form.llm.apiKey} onChange={(e) => setLlm({ apiKey: e.target.value })} className={inputCls} placeholder="sk-…" />
+              <input name="llm-apikey" type="password" value={form.llm.apiKey} onChange={(e) => setLlm({ apiKey: e.target.value })} className={inputCls} placeholder="sk-…" />
             </Field>
           )}
           {(provider.needsBaseURL || form.llm.provider === 'ollama') && (
             <Field label="Base URL">
-              <input value={form.llm.baseURL} onChange={(e) => setLlm({ baseURL: e.target.value })} className={inputCls} placeholder="https://…/v1" />
+              <input name="llm-baseurl" value={form.llm.baseURL} onChange={(e) => setLlm({ baseURL: e.target.value })} className={inputCls} placeholder="https://…/v1" />
             </Field>
           )}
           <p className="text-[10px] text-white/35 leading-snug">
             Keys are sent to the serverless route per request and never stored. Leave blank to use a server-side env key.
+            Each round is a separate model call, so a full run streams in over time — rounds appear live as they finish.
           </p>
         </div>
       )}

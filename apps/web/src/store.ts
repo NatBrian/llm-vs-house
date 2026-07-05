@@ -73,14 +73,13 @@ export const useStore = create<StoreState>()(
 
       run: async () => {
         const { form } = get();
-        set({ running: true, error: null, progress: { done: 0, label: 'Starting…' } });
+        const id = crypto.randomUUID();
+        const isLlm = form.player === 'llm';
+        set({ running: true, error: null, progress: { done: 0, label: isLlm ? 'Contacting model…' : 'Running…' } });
         try {
-          const id = crypto.randomUUID();
-          const deciderId = form.player === 'baseline'
-            ? 'baseline'
-            : `llm:${form.llm.provider}:${form.llm.model}`;
+          const deciderId = isLlm ? `llm:${form.llm.provider}:${form.llm.model}` : 'baseline';
           const label = form.label.trim()
-            || `${form.player === 'baseline' ? 'Baseline' : form.llm.model} · ${form.game}`;
+            || `${isLlm ? form.llm.model : 'Baseline'} · ${form.game}`;
 
           const config = makeSessionConfig({
             id,
@@ -94,29 +93,46 @@ export const useStore = create<StoreState>()(
             rounds: form.rounds,
           });
 
+          // Push a live placeholder so the table renders as rounds stream in (esp. for slow LLM runs).
+          const live: Session = { config, rounds: [], finalBankroll: config.startingBankroll, bustedOut: false };
+          set((s) => ({ sessions: [live, ...s.sessions].slice(0, 40), activeId: id, playhead: 0, autoplay: false }));
+
           let decide: Decide;
-          if (form.player === 'baseline') {
+          if (!isLlm) {
             decide = baselineDecide;
           } else {
-            let calls = 0;
             decide = createClientLlmDecide(form.llm, () => {
-              calls++;
-              set({ progress: { done: calls, label: `LLM deciding… (${calls} calls)` } });
+              set({ progress: { done: 0, label: 'Model deciding…' } });
             });
           }
 
-          const session = await runSession(config, decide);
+          const onRound = (round: Session['rounds'][number]) => {
+            set((s) => ({
+              sessions: s.sessions.map((x) =>
+                x.config.id === id ? { ...x, rounds: [...x.rounds, round], finalBankroll: round.bankrollAfter } : x),
+              playhead: round.index,
+              progress: { done: round.index + 1, label: `Round ${round.index + 1}/${config.rounds}` },
+            }));
+          };
+
+          const session = await runSession(config, decide, { onRound });
+
           set((s) => ({
-            sessions: [session, ...s.sessions].slice(0, 40),
-            activeId: id,
-            playhead: 0,
-            autoplay: true,
+            sessions: s.sessions.map((x) => (x.config.id === id ? session : x)),
             running: false,
             progress: null,
+            autoplay: !isLlm,                              // baseline: replay-animate; LLM already streamed live
+            playhead: isLlm ? Math.max(0, session.rounds.length - 1) : 0,
             form: { ...s.form, seed: randomSeed(), label: '' },
           }));
         } catch (err) {
-          set({ running: false, progress: null, error: err instanceof Error ? err.message : String(err) });
+          // Keep a partial LLM run if any rounds streamed; drop an empty placeholder.
+          set((s) => ({
+            sessions: s.sessions.filter((x) => !(x.config.id === id && x.rounds.length === 0)),
+            running: false,
+            progress: null,
+            error: err instanceof Error ? err.message : String(err),
+          }));
         }
       },
 

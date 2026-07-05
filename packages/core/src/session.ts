@@ -6,7 +6,12 @@ import { createRng } from '@casino/engine';
 import { ADAPTERS } from './adapters.js';
 import type { Decide, Session, SessionConfig, RoundRecord } from './types.js';
 
-export async function runSession(config: SessionConfig, decide: Decide): Promise<Session> {
+export interface RunHooks {
+  /** Called after each round completes, so the UI can render live during slow (LLM) runs. */
+  onRound?: (round: RoundRecord, index: number, total: number) => void;
+}
+
+export async function runSession(config: SessionConfig, decide: Decide, hooks: RunHooks = {}): Promise<Session> {
   const adapter = ADAPTERS[config.game];
   if (!adapter) throw new Error(`unknown game '${config.game}'`);
   const rng = createRng(config.seed);
@@ -21,10 +26,12 @@ export async function runSession(config: SessionConfig, decide: Decide): Promise
       rng, index: i, bankroll: before, baseBet: config.baseBet, config: config.gameConfig, decide,
     });
     bankroll = before + res.net;
-    rounds.push({
+    const round: RoundRecord = {
       index: i, game: config.game, steps: res.steps, outcome: res.outcome,
       net: res.net, bankrollBefore: before, bankrollAfter: bankroll,
-    });
+    };
+    rounds.push(round);
+    hooks.onRound?.(round, i, config.rounds);
   }
 
   return { config, rounds, finalBankroll: bankroll, bustedOut };

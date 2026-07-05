@@ -18,15 +18,44 @@ function tsJsExtension(): Plugin {
     enforce: 'pre',
     resolveId(source, importer) {
       if (!importer || !source.startsWith('.') || !source.endsWith('.js')) return null;
-      if (!/packages\/(core|engine)\/src/.test(importer)) return null;
+      if (!/packages\/(core|engine|llm)\/src/.test(importer)) return null;
       const candidate = path.resolve(path.dirname(importer), source.slice(0, -3) + '.ts');
       return fs.existsSync(candidate) ? candidate : null;
     },
   };
 }
 
+// Runs the serverless /api/decide handler inside the Vite dev server, so LLM mode
+// works locally exactly as it does on Vercel/Netlify (Vite alone serves no functions).
+function apiDevServer(): Plugin {
+  return {
+    name: 'api-dev-server',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split('?')[0] !== '/api/decide' || req.method !== 'POST') return next();
+        let body = '';
+        req.on('data', (c) => { body += c; });
+        req.on('end', async () => {
+          try {
+            const mod = await server.ssrLoadModule('/api/_handler.ts');
+            const payload = JSON.parse(body || '{}');
+            const { status, json } = await mod.handleDecide(payload);
+            res.statusCode = status;
+            res.setHeader('content-type', 'application/json');
+            res.end(JSON.stringify(json));
+          } catch (err) {
+            res.statusCode = 500;
+            res.setHeader('content-type', 'application/json');
+            res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+          }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [tsJsExtension(), react(), tailwindcss()],
+  plugins: [tsJsExtension(), apiDevServer(), react(), tailwindcss()],
   resolve: {
     alias: {
       '@casino/engine': engineSrc,

@@ -15,8 +15,12 @@ export function ReasoningPanel() {
     return <div className="glass rounded-xl p-6 text-center text-white/40 text-sm">Run a session to inspect the agent's reasoning.</div>;
   }
 
+  if (session.rounds.length === 0) {
+    return <div className="glass rounded-xl p-6 text-center text-white/40 text-sm">Waiting for the agent's first decision…</div>;
+  }
+
   const total = session.rounds.length;
-  const idx = Math.min(playhead, total - 1);
+  const idx = Math.max(0, Math.min(playhead, total - 1));
   const round = session.rounds[idx]!;
 
   return (
