@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useStore, activeSession } from './store';
 import { NewSessionForm } from './components/NewSessionForm';
 import { SessionsList } from './components/SessionsList';
@@ -100,6 +101,8 @@ export function App() {
         <span>Research simulation · simulated points only · deterministic given a seed · replayable</span>
         <span className="hidden sm:inline">Roulette · Blackjack · Baccarat · Sic Bo · Slots</span>
       </footer>
+
+      <Analytics />
     </div>
   );
 }
