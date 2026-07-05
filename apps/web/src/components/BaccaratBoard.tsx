@@ -165,7 +165,7 @@ function Box({ box, reveal, className = '', pill }: { box: BetBox; reveal: boole
       <span className={`text-gold-200/90 ${pill ? 'text-xs' : 'text-[8px]'}`}>{PAYOUT_LABEL[box.type]}</span>
       {box.staked > 0 && (
         <div className="absolute -top-2 -right-2 z-20">
-          <Chip amount={box.staked} size={pill ? 28 : 18} color={lit ? '#23a06b' : '#e0a92e'} />
+          <Chip amount={box.staked} size={pill ? 28 : 18} color={lit ? '#2f6fed' : '#d23b3b'} />
         </div>
       )}
     </motion.div>

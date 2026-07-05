@@ -245,7 +245,7 @@ function Cell({ state, reveal, children, className = '', title, bg }: {
       {children}
       {state.staked > 0 && (
         <div className="absolute -top-1.5 -right-1.5 z-20">
-          <Chip amount={state.staked} size={20} color={lit ? '#23a06b' : '#e0a92e'} />
+          <Chip amount={state.staked} size={20} color={lit ? '#2f6fed' : '#d23b3b'} />
         </div>
       )}
     </motion.div>

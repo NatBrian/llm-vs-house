@@ -230,7 +230,7 @@ function Cell({
       {children}
       {placed && (
         <div className="absolute -top-1.5 -right-1.5 z-20">
-          <Chip amount={state!.placed} size={22} color={lit ? '#23a06b' : '#e0a92e'} />
+          <Chip amount={state!.placed} size={22} color={lit ? '#2f6fed' : '#d23b3b'} />
         </div>
       )}
     </motion.div>
