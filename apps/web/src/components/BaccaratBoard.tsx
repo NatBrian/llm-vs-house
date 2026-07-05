@@ -135,30 +135,37 @@ interface BetBox { type: 'player' | 'banker' | 'tie' | 'playerPair' | 'bankerPai
 
 /** shape/order matches GRA MBS Baccarat Game Rules v8, Appendix "D"/"E" (the single-playing-position
  *  felt this sim's one bettor corresponds to): a small P Pair / Tie / B Pair circle row, then a wide
- *  Banker rectangle, then a wide Player rectangle beneath it — not a left-to-right single row. */
-function Box({ box, reveal, className = '', shape = 'circle' }: {
-  box: BetBox; reveal: boolean; className?: string; shape?: 'circle' | 'rect';
-}) {
+ *  Banker pill, then a wide Player pill beneath it — not a left-to-right single row. Filled with a
+ *  radial highlight + inset ring rather than a flat outline so each spot reads as an inlaid felt
+ *  betting area (raised, lit) instead of a wireframe box. */
+function Box({ box, reveal, className = '', pill }: { box: BetBox; reveal: boolean; className?: string; pill?: boolean }) {
   const lit = box.win && reveal;
-  const rect = shape === 'rect';
   return (
     <motion.div
       animate={lit ? { scale: [1, 1.03, 1] } : { scale: 1 }}
       transition={{ duration: 0.5 }}
-      className={`relative flex items-center justify-center border-2 ${rect ? 'rounded-xl flex-col gap-0.5' : 'rounded-full flex-col'} ${lit ? 'border-gold-400 bg-gold-400/20' : 'border-gold-600/50 bg-black/15'} ${className}`}
+      className={`relative flex items-center justify-center rounded-full flex-col gap-0.5 ${className}`}
+      style={{
+        background: lit
+          ? 'radial-gradient(120% 140% at 50% 20%, rgba(245,196,81,0.35), rgba(245,196,81,0.12) 70%)'
+          : 'radial-gradient(120% 140% at 50% 20%, rgba(255,255,255,0.07), rgba(0,0,0,0.22) 75%)',
+        boxShadow: lit
+          ? 'inset 0 0 0 2px var(--color-gold-400), inset 0 2px 6px rgba(0,0,0,0.35), 0 0 18px 3px rgba(245,196,81,0.55)'
+          : 'inset 0 0 0 2px rgba(224,169,46,0.55), inset 0 2px 6px rgba(0,0,0,0.35)',
+      }}
     >
       {lit && (
-        <motion.span className={`pointer-events-none absolute inset-0 ${rect ? 'rounded-xl' : 'rounded-full'}`}
+        <motion.span className="pointer-events-none absolute inset-0 rounded-full"
           style={{ boxShadow: '0 0 16px 4px rgba(245,196,81,0.7)' }}
           initial={{ opacity: 0 }} animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.1, repeat: Infinity }} />
       )}
-      <span className={`font-display uppercase tracking-wide text-white ${rect ? 'text-base sm:text-lg' : 'text-[9px] sm:text-[10px]'}`}>
+      <span className={`font-display uppercase tracking-wide text-white ${pill ? 'text-base sm:text-lg' : 'text-[9px] sm:text-[10px]'}`}>
         {{ player: 'Player', banker: 'Banker', tie: 'Tie', playerPair: 'P Pair', bankerPair: 'B Pair' }[box.type]}
       </span>
-      <span className={`text-gold-200 ${rect ? 'text-xs' : 'text-[8px]'}`}>{PAYOUT_LABEL[box.type]}</span>
+      <span className={`text-gold-200/90 ${pill ? 'text-xs' : 'text-[8px]'}`}>{PAYOUT_LABEL[box.type]}</span>
       {box.staked > 0 && (
         <div className="absolute -top-2 -right-2 z-20">
-          <Chip amount={box.staked} size={rect ? 28 : 18} color={lit ? '#23a06b' : '#e0a92e'} />
+          <Chip amount={box.staked} size={pill ? 28 : 18} color={lit ? '#23a06b' : '#e0a92e'} />
         </div>
       )}
     </motion.div>
@@ -201,49 +208,57 @@ export function BaccaratBoard({ outcome, placedBets, history, roundKey }: {
   const roadHands: RoadHand[] = [...history, { result: r, playerPair: !!outcome.playerPair, bankerPair: !!outcome.bankerPair }];
 
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 620 }}>
-        {/* card reveal */}
-        <div className="flex items-center justify-center gap-4 sm:gap-10 pb-1">
-          <Hand cards={outcome.player} label="Player" total={outcome.playerTotal}
-            tone={r === 'player' ? 'win' : 'neutral'} delays={outcome.player.map((_: string, i: number) => delayOf('player', i))} />
-          <div className="text-center">
-            <Badge tone={r === 'tie' ? 'gold' : 'neutral'}>{r === 'tie' ? 'TIE' : r === 'player' ? 'PLAYER WINS' : 'BANKER WINS'}</Badge>
-            {(outcome.playerPair || outcome.bankerPair) && <p className="text-[10px] text-gold-400 mt-1">pair!</p>}
-          </div>
-          <Hand cards={outcome.banker} label="Banker" total={outcome.bankerTotal}
-            tone={r === 'banker' ? 'win' : 'neutral'} delays={outcome.banker.map((_: string, i: number) => delayOf('banker', i))} />
+    <div className="w-full flex flex-col items-center gap-3">
+      {/* card reveal */}
+      <div className="flex items-center justify-center gap-4 sm:gap-10 pb-1">
+        <Hand cards={outcome.player} label="Player" total={outcome.playerTotal}
+          tone={r === 'player' ? 'win' : 'neutral'} delays={outcome.player.map((_: string, i: number) => delayOf('player', i))} />
+        <div className="text-center">
+          <Badge tone={r === 'tie' ? 'gold' : 'neutral'}>{r === 'tie' ? 'TIE' : r === 'player' ? 'PLAYER WINS' : 'BANKER WINS'}</Badge>
+          {(outcome.playerPair || outcome.bankerPair) && <p className="text-[10px] text-gold-400 mt-1">pair!</p>}
+        </div>
+        <Hand cards={outcome.banker} label="Banker" total={outcome.bankerTotal}
+          tone={r === 'banker' ? 'win' : 'neutral'} delays={outcome.banker.map((_: string, i: number) => delayOf('banker', i))} />
+      </div>
+
+      {/* felt: GRA Appendix D/E single-position layout — decorative banner (Appendix E's
+          "BACCARAT / TIE BETS PAY 8 TO 1" signage), then a P Pair/Tie/B Pair circle row,
+          then a wide Banker pill, then a wide Player pill beneath it. Sized to its content
+          (not stretched to the stage width) so it reads as a table, not a dead green field. */}
+      <div className="relative rounded-2xl overflow-hidden border-2 border-gold-500/60 select-none shadow-[0_10px_40px_rgba(0,0,0,0.5)] px-5 sm:px-7 pt-4 pb-5 w-full max-w-[420px]"
+        style={{ background: 'radial-gradient(140% 90% at 50% 0%, #1e8a5c 0%, #145f3f 55%, #0b3d29 100%)' }}>
+        <span className="pointer-events-none absolute -bottom-6 -right-6 text-[120px] leading-none text-black/10 select-none">♦</span>
+
+        <div className="text-center mb-3">
+          <p className="font-display text-gold-400 text-xl tracking-[0.15em]">BACCARAT</p>
+          <p className="text-[9px] text-gold-200/75 uppercase tracking-[0.2em] -mt-0.5">Tie Bets Pay 8 to 1</p>
         </div>
 
-        {/* felt: GRA Appendix D/E single-position layout — P Pair/Tie/B Pair row, then Banker
-            rectangle, then Player rectangle beneath it (Banker sits above Player on the real felt). */}
-        <div className="rounded-lg overflow-hidden border-2 border-gold-500/60 select-none shadow-[0_10px_40px_rgba(0,0,0,0.5)] p-4"
-          style={{ background: 'linear-gradient(180deg,#1a7f56,#0f5c3d)' }}>
-          <div className="flex flex-col items-center gap-2 max-w-md mx-auto">
-            <div className="flex items-center justify-center gap-4 sm:gap-6">
-              <Box box={box('playerPair')} reveal={reveal} className="w-14 h-14 sm:w-16 sm:h-16" />
-              <Box box={box('tie')} reveal={reveal} className="w-16 h-16 sm:w-20 sm:h-20" />
-              <Box box={box('bankerPair')} reveal={reveal} className="w-14 h-14 sm:w-16 sm:h-16" />
-            </div>
-            <Box box={box('banker')} reveal={reveal} shape="rect" className="w-full h-14 sm:h-16" />
-            <Box box={box('player')} reveal={reveal} shape="rect" className="w-full h-14 sm:h-16" />
-          </div>
-          <div className="text-center text-[8px] text-gold-200/70 mt-3">
-            Table minimums — Player/Banker 50 · Tie/Pair 10 · commission deducted immediately (mini-baccarat convention)
-          </div>
+        <div className="flex items-center justify-center gap-4 sm:gap-5 mb-3 relative">
+          <Box box={box('playerPair')} reveal={reveal} className="w-14 h-14 sm:w-16 sm:h-16" />
+          <Box box={box('tie')} reveal={reveal} className="w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem]" />
+          <Box box={box('bankerPair')} reveal={reveal} className="w-14 h-14 sm:w-16 sm:h-16" />
+        </div>
+        <div className="flex flex-col gap-2.5 relative">
+          <Box box={box('banker')} reveal={reveal} pill className="w-full h-14 sm:h-16" />
+          <Box box={box('player')} reveal={reveal} pill className="w-full h-14 sm:h-16" />
         </div>
 
-        {/* scorecards */}
-        <div className="rounded-lg border border-gold-600/30 bg-black/20 p-3 flex flex-col sm:flex-row gap-4">
-          <div>
-            <p className="text-[9px] uppercase tracking-wide text-white/40 mb-1">Bead Plate</p>
-            <BeadPlate hands={roadHands} />
-          </div>
-          <div className="h-px sm:h-auto sm:w-px bg-white/10" />
-          <div>
-            <p className="text-[9px] uppercase tracking-wide text-white/40 mb-1">Big Road</p>
-            <BigRoad hands={roadHands} />
-          </div>
+        <div className="text-center text-[8px] text-gold-200/70 mt-3 relative">
+          Table minimums — Player/Banker 50 · Tie/Pair 10 · commission deducted immediately (mini-baccarat convention)
+        </div>
+      </div>
+
+      {/* scorecards */}
+      <div className="w-full max-w-xl rounded-lg border border-gold-600/30 bg-black/20 p-3 flex flex-col sm:flex-row gap-4 overflow-x-auto">
+        <div>
+          <p className="text-[9px] uppercase tracking-wide text-white/40 mb-1">Bead Plate</p>
+          <BeadPlate hands={roadHands} />
+        </div>
+        <div className="h-px sm:h-auto sm:w-px bg-white/10" />
+        <div>
+          <p className="text-[9px] uppercase tracking-wide text-white/40 mb-1">Big Road</p>
+          <BigRoad hands={roadHands} />
         </div>
       </div>
     </div>
