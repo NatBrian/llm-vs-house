@@ -3,7 +3,8 @@
 // The decider order + rng consumption are deterministic, so replay reproduces exactly.
 
 import {
-  spinRoulette, resolveRouletteBet, type RouletteBet, type RouletteVariant,
+  spinRoulette, resolveRouletteBet, isValidRouletteBet, ROULETTE_MIN_BET, ROULETTE_ODDS,
+  type RouletteBet, type RouletteVariant,
   dealBaccarat, resolveBaccaratBet, type BaccaratBet,
   rollSicBo, resolveSicBoBet, SICBO_MIN_BET, SICBO_TOTAL_ODDS, type SicBoBet,
   spinSlot, resolveSlot, EXAMPLE_SLOT, type SlotConfig,
@@ -78,6 +79,27 @@ function applySicBoTableRules(bets: SicBoBet[], bankroll: number): SicBoBet[] {
 
 const labels = (cards: Card[]): string[] => cards.map(cardLabel);
 
+/**
+ * Faithful roulette table rules: stakes are whole points, a stake below its
+ * bet-type minimum is refused, a bet whose numbers don't form a real felt
+ * cell/line/corner is refused, and the running total may never exceed the
+ * bankroll. Mirrors applySicBoTableRules — a real dealer would refuse chips
+ * the same way rather than the round erroring out.
+ */
+function applyRouletteTableRules(bets: RouletteBet[], bankroll: number, variant: RouletteVariant): RouletteBet[] {
+  let remaining = bankroll;
+  const out: RouletteBet[] = [];
+  for (const b of bets) {
+    if (!isValidRouletteBet(b, variant)) continue; // not a real cell/line/corner -> refused
+    const min = ROULETTE_MIN_BET[b.type];
+    const amt = Math.min(Math.floor(b.amount), remaining);
+    if (amt < min) continue; // below table minimum (or bankroll can't cover it) -> refused
+    out.push({ ...b, amount: amt });
+    remaining -= amt;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- Roulette
 const rouletteAdapter: GameAdapter = {
   id: 'roulette',
@@ -92,12 +114,16 @@ const rouletteAdapter: GameAdapter = {
         bankroll: ctx.bankroll,
         baseBet: ctx.baseBet,
         houseEdgePct: config.variant === 'european' ? 2.7 : 5.26,
-        note: 'Place one or more bets. Outside even-money bets minimise variance.',
+        payouts: ROULETTE_ODDS,
+        tableMinimums: ROULETTE_MIN_BET, // even-money outside bets cost 50; everything else 10
+        note: 'Place one or more bets. Outside even-money bets minimise variance. Zero loses every '
+          + 'non-zero bet outright (no la partage / en prison at this table). A stake below its '
+          + "bet's table minimum, or numbers that don't form a real split/street/corner/sixline, is refused.",
       },
       schema: RouletteDecisionSchema, schemaName: 'RouletteDecision',
     };
     const { step, value } = await ask(ctx, req);
-    const bets = clampBets(value.bets as RouletteBet[], ctx.bankroll);
+    const bets = applyRouletteTableRules(value.bets as RouletteBet[], ctx.bankroll, config.variant);
     const pocket = spinRoulette(ctx.rng, config.variant);
     const net = bets.reduce((s, b) => s + resolveRouletteBet(b, pocket), 0);
     return { steps: [step], outcome: { pocket, placedBets: bets }, net };

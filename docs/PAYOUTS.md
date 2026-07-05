@@ -28,12 +28,22 @@ Payouts identical on both wheels; only the extra `00` changes the edge.
 
 House edge: **European 2.70%** (1/37), **American 5.26%** (2/38). American five-number bet = **7.89%** (worst bet).
 
+**Table minimums** (this simulation, mirrors the Sic Bo convention): outside even-money bets
+(Red/Black/Odd/Even/High/Low) **50**; every other bet (straight/split/street/corner/sixline/
+column/dozen/five) **10**. Enforced by the adapter — a stake below its bet's minimum is refused,
+as is a split/street/corner/sixline whose numbers don't form a real cell/line/corner on the felt.
+
 **La Partage / En Prison** (single-zero French tables, even-money bets only, when ball hits 0):
 - La Partage: lose half the even-money stake immediately.
 - En Prison: stake imprisoned one spin; returned (no profit) if it wins next spin, else forfeited.
 - Either rule → even-money house edge **1.35%** (exactly half). Other bets stay 2.70%. Not universal.
+- **Not applied in this simulation.** Confirmed via Singapore's Gambling Regulatory Authority
+  published rules (Marina Bay Sands & Resorts World Sentosa, v3): zero simply loses every
+  non-zero bet outright, English/American-style layout, no racetrack or French call-bet
+  terminology (Voisins du Zéro / Tiers du Cylindre / Orphelins / Jeu Zéro are out of scope).
+  This matches the Singapore/Malaysia casino convention the simulation targets.
 
-Sources: wizardofodds.com/games/roulette/basics/ · primedope.com/in-depth-guide-to-european-roulette-odds/ · en.wikipedia.org/wiki/En_prison
+Sources: wizardofodds.com/games/roulette/basics/ · primedope.com/in-depth-guide-to-european-roulette-odds/ · en.wikipedia.org/wiki/En_prison · GRA-published MBS/RWS Roulette Rules v3
 
 ---
 

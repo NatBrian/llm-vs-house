@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   rouletteWheel, resolveRouletteBet, spinRoulette, createRng,
+  ROULETTE_ODDS, ROULETTE_MIN_BET, isValidRouletteBet,
   type RouletteBet, type RouletteVariant,
 } from '../src/index.js';
 
@@ -67,5 +68,59 @@ describe('roulette spin', () => {
     const seen = new Set<unknown>();
     for (let i = 0; i < 2000; i++) seen.add(spinRoulette(r, 'american'));
     expect(seen.has('00')).toBe(true);
+  });
+});
+
+describe('ROULETTE_MIN_BET', () => {
+  it('has an entry for every bet type in ROULETTE_ODDS', () => {
+    for (const type of Object.keys(ROULETTE_ODDS)) {
+      expect(ROULETTE_MIN_BET[type as keyof typeof ROULETTE_MIN_BET]).toBeGreaterThan(0);
+    }
+  });
+  it('outside even-money bets cost more than inside bets', () => {
+    for (const t of ['red', 'black', 'odd', 'even', 'high', 'low'] as const) {
+      expect(ROULETTE_MIN_BET[t]).toBe(50);
+    }
+    for (const t of ['straight', 'split', 'street', 'corner', 'sixline', 'column', 'dozen', 'five'] as const) {
+      expect(ROULETTE_MIN_BET[t]).toBe(10);
+    }
+  });
+});
+
+describe('isValidRouletteBet — real felt cells only', () => {
+  it('accepts real cells', () => {
+    const valid: RouletteBet[] = [
+      { type: 'straight', amount: 1, numbers: [17] },
+      { type: 'split', amount: 1, numbers: [1, 2] },   // horizontal
+      { type: 'split', amount: 1, numbers: [1, 4] },   // vertical
+      { type: 'split', amount: 1, numbers: [0, 1] },   // zero-adjacent
+      { type: 'street', amount: 1, numbers: [1, 2, 3] },
+      { type: 'corner', amount: 1, numbers: [1, 2, 4, 5] },
+      { type: 'sixline', amount: 1, numbers: [1, 2, 3, 4, 5, 6] },
+      { type: 'column', amount: 1, selector: 1 },
+      { type: 'dozen', amount: 1, selector: 2 },
+      { type: 'red', amount: 1 },
+    ];
+    for (const bet of valid) expect(isValidRouletteBet(bet, 'european')).toBe(true);
+  });
+
+  it('rejects invented combinations', () => {
+    const invalid: RouletteBet[] = [
+      { type: 'split', amount: 1, numbers: [1, 36] },        // not adjacent
+      { type: 'street', amount: 1, numbers: [1, 2, 4] },     // not one row
+      { type: 'corner', amount: 1, numbers: [1, 36, 17, 5] }, // not a real square
+      { type: 'sixline', amount: 1, numbers: [1, 2, 3, 4, 5, 7] }, // not two adjacent streets
+    ];
+    for (const bet of invalid) expect(isValidRouletteBet(bet, 'european')).toBe(false);
+  });
+
+  it('five-number basket is American-only', () => {
+    expect(isValidRouletteBet({ type: 'five', amount: 1 }, 'american')).toBe(true);
+    expect(isValidRouletteBet({ type: 'five', amount: 1 }, 'european')).toBe(false);
+  });
+
+  it('00-adjacent splits require the American wheel', () => {
+    expect(isValidRouletteBet({ type: 'split', amount: 1, numbers: ['00', 2] }, 'american')).toBe(true);
+    expect(isValidRouletteBet({ type: 'split', amount: 1, numbers: ['00', 2] }, 'european')).toBe(false);
   });
 });

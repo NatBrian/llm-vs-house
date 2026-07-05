@@ -2,11 +2,8 @@ import { motion } from 'framer-motion';
 import { useStore, activeSession } from '../store';
 import { PlayingCard, Chip, Badge } from './primitives';
 import { SicBoBoard } from './SicBoBoard';
+import { RouletteBoard } from './RouletteBoard';
 import { fmt, signed, GAME_META } from '../lib/format';
-
-const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-const EUROPEAN_ORDER: (number | '00')[] = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
-const AMERICAN_ORDER: (number | '00')[] = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, '00', 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
 
 const SLOT_SYMBOL: Record<string, string> = { '7': '7️⃣', BAR: '🅱️', BELL: '🔔', CHERRY: '🍒', BLANK: '⬛' };
 
@@ -52,7 +49,15 @@ export function GameStage() {
       </div>
 
       <div key={idx} className="flex-1 flex items-center justify-center">
-        {game === 'roulette' && <RouletteView outcome={round.outcome} variant={(session.config.gameConfig as any).variant} />}
+        {game === 'roulette' && (
+          <RouletteBoard
+            pocket={(round.outcome as any).pocket}
+            placedBets={(round.outcome as any).placedBets ?? []}
+            variant={(session.config.gameConfig as any).variant}
+            history={session.rounds.slice(0, idx).map((r) => (r.outcome as any).pocket).reverse()}
+            roundKey={idx}
+          />
+        )}
         {game === 'blackjack' && <BlackjackView outcome={round.outcome} />}
         {game === 'baccarat' && <BaccaratView outcome={round.outcome} />}
         {game === 'sicbo' && <SicBoBoard dice={(round.outcome as any).dice} placedBets={(round.outcome as any).placedBets ?? []} roundKey={idx} />}
@@ -80,46 +85,6 @@ function BetChips({ outcome, game }: { outcome: any; game: string }) {
           <span className="text-[11px] text-white/60">{b.type}{b.total ? ` ${b.total}` : ''}{b.face ? ` ${b.face}` : ''}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-function RouletteView({ outcome, variant }: { outcome: any; variant: string }) {
-  const order = variant === 'american' ? AMERICAN_ORDER : EUROPEAN_ORDER;
-  const n = order.length;
-  const winIdx = Math.max(0, order.indexOf(outcome.pocket));
-  const angle = (winIdx / n) * 360;
-  const pocket = outcome.pocket;
-  const color = pocket === 0 || pocket === '00' ? '#23a06b' : RED.has(pocket) ? '#d23b3b' : '#1d2731';
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
-      <div className="relative w-48 h-48 sm:w-56 sm:h-56">
-        <motion.div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: `conic-gradient(from 0deg, ${order.map((p, i) => {
-              const c = p === 0 || p === '00' ? '#23a06b' : RED.has(p as number) ? '#b3283a' : '#141a20';
-              return `${c} ${(i / n) * 360}deg ${((i + 1) / n) * 360}deg`;
-            }).join(',')})`,
-            boxShadow: 'inset 0 0 0 8px #b9861d, 0 10px 40px rgba(0,0,0,0.6)',
-          }}
-          initial={{ rotate: 0 }}
-          animate={{ rotate: 360 * 4 - angle }}
-          transition={{ duration: 2.2, ease: [0.15, 0.6, 0.2, 1] }}
-        />
-        <div className="absolute inset-[36%] rounded-full bg-ink-900 border-2 border-gold-600/50 flex items-center justify-center shadow-inner">
-          <span className="text-gold-500 text-lg">♦</span>
-        </div>
-        {/* ball / pointer */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-1 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-      </div>
-      <div className="text-center">
-        <div className="w-24 h-24 rounded-xl flex items-center justify-center text-4xl font-bold text-white shadow-xl" style={{ background: color }}>
-          {String(pocket)}
-        </div>
-        <p className="mt-2 text-sm text-white/60">{pocket === 0 || pocket === '00' ? 'Zero' : RED.has(pocket) ? 'Red' : 'Black'}</p>
-      </div>
     </div>
   );
 }

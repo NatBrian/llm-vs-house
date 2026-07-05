@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   runSession, makeRuleBot, makeSessionConfig, type SessionConfig, type GameId,
 } from '../src/index.js';
-import { SICBO_MIN_BET } from '@casino/engine';
+import { SICBO_MIN_BET, ROULETTE_MIN_BET } from '@casino/engine';
 
 function cfg(
   seed: string, rounds = 100, startingBankroll = 100000, baseBet = 10, game: GameId = 'roulette',
@@ -14,12 +14,12 @@ function cfg(
 }
 
 describe('makeRuleBot: default config matches the old hardcoded baseline', () => {
-  it('roulette defaults to flat Red', async () => {
+  it('roulette defaults to flat Red, floored to Red\'s table minimum', async () => {
     const session = await runSession(cfg('r1'), makeRuleBot());
     const types = new Set(session.rounds.map((r) => (r.outcome as any).placedBets[0].type));
     expect(types).toEqual(new Set(['red']));
     const amounts = new Set(session.rounds.map((r) => (r.outcome as any).placedBets[0].amount));
-    expect(amounts).toEqual(new Set([10])); // flat sizing never changes
+    expect(amounts).toEqual(new Set([ROULETTE_MIN_BET.red])); // baseBet (10) < Red's min (50) -> min wins
   });
 });
 
@@ -62,7 +62,7 @@ describe('makeRuleBot: sizing strategies', () => {
   it('flat sizing never changes the stake regardless of wins/losses', async () => {
     const session = await runSession(cfg('sz-flat', 150), makeRuleBot({ sizing: 'flat' }));
     const stakes = new Set(session.rounds.map((r) => (r.outcome as any).placedBets[0].amount));
-    expect(stakes).toEqual(new Set([10]));
+    expect(stakes).toEqual(new Set([ROULETTE_MIN_BET.red]));
   });
 
   it('martingale doubles the stake after a loss and resets after a win', async () => {
@@ -75,7 +75,7 @@ describe('makeRuleBot: sizing strategies', () => {
         // doubled, unless capped by the bankroll or the safety multiple
         expect(stakeNow).toBeGreaterThanOrEqual(stakePrev);
       } else {
-        expect(stakeNow).toBe(10); // reset to base unit after a win or push
+        expect(stakeNow).toBe(ROULETTE_MIN_BET.red); // reset to Red's table-minimum unit after a win or push
       }
     }
   });
@@ -89,7 +89,7 @@ describe('makeRuleBot: sizing strategies', () => {
       if (prev.net > 0) {
         expect(stakeNow).toBeGreaterThanOrEqual(stakePrev);
       } else {
-        expect(stakeNow).toBe(10);
+        expect(stakeNow).toBe(ROULETTE_MIN_BET.red);
       }
     }
   });
@@ -97,7 +97,7 @@ describe('makeRuleBot: sizing strategies', () => {
   it('is capped so a long streak cannot grow the stake unboundedly', async () => {
     const session = await runSession(cfg('sz-cap', 300, 1_000_000, 10), makeRuleBot({ sizing: 'martingale' }));
     const maxStake = Math.max(...session.rounds.map((r) => (r.outcome as any).placedBets[0].amount));
-    expect(maxStake).toBeLessThanOrEqual(10 * 32); // SIZING_CAP_MULTIPLE
+    expect(maxStake).toBeLessThanOrEqual(ROULETTE_MIN_BET.red * 32); // SIZING_CAP_MULTIPLE
   });
 });
 
@@ -105,7 +105,7 @@ describe('makeRuleBot: two independent instances do not share sizing state', () 
   it('a fresh bot instance always starts flat at the base unit', async () => {
     const a = await runSession(cfg('iso-a', 60), makeRuleBot({ sizing: 'martingale' }));
     const b = await runSession(cfg('iso-b', 5), makeRuleBot({ sizing: 'martingale' })); // fresh instance
-    expect((b.rounds[0]!.outcome as any).placedBets[0].amount).toBe(10);
+    expect((b.rounds[0]!.outcome as any).placedBets[0].amount).toBe(ROULETTE_MIN_BET.red);
     expect(a.rounds.length).toBeGreaterThan(0); // sanity: a actually ran
   });
 });

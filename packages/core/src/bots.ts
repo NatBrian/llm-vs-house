@@ -8,7 +8,10 @@
 // Black, always Total 9) and a sizing strategy (flat / martingale / paroli), then
 // watches how that specific rule performs over a session.
 
-import { SICBO_MIN_BET, type RouletteBetType, type BaccaratBetType, type SicBoBetType } from '@casino/engine';
+import {
+  SICBO_MIN_BET, ROULETTE_MIN_BET, type RouletteBetType, type RouletteVariant,
+  type BaccaratBetType, type SicBoBetType,
+} from '@casino/engine';
 import type { Decide, DecisionRequest } from './types.js';
 
 /** Deterministic PRNG seeded per round, so the naive bot replays bit-for-bit. */
@@ -153,11 +156,15 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
 
     switch (req.game) {
       case 'roulette': {
-        const stake = computeStake(cfg.sizing, req.baseBet, req.bankroll, state);
+        // The bot's own unit floors to whatever table minimum its chosen bet requires
+        // (outside even-money bets cost more than inside ones), same as the Sic Bo branch.
+        const min = ROULETTE_MIN_BET[cfg.roulette.type];
+        const unit = Math.max(min, req.baseBet);
+        const stake = computeStake(cfg.sizing, unit, req.bankroll, state);
         const b = cfg.roulette;
         return recordAndReturn({
           bets: [{ type: b.type, amount: stake, ...(b.numbers ? { numbers: b.numbers } : {}), ...(b.selector ? { selector: b.selector } : {}) }],
-          reasoning: `${sizingLabel(cfg.sizing, stake, req.baseBet)} on ${ROULETTE_LABEL[b.type]}.`,
+          reasoning: `${sizingLabel(cfg.sizing, stake, unit)} on ${ROULETTE_LABEL[b.type]} (table min ${min}).`,
         }, stake);
       }
       case 'baccarat': {
@@ -256,9 +263,83 @@ function naiveSicBo(req: DecisionRequest): { bets: any[]; reasoning: string } {
   return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table — no edge discipline, just playing hunches.` };
 }
 
+// ---------------------------------------------------------------- naive human (roulette)
+// A casual player spreading chips across the felt with no edge discipline: a mix of
+// outside even-money, dozens/columns, and inside numbers/lines — each bet's geometry
+// generated so it's always a real split/street/corner/sixline cell (mirrors the row/col
+// formulas in isValidRouletteBet), never an invented combination.
+
+function randomRouletteBet(type: RouletteBetType, amount: number, rnd: () => number): any {
+  switch (type) {
+    case 'straight':
+      return { type, amount, numbers: [1 + Math.floor(rnd() * 36)] };
+    case 'split': {
+      if (rnd() < 0.5) { // horizontal: same row, adjacent columns
+        const r = Math.floor(rnd() * 12), c = 1 + Math.floor(rnd() * 2);
+        const n = 3 * r + c;
+        return { type, amount, numbers: [n, n + 1] };
+      }
+      const c = 1 + Math.floor(rnd() * 3), r = Math.floor(rnd() * 11); // vertical: same column, adjacent rows
+      const n = 3 * r + c;
+      return { type, amount, numbers: [n, n + 3] };
+    }
+    case 'street': {
+      const k = Math.floor(rnd() * 12);
+      return { type, amount, numbers: [3 * k + 1, 3 * k + 2, 3 * k + 3] };
+    }
+    case 'corner': {
+      const r = Math.floor(rnd() * 11), c = 1 + Math.floor(rnd() * 2);
+      const n = 3 * r + c;
+      return { type, amount, numbers: [n, n + 1, n + 3, n + 4] };
+    }
+    case 'sixline': {
+      const k = Math.floor(rnd() * 11);
+      return { type, amount, numbers: [3 * k + 1, 3 * k + 2, 3 * k + 3, 3 * k + 4, 3 * k + 5, 3 * k + 6] };
+    }
+    case 'column': case 'dozen':
+      return { type, amount, selector: (1 + Math.floor(rnd() * 3)) as 1 | 2 | 3 };
+    default: // red / black / odd / even / high / low / five
+      return { type, amount };
+  }
+}
+
+function naiveRoulette(req: DecisionRequest): { bets: any[]; reasoning: string } {
+  const variant = ((req.observation as any).variant as RouletteVariant) ?? 'european';
+  const families: RouletteBetType[] = [
+    'red', 'black', 'odd', 'even', 'high', 'low', 'dozen', 'column',
+    'straight', 'split', 'street', 'corner', 'sixline',
+    ...(variant === 'american' ? (['five'] as RouletteBetType[]) : []),
+  ];
+  const rnd = mulberry32(req.index * 2654435761 + 7);
+  let remaining = req.bankroll;
+  const bets: any[] = [];
+  const spread = 1 + Math.floor(rnd() * 4); // 1..4 bets, like a human spraying the table
+
+  for (let i = 0; i < spread && bets.length < 6; i++) {
+    const type = families[Math.floor(rnd() * families.length)]!;
+    const min = ROULETTE_MIN_BET[type];
+    if (remaining < min) continue;
+    const units = 1 + Math.floor(rnd() * 3); // 1..3 chips above the minimum
+    const amount = Math.min(min * units, remaining);
+    if (amount < min) continue;
+    bets.push(randomRouletteBet(type, amount, rnd));
+    remaining -= amount;
+  }
+
+  if (bets.length === 0) {
+    const cheapest = Math.min(...Object.values(ROULETTE_MIN_BET));
+    bets.push(randomRouletteBet('straight', Math.min(cheapest, req.bankroll || cheapest), rnd));
+  }
+  const staked = bets.reduce((s, b) => s + b.amount, 0);
+  return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table — no edge discipline, just playing hunches.` };
+}
+
 export const naiveDecide: Decide = async (req) => {
   if (req.game === 'sicbo' && req.kind === 'bet') {
     return { value: naiveSicBo(req) };
+  }
+  if (req.game === 'roulette' && req.kind === 'bet') {
+    return { value: naiveRoulette(req) };
   }
   return baselineDecide(req); // other games: reuse the disciplined baseline
 };

@@ -25,6 +25,18 @@ export const ROULETTE_ODDS: Record<RouletteBetType, number> = {
   five: 6,
 };
 
+/**
+ * Table minimum stake per bet family, in points — mirrors SICBO_MIN_BET.
+ * Outside even-money bets carry the higher minimum; every other bet (inside
+ * numbers, columns, dozens, the American five-number basket) shares the
+ * lower one. Enforced by the adapter, same as Sic Bo's table rules.
+ */
+export const ROULETTE_MIN_BET: Record<RouletteBetType, number> = {
+  red: 50, black: 50, odd: 50, even: 50, high: 50, low: 50,
+  straight: 10, split: 10, street: 10, corner: 10, sixline: 10,
+  column: 10, dozen: 10, five: 10,
+};
+
 export interface RouletteBet {
   type: RouletteBetType;
   amount: number;
@@ -62,6 +74,65 @@ export function rouletteWins(bet: RouletteBet, result: Pocket): boolean {
     case 'high': return num >= 19 && num <= 36;
     case 'column': return num > 0 && columnNumbers(bet.selector ?? 1).includes(num);
     case 'dozen': return num > 0 && dozenNumbers(bet.selector ?? 1).includes(num);
+  }
+}
+
+const col = (n: number): number => ((n - 1) % 3) + 1;
+const row = (n: number): number => Math.ceil(n / 3);
+
+/** Zero-adjacent splits that exist on the physical felt (0/00 sit atop the grid). */
+const ZERO_SPLITS: Pocket[][] = [[0, 1], [0, 2], [0, 3], ['00', 2], ['00', 3], [0, '00']];
+/** European-only "trio" streets that include zero. */
+const ZERO_TRIOS: Pocket[][] = [[0, 1, 2], [0, 2, 3]];
+
+const sameSet = (a: Pocket[], b: Pocket[]): boolean => {
+  if (a.length !== b.length) return false;
+  const as = [...a].sort().join(',');
+  const bs = [...b].sort().join(',');
+  return as === bs;
+};
+
+/**
+ * Does `bet.numbers` describe an actual cell/line/corner on the felt? Prevents
+ * a decider from inventing e.g. a "corner" out of four unrelated numbers to
+ * collect its payout — a real dealer would refuse the bet outright.
+ */
+export function isValidRouletteBet(bet: RouletteBet, variant: RouletteVariant): boolean {
+  const nums = bet.numbers ?? [];
+  switch (bet.type) {
+    case 'straight':
+      return nums.length === 1;
+    case 'split': {
+      if (nums.length !== 2) return false;
+      if (ZERO_SPLITS.some((z) => sameSet(z, nums))) return variant === 'american' || !nums.includes('00');
+      const [a, b] = nums;
+      if (typeof a !== 'number' || typeof b !== 'number') return false;
+      if (row(a) === row(b) && Math.abs(col(a) - col(b)) === 1) return true;
+      return col(a) === col(b) && Math.abs(row(a) - row(b)) === 1;
+    }
+    case 'street': {
+      if (nums.length !== 3) return false;
+      if (variant === 'european' && ZERO_TRIOS.some((z) => sameSet(z, nums))) return true;
+      const ns = [...nums].map(Number).sort((x, y) => x - y);
+      return ns[0]! % 3 === 1 && ns[1] === ns[0]! + 1 && ns[2] === ns[0]! + 2;
+    }
+    case 'corner': {
+      if (nums.length !== 4) return false;
+      const ns = [...nums].map(Number).sort((x, y) => x - y);
+      const n = ns[0]!;
+      return n % 3 !== 0 && sameSet(ns, [n, n + 1, n + 3, n + 4]);
+    }
+    case 'sixline': {
+      if (nums.length !== 6) return false;
+      const ns = [...nums].map(Number).sort((x, y) => x - y);
+      const n = ns[0]!;
+      return n % 3 === 1 && sameSet(ns, [n, n + 1, n + 2, n + 3, n + 4, n + 5]);
+    }
+    case 'five':
+      return variant === 'american';
+    case 'column': case 'dozen': case 'red': case 'black':
+    case 'odd': case 'even': case 'high': case 'low':
+      return true;
   }
 }
 
