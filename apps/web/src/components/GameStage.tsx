@@ -50,7 +50,7 @@ export function GameStage() {
         </div>
       </div>
 
-      <div key={idx} className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         {game === 'roulette' && (
           <RouletteBoard
             pocket={(round.outcome as any).pocket}
@@ -77,11 +77,8 @@ export function GameStage() {
           <SicBoBoard
             dice={(round.outcome as any).dice}
             placedBets={(round.outcome as any).placedBets ?? []}
+            history={session.rounds.slice(0, idx).map((r) => (r.outcome as any).dice).reverse()}
             roundKey={idx}
-            history={session.rounds.slice(0, idx).map((r) => {
-              const dd = (r.outcome as any).dice as number[];
-              return { sum: dd[0]! + dd[1]! + dd[2]!, triple: dd[0] === dd[1] && dd[1] === dd[2] };
-            }).reverse()}
           />
         )}
         {game === 'slot' && (

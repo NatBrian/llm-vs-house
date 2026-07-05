@@ -39,8 +39,8 @@ no gambling infrastructure, and no payment processing.**
 
 ## Why the negative-EV framing matters
 
-On Sic Bo every bet carries a fixed house edge — 2.78% on Small/Big, up to roughly 19% on the
-totals and long-shot triples. No sequence of decisions changes that. The classic *gambler's ruin*
+On Sic Bo every bet carries a fixed house edge — 2.78% on Small/Big/Odd/Even/Combo, up to 16.20% on
+a specific triple. No sequence of decisions changes that. The classic *gambler's ruin*
 result guarantees that flat, repeated negative-expectation betting trends toward zero. Because the
 destination is fixed, the interesting signal is the *path*: how the model sizes bets after wins
 versus losses, its appetite for low-probability high-payout wagers, and whether its stated
@@ -58,8 +58,9 @@ A TypeScript pnpm monorepo. The simulation core is independent of any model or U
 | `packages/llm` | Provider registry and structured-output decision calls (Anthropic, OpenAI, Google, Ollama, OpenRouter, KiloCode, or any OpenAI-compatible endpoint), with validation and retry. |
 | `apps/web` | The interface: animated game tables, the reasoning timeline, the comparison dashboard, and a serverless route for model calls. |
 
-Payout tables and house edges are verified against a reputable source (Wizard of Odds) and
-checked in code — by full enumeration where the outcome space is small (Roulette, Sic Bo, Slots)
+Payout tables and house edges are verified against a reputable source (Wizard of Odds) and, for
+Roulette, Baccarat, and Sic Bo, against the primary GRA-gazetted Singapore (Marina Bay Sands) rule
+sheets read directly — checked in code — by full enumeration where the outcome space is small (Roulette, Sic Bo, Slots)
 and by fixed-shoe rule tests plus Monte Carlo where it is not (Baccarat). See
 [`docs/PAYOUTS.md`](docs/PAYOUTS.md). Incorrect payouts would silently invalidate every run, so
 this is treated as the source of truth.

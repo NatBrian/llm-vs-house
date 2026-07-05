@@ -34,15 +34,15 @@ const SICBO_BETS: Array<{ value: RuleBotConfig['sicbo']['type']; label: string }
   { value: 'big', label: 'Big 11-17 (1:1, 2.78% edge)' },
   { value: 'odd', label: 'Odd (1:1, 2.78% edge)' },
   { value: 'even', label: 'Even (1:1, 2.78% edge)' },
-  { value: 'total', label: 'Total (varies, pick 4-17)' },
+  { value: 'combo', label: 'Two-dice combo (6:1, 2.78% edge)' },
+  { value: 'total', label: 'Total (varies, 7.41-12.5% edge, pick 4-17)' },
+  { value: 'anytriple', label: 'Any triple (31:1, 11.11% edge)' },
+  { value: 'double', label: 'Double (11:1, 11.11% edge)' },
   { value: 'single', label: 'Single number (1:1/2:1/12:1, 3.70% edge)' },
-  { value: 'double', label: 'Double (11:1)' },
-  { value: 'triple', label: 'Specific triple (180:1)' },
-  { value: 'anytriple', label: 'Any triple (31:1)' },
-  { value: 'combo', label: 'Two-dice combo (6:1)' },
+  { value: 'triple', label: 'Specific triple (180:1, 16.20% edge)' },
   { value: 'doubleAny', label: 'Double + single (50:1, 29.17% edge)' },
-  { value: 'threeSingleCombo', label: 'Three single dice (30:1)' },
-  { value: 'threeFromFour', label: 'Three from four (7:1)' },
+  { value: 'threeSingleCombo', label: 'Three single dice (30:1, 13.89% edge)' },
+  { value: 'threeFromFour', label: 'Three from four (7:1, 11.11% edge)' },
 ];
 const SLOT_DENOMS = [1, 2, 5, 10, 25, 50];
 const SIZING_OPTIONS: Array<{ value: RuleBotConfig['sizing']; label: string; hint: string }> = [

@@ -181,16 +181,29 @@ Sources: wizardofodds.com/games/baccarat/basics/ · /appendix/2/
 
 ## 3. SIC BO (three dice, 216 = 6³ outcomes)
 
-**Verified directly against the primary source**: GRA-approved "SIC BO (MBS) Game Rules Version 6"
-(w.e.f. 11 Feb 2020), rule 4.1 and Appendices A/B, read in full including the rendered felt images —
-not the generic international/Wizard-of-Odds table this engine used previously. Several payouts and
-two entire bet families were wrong under the old (uncited) table; both are fixed and cited here.
+**Verified directly against the primary source**: GRA-approved "SIC BO (MBS) Game Rules Version 7"
+(w.e.f. 19 Sep 2025), read in full — rule text cross-checked against the rendered Appendix A/B page
+images, not a secondary paraphrase. Every payout below is rule 4.1's settlement table, not the
+generic international/Wizard-of-Odds set most secondary sources quote — several figures differ,
+always in the **player's** favor (GRA pays more than the generic table on 8 of the 13 bet families).
+An earlier pass on this doc cited "Version 6" (w.e.f. 11 Feb 2020); v7 carries the same payouts and
+bet families, just a newer gazette date — nothing below changed as a result of the version bump.
 
-Small/Big/Odd/Even (rule 4.1.1): total 4–10 / 11–17, or parity of the total — **all lose on any
-triple** regardless of match — payout 1:1, house edge **2.78%** (best bets, tied with a matching
-single-number bet below).
+**Bet definitions** (rule 3.5): Small (3.5.1) and Big (3.5.2) win on totals 4–10 / 11–17
+respectively and **lose on any total outside that range or on any triple** — the triple exclusion
+applies to Small/Big/Odd/Even only. Odd (3.5.3) and Even (3.5.4) are the same shape, by parity, also
+losing on any triple. Three Dice Totals (3.5.8) has **no triple exclusion** — a wager on Total 9
+wins on 3-3-3 exactly like any other combination summing to 9 (confirmed by rule 3.5.8.1's wording,
+which never mentions Any Triple, unlike 3.5.1–3.5.4). Specific Double (3.5.6) wins on 2 or 3 of a
+face; Specific Triple (3.5.5) needs all 3; Any Triple (3.5.7) is any three-of-a-kind; Two Dice
+Combinations (3.5.9) needs both named faces present anywhere among the three dice; Single Dice Wager
+(3.5.12) needs the named face on 1 or more dice, paid by match count.
 
-**Three-dice totals (rule 4.1.2)** — every payout differs from the generic 60/30/17/12/8/6/6 table:
+Small/Big/Odd/Even: **loses on any triple**, prob 48.61%, payout 1:1, house edge **2.78%** (rule
+4.1.1) — the best bet on the table, tied with Two-Dice Combo (see below).
+
+**Three-dice totals (rule 4.1.2, no triple exclusion)** — every payout differs from the generic
+60/30/17/12/8/6/6 table:
 
 | Total | Ways/216 | Payout (GRA) | House edge |
 |---|---|---|---|
@@ -199,10 +212,12 @@ single-number bet below).
 | 6 / 15 | 10 | **18:1** | 12.04% |
 | 7 / 14 | 15 | 12:1 | 9.72% (best total) |
 | 8 / 13 | 21 | 8:1 | 12.50% |
-| 9 / 12 | 25 | **7:1** | 7.41% |
+| 9 / 12 | 25 | **7:1** | **7.41%** (2nd-best total) |
 | 10 / 11 | 27 | 6:1 | 12.50% |
 
-**Named/single-face bets (rule 4.1.1, 4.1.6)**:
+(Totals 3 and 18 are the specific-triple bet, not "total" bets — rule 3.5.8's range is 4–17.)
+
+**Named/single-face bets (rule 4.1.1 named sections; 4.1.6 single dice; 4.1.3 two-dice combo)**:
 
 | Bet | Detail | Prob | Payout (GRA) | House edge |
 |---|---|---|---|---|
@@ -219,21 +234,29 @@ table had — most international Sic Bo tables (and the AU variant this doc prev
 for a triple match on a single-number bet; Singapore's GRA-approved MBS table pays **12:1**, making
 Single one of the best bets on the table (3.70% edge) rather than one of the worst (7.87%).
 
-**Three entirely new bet families, absent from the old generic table (verified against the rendered
-Appendix A/B felt image, which shows each as its own individual cell — not a grouped OR-bet; treating
-a group as "any partner wins" back-solves to an impossible +183% player edge, confirming each code is
-an exact single-outcome target)**:
+**Notable finding**: the Two-Dice Combo at 6:1 computes to exactly −2.78% (−1/36), tying
+Small/Big/Odd/Even as the best bet on the table — under the generic 5:1 table it was one of the
+*worst* (16.67%). This flips the naive "even-money bets are always best" heuristic a rule-bot or LLM
+might otherwise assume, and is why the adapter's `houseEdgePct` observation enumerates every family
+exactly rather than summarizing.
+
+**Three exotic side-bet families**, absent from the old generic table, from the real MBS felt
+(Appendix A/B) — each a single **exact-match** wager, not a grouped OR-bet (verified by house-edge
+math: treating a printed row-grouping as "any cell in the group wins" back-solves to an impossible
++183% player edge, confirming each code is its own single-outcome target):
 
 | Bet | Rule | Detail | Payout | House edge |
 |---|---|---|---|---|
-| Double + Single (`doubleAny`) | 4.1.5 | exact double **D** + exact single partner **P** | **50:1** | **29.17%** |
-| Three Single Dice (`threeSingleCombo`) | 4.1.4 | exact 3 distinct faces, one of 20 possible | **30:1** | 13.89% |
-| Three From Four (`threeFromFour`) | 4.1.7 | 3 distinct dice all within one of 4 fixed 4-number sets — a genuine group-OR bet (unlike the two above) | **7:1** | 11.11% |
+| Three Single Dice Combo (`threeSingleCombo`) | 3.5.10/4.1.4 | one exact 3-distinct-face triple (20 cells total, felt-grouped into 4 rows of 5 purely cosmetically) | **30:1** | 13.89% |
+| Double + Single Dice Combo (`doubleAny`) | 3.5.11/4.1.5 | one exact double-**D** + single-**P** combination | **50:1** | **29.17%** (worst bet on the table) |
+| Three Dice From Four (`threeFromFour`) | 3.5.13/4.1.7 | one of 4 fixed 4-number windows (1234/2345/2356/3456) — a genuine group-OR bet (unlike the two above): wins if the three dice are any 3-subset of that window | **7:1** | 11.11% |
 
 `doubleAny`'s 30 possible (double, partner) pairs are **not all offered**: the printed felt omits
 exactly two — double-1-with-partner-2 and double-6-with-partner-5 — leaving 28 real cells
 (`SICBO_DOUBLE_ANY_PAIRS` in `packages/engine/src/games/sicbo.ts`). This asymmetry is transcribed
-directly from the appendix image, not a bug.
+directly from the appendix image, not a bug. These are rare novelty bets real players mostly ignore,
+but a faithful house edge requires exposing them accurately to any decider tempted by the flashy
+50:1 payout.
 
 **Table layout** (`apps/web/src/components/SicBoBoard.tsx`): matches Appendix A/B — Double+Single and
 Three-Single-Dice occupy a dedicated left column (the old board omitted both entirely); the top band
@@ -241,13 +264,14 @@ pairs **EVEN with BIG** on the left and **ODD with SMALL** on the right (the old
 backwards: Small-over-Odd and Big-over-Even), flanking the doubles/specific-triples/Any-Triple fan;
 then totals, the 15 two-dice combos, the new Three-From-Four row, then the 6 single-number cells.
 
-**Table minimums** (this simulation): even-money (Small/Big/Odd/Even) **50**; every other bet
-(including the 3 new families) **10** — mirrors the Roulette/Baccarat convention. Neither this GRA
-rule sheet nor Roulette's/Baccarat's gazettes a specific dollar figure (same gap, same convention).
+**Table minimums**: same generic-limits pattern as Roulette/Baccarat — rules 5.10–5.12 only say
+wagers stay "within the minimum and maximum" displayed at the table, no figures gazetted. This
+simulation uses the same 50 (even-money outside: Small/Big/Odd/Even) / 10 (everything else inside,
+including the 3 exotic families) convention as Roulette/Baccarat. Enforced by the adapter.
 
-Sources: gra.gov.sg "SIC BO (MBS) Game Rules Version 6" (w.e.f. 11 Feb 2020, read in full incl.
-Appendix A/B images) · wizardofodds.com/games/sic-bo/ (generic/international comparison table only,
-no longer the payout source of truth for this simulation).
+Sources: gra.gov.sg "SIC BO (MBS) Game Rules Version 7" (w.e.f. 19 Sep 2025, read in full incl.
+Appendix A/B images) · wizardofodds.com/games/sic-bo/ · /appendix/1/ (generic/international
+comparison table only, no longer the payout source of truth for this simulation).
 
 ---
 
@@ -342,5 +366,8 @@ mechanics) · betus.com.pa "what-are-243-ways-slots" · bgaming.com/articles/rtp
 ---
 
 ### Cross-game notes
-- All house edges here are exact/derivable from combinatorics, including Slots (`slotRtpBreakdown()` enumerates exactly; Monte Carlo is an independent cross-check only, never the tuning method).
-- Sic Bo & Slots payouts are casino-dependent — ship a defensible standard table but keep it **configurable**.
+- All house edges here are exact/derivable from combinatorics, including Slots (`slotRtpBreakdown()`
+  enumerates exactly; Monte Carlo is an independent cross-check only, never the tuning method).
+- Roulette, Baccarat, and Sic Bo payouts are verified directly against gazetted GRA (Singapore)
+  rule sheets, read in full. Slot paytables/reel strips are casino-dependent — ship a defensible
+  example configuration but keep it **configurable**.
