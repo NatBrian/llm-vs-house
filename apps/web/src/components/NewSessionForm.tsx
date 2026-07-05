@@ -19,7 +19,9 @@ export function NewSessionForm() {
   const setForm = useStore((s) => s.setForm);
   const setLlm = useStore((s) => s.setLlm);
   const run = useStore((s) => s.run);
+  const stop = useStore((s) => s.stop);
   const running = useStore((s) => s.running);
+  const stopping = useStore((s) => s.stopping);
   const progress = useStore((s) => s.progress);
   const error = useStore((s) => s.error);
 
@@ -109,13 +111,23 @@ export function NewSessionForm() {
         <input value={form.label} onChange={(e) => setForm({ label: e.target.value })} className={inputCls} placeholder="auto" />
       </Field>
 
-      <button
-        onClick={() => void run()}
-        disabled={running}
-        className="mt-1 rounded-lg bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-ink-950 font-semibold py-2 text-sm transition"
-      >
-        {running ? (progress?.label ?? 'Running…') : '▶ Run session'}
-      </button>
+      {running ? (
+        <button
+          onClick={stop}
+          disabled={stopping}
+          className="mt-1 rounded-lg bg-chip-red hover:bg-red-500 disabled:opacity-60 text-white font-semibold py-2 text-sm transition flex items-center justify-center gap-2"
+        >
+          <span>{stopping ? 'Stopping…' : '■ Stop'}</span>
+          {progress?.label && !stopping && <span className="text-white/70 font-normal text-xs">· {progress.label}</span>}
+        </button>
+      ) : (
+        <button
+          onClick={() => void run()}
+          className="mt-1 rounded-lg bg-gold-500 hover:bg-gold-400 text-ink-950 font-semibold py-2 text-sm transition"
+        >
+          ▶ Run session
+        </button>
+      )}
 
       {error && !running && (
         <p className="text-xs text-red-200 bg-chip-red/15 border border-chip-red/40 rounded-md px-2.5 py-2 leading-snug break-words">

@@ -78,6 +78,8 @@ export interface Session {
   finalBankroll: number;
   /** True if the session stopped early because the bankroll could not cover a bet. */
   bustedOut: boolean;
+  /** True if the run was stopped by the user before completing all rounds. */
+  stopped?: boolean;
 }
 
 export interface RoundContext {

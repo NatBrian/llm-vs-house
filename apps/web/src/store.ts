@@ -5,7 +5,7 @@ import {
   type Session, type GameId, type Decide,
 } from '@casino/core';
 import type { LlmClientConfig, ProviderId } from './lib/providers';
-import { createClientLlmDecide } from './lib/decide-client';
+import { createClientLlmDecide, CancelledError } from './lib/decide-client';
 
 export interface FormState {
   label: string;
@@ -26,6 +26,8 @@ interface StoreState {
   playhead: number;          // round index currently shown
   autoplay: boolean;
   running: boolean;
+  stopping: boolean;
+  abortController: AbortController | null;
   progress: RunProgress | null;
   error: string | null;
   form: FormState;
@@ -33,6 +35,7 @@ interface StoreState {
   setForm: (patch: Partial<FormState>) => void;
   setLlm: (patch: Partial<LlmClientConfig>) => void;
   run: () => Promise<void>;
+  stop: () => void;
   selectSession: (id: string) => void;
   removeSession: (id: string) => void;
   setPlayhead: (i: number) => void;
@@ -64,6 +67,8 @@ export const useStore = create<StoreState>()(
       playhead: 0,
       autoplay: false,
       running: false,
+      stopping: false,
+      abortController: null,
       progress: null,
       error: null,
       form: defaultForm,
@@ -71,11 +76,17 @@ export const useStore = create<StoreState>()(
       setForm: (patch) => set((s) => ({ form: { ...s.form, ...patch } })),
       setLlm: (patch) => set((s) => ({ form: { ...s.form, llm: { ...s.form.llm, ...patch } } })),
 
+      stop: () => {
+        get().abortController?.abort();
+        set({ stopping: true, progress: { done: 0, label: 'Stopping…' } });
+      },
+
       run: async () => {
         const { form } = get();
         const id = crypto.randomUUID();
         const isLlm = form.player === 'llm';
-        set({ running: true, error: null, progress: { done: 0, label: isLlm ? 'Contacting model…' : 'Running…' } });
+        const ac = new AbortController();
+        set({ running: true, stopping: false, abortController: ac, error: null, progress: { done: 0, label: isLlm ? 'Contacting model…' : 'Running…' } });
         try {
           const deciderId = isLlm ? `llm:${form.llm.provider}:${form.llm.model}` : 'baseline';
           const label = form.label.trim()
@@ -102,8 +113,8 @@ export const useStore = create<StoreState>()(
             decide = baselineDecide;
           } else {
             decide = createClientLlmDecide(form.llm, () => {
-              set({ progress: { done: 0, label: 'Model deciding…' } });
-            });
+              if (!get().stopping) set({ progress: { done: 0, label: 'Model deciding…' } });
+            }, ac.signal);
           }
 
           const onRound = (round: Session['rounds'][number]) => {
@@ -115,23 +126,32 @@ export const useStore = create<StoreState>()(
             }));
           };
 
-          const session = await runSession(config, decide, { onRound });
+          const session = await runSession(config, decide, { onRound, signal: ac.signal });
 
+          const keep = session.rounds.length > 0;
           set((s) => ({
-            sessions: s.sessions.map((x) => (x.config.id === id ? session : x)),
+            sessions: keep
+              ? s.sessions.map((x) => (x.config.id === id ? session : x))
+              : s.sessions.filter((x) => x.config.id !== id),
+            activeId: keep ? id : (s.sessions.find((x) => x.config.id !== id)?.config.id ?? null),
             running: false,
+            stopping: false,
+            abortController: null,
             progress: null,
-            autoplay: !isLlm,                              // baseline: replay-animate; LLM already streamed live
+            autoplay: !isLlm && !session.stopped,          // baseline: replay-animate; LLM already streamed live
             playhead: isLlm ? Math.max(0, session.rounds.length - 1) : 0,
             form: { ...s.form, seed: randomSeed(), label: '' },
           }));
         } catch (err) {
-          // Keep a partial LLM run if any rounds streamed; drop an empty placeholder.
+          const cancelled = err instanceof CancelledError || (err as any)?.name === 'CancelledError';
           set((s) => ({
+            // Keep a partial run if any rounds streamed; drop an empty placeholder.
             sessions: s.sessions.filter((x) => !(x.config.id === id && x.rounds.length === 0)),
             running: false,
+            stopping: false,
+            abortController: null,
             progress: null,
-            error: err instanceof Error ? err.message : String(err),
+            error: cancelled ? null : (err instanceof Error ? err.message : String(err)),
           }));
         }
       },

@@ -40,7 +40,7 @@ export function SessionsList() {
               >✕</span>
             </div>
             <div className="flex items-center justify-between mt-1 text-[11px] text-white/45">
-              <span>{s.rounds.length} rounds · {s.config.deciderId.startsWith('llm') ? 'LLM' : 'bot'}</span>
+              <span>{s.rounds.length} rounds · {s.config.deciderId.startsWith('llm') ? 'LLM' : 'bot'}{s.stopped ? ' · stopped' : s.bustedOut ? ' · bust' : ''}</span>
               <span className={up ? 'text-chip-green' : 'text-chip-red'}>
                 {signed(stats.net)} → {fmt(s.finalBankroll)}
               </span>

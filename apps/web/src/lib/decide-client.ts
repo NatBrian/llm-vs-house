@@ -11,8 +11,13 @@ const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function createClientLlmDecide(cfg: LlmClientConfig, onCall?: () => void): Decide {
+export class CancelledError extends Error {
+  constructor() { super('cancelled'); this.name = 'CancelledError'; }
+}
+
+export function createClientLlmDecide(cfg: LlmClientConfig, onCall?: () => void, external?: AbortSignal): Decide {
   return async (req) => {
+    if (external?.aborted) throw new CancelledError();
     const payload = JSON.stringify({
       provider: cfg.provider,
       model: cfg.model,
@@ -30,8 +35,11 @@ export function createClientLlmDecide(cfg: LlmClientConfig, onCall?: () => void)
 
     let lastError = '';
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (external?.aborted) throw new CancelledError();
       onCall?.();
       const ctrl = new AbortController();
+      const onExternalAbort = () => ctrl.abort();
+      external?.addEventListener('abort', onExternalAbort, { once: true });
       const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
       let res: Response;
       try {
@@ -43,6 +51,8 @@ export function createClientLlmDecide(cfg: LlmClientConfig, onCall?: () => void)
         });
       } catch (err) {
         clearTimeout(timer);
+        external?.removeEventListener('abort', onExternalAbort);
+        if (external?.aborted) throw new CancelledError(); // user stopped — don't retry or error
         const aborted = err instanceof DOMException && err.name === 'AbortError';
         lastError = aborted
           ? `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`
@@ -51,6 +61,7 @@ export function createClientLlmDecide(cfg: LlmClientConfig, onCall?: () => void)
         throw new Error(`Could not reach /api/decide: ${lastError}. The model may be slow, or the request was dropped — try again or lower the round count.`);
       }
       clearTimeout(timer);
+      external?.removeEventListener('abort', onExternalAbort);
 
       const bodyText = await res.text().catch(() => '');
       if (!res.ok) {

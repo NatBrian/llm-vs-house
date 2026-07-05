@@ -9,6 +9,8 @@ import type { Decide, Session, SessionConfig, RoundRecord } from './types.js';
 export interface RunHooks {
   /** Called after each round completes, so the UI can render live during slow (LLM) runs. */
   onRound?: (round: RoundRecord, index: number, total: number) => void;
+  /** Abort to stop the run cleanly; completed rounds are kept, no error is thrown. */
+  signal?: AbortSignal;
 }
 
 export async function runSession(config: SessionConfig, decide: Decide, hooks: RunHooks = {}): Promise<Session> {
@@ -18,13 +20,21 @@ export async function runSession(config: SessionConfig, decide: Decide, hooks: R
   let bankroll = config.startingBankroll;
   const rounds: RoundRecord[] = [];
   let bustedOut = false;
+  let stopped = false;
 
   for (let i = 0; i < config.rounds; i++) {
+    if (hooks.signal?.aborted) { stopped = true; break; }
     if (bankroll < config.baseBet) { bustedOut = true; break; }
     const before = bankroll;
-    const res = await adapter.playRound({
-      rng, index: i, bankroll: before, baseBet: config.baseBet, config: config.gameConfig, decide,
-    });
+    let res;
+    try {
+      res = await adapter.playRound({
+        rng, index: i, bankroll: before, baseBet: config.baseBet, config: config.gameConfig, decide,
+      });
+    } catch (err) {
+      if (hooks.signal?.aborted) { stopped = true; break; } // aborted mid-round: drop it, stop cleanly
+      throw err;
+    }
     bankroll = before + res.net;
     const round: RoundRecord = {
       index: i, game: config.game, steps: res.steps, outcome: res.outcome,
@@ -34,7 +44,7 @@ export async function runSession(config: SessionConfig, decide: Decide, hooks: R
     hooks.onRound?.(round, i, config.rounds);
   }
 
-  return { config, rounds, finalBankroll: bankroll, bustedOut };
+  return { config, rounds, finalBankroll: bankroll, bustedOut, stopped };
 }
 
 /** A decider that replays a session's logged decisions in order (no LLM/bot call). */
