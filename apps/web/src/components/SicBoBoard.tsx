@@ -435,10 +435,23 @@ export function SicBoBoard({ dice, placedBets, history = [], roundKey }: {
     return false;
   }).length ?? 0;
 
+  const scaleRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = scaleRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setScale(Math.min(1, entry.contentRect.width / 900));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <div className="w-full flex flex-col items-center gap-3">
-      <div className="w-full overflow-x-auto">
-        <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 900 }}>
+      <div ref={scaleRef} className="w-full flex justify-center">
+        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+      <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 900 }}>
           {/* shaker + result banner */}
           <div className="flex items-center justify-center gap-6 pb-1 min-h-[132px]">
             <DiceShaker dice={d} roundKey={roundKey} onSettle={() => setReveal(true)} />
@@ -617,6 +630,7 @@ export function SicBoBoard({ dice, placedBets, history = [], roundKey }: {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
