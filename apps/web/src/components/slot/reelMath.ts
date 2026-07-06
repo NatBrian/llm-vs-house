@@ -12,10 +12,10 @@ export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number 
   DRAGON:  { glyph: '🐉', accent: 0xef4444 },
   TIGER:   { glyph: '🐯', accent: 0xf59e0b },
   LOTUS:   { glyph: '🌸', accent: 0x22c55e },
-  ACE:     { glyph: '♠', accent: 0x60a5fa },
-  KING:    { glyph: '♣', accent: 0x9ca3af },
-  QUEEN:   { glyph: '♥', accent: 0xc084fc },
-  TEN:     { glyph: '♦', accent: 0x94a3b8 },
+  ACE:     { glyph: '🅰️', accent: 0x60a5fa },
+  KING:    { glyph: '👑', accent: 0x9ca3af },
+  QUEEN:   { glyph: '👸', accent: 0xc084fc },
+  TEN:     { glyph: '🔟', accent: 0x94a3b8 },
 };
 
 // ---------------------------------------------------------------- strip layout for downward spin

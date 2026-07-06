@@ -15,10 +15,10 @@ const THEME: Record<SlotSymbolId, TileTheme> = {
   DRAGON:  { bg: 0x3a0808, accent: 0xef4444, bgAlpha: 0.55, emoji: '🐉', label: 'D' },
   TIGER:   { bg: 0x3a2004, accent: 0xf59e0b, bgAlpha: 0.55, emoji: '🐯', label: 'T' },
   LOTUS:   { bg: 0x043018, accent: 0x22c55e, bgAlpha: 0.55, emoji: '🌸' },
-  ACE:     { bg: 0x081e3a, accent: 0x60a5fa, bgAlpha: 0.55, emoji: '♠', label: 'A' },
-  KING:    { bg: 0x1a1a24, accent: 0x9ca3af, bgAlpha: 0.55, emoji: '♣', label: 'K' },
-  QUEEN:   { bg: 0x280e30, accent: 0xc084fc, bgAlpha: 0.55, emoji: '♥', label: 'Q' },
-  TEN:     { bg: 0x1a1a22, accent: 0x94a3b8, bgAlpha: 0.55, emoji: '♦', label: '10' },
+  ACE:     { bg: 0x081e3a, accent: 0x60a5fa, bgAlpha: 0.55, emoji: '🅰️', label: 'A' },
+  KING:    { bg: 0x1a1a24, accent: 0x9ca3af, bgAlpha: 0.55, emoji: '👑', label: 'K' },
+  QUEEN:   { bg: 0x280e30, accent: 0xc084fc, bgAlpha: 0.55, emoji: '👸', label: 'Q' },
+  TEN:     { bg: 0x1a1a22, accent: 0x94a3b8, bgAlpha: 0.55, emoji: '🔟', label: '10' },
 };
 
 export function makeSymbolTile(symbolId: SlotSymbolId, size: number): Container {
@@ -39,8 +39,7 @@ export function makeSymbolTile(symbolId: SlotSymbolId, size: number): Container 
   container.addChild(border);
 
   // emoji – centred in the tile
-  // NOTE: real emoji (🐉 🐯 ⭐ 💎 🌸) ignore `fill` and render in their
-  // native colours; text chars (♠ ♣ ♥ ♦) need the accent colour.
+  // real emoji ignore `fill` and render in their native colours
   const emoji = new Text({
     text: t.emoji,
     style: {
