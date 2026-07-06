@@ -5,18 +5,19 @@
 export const SLOT_SYMBOLS = ['WILD', 'SCATTER', 'DRAGON', 'TIGER', 'LOTUS', 'ACE', 'KING', 'QUEEN', 'TEN'] as const;
 export type SlotSymbolId = (typeof SLOT_SYMBOLS)[number];
 
-/** Vector glyph + accent color per symbol, drawn by slot/symbolTile.ts — interim art
- *  until a real taxonomy-matched CC0 sprite pack is vendored (see docs/ASSETS.md). */
-export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number }> = {
-  WILD: { glyph: 'W', accent: 0xf5c451 },
-  SCATTER: { glyph: '$', accent: 0xf5c451 },
-  DRAGON: { glyph: '龍', accent: 0xd23b3b },
-  TIGER: { glyph: '虎', accent: 0xe0a92e },
-  LOTUS: { glyph: '❀', accent: 0x23a06b },
-  ACE: { glyph: 'A', accent: 0xe7edf3 },
-  KING: { glyph: 'K', accent: 0xe7edf3 },
-  QUEEN: { glyph: 'Q', accent: 0xe7edf3 },
-  TEN: { glyph: '10', accent: 0xe7edf3 },
+/** Glyph + accent color per symbol. Use readable English letters for all symbols
+ *  (no CJK characters), and a small secondary badge character for card ranks so
+ *  every tile is instantly recognizable regardless of locale. */
+export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number; badge?: string }> = {
+  WILD:    { glyph: 'W', accent: 0xf5c451 },
+  SCATTER: { glyph: '★', accent: 0xe04070 },
+  DRAGON:  { glyph: 'D', accent: 0xd23b3b, badge: '龍' },
+  TIGER:   { glyph: 'T', accent: 0xe0a92e, badge: '虎' },
+  LOTUS:   { glyph: '✿', accent: 0x23a06b },
+  ACE:     { glyph: 'A', accent: 0xe7edf3, badge: '♠' },
+  KING:    { glyph: 'K', accent: 0xe7edf3, badge: '♣' },
+  QUEEN:   { glyph: 'Q', accent: 0xe7edf3, badge: '♥' },
+  TEN:     { glyph: '10', accent: 0xe7edf3, badge: '♦' },
 };
 
 // ---------------------------------------------------------------- strip layout for downward spin
