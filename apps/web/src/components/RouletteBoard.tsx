@@ -69,7 +69,14 @@ function Wheel({ order, pocket, roundKey, onSettled }: { order: Pocket[]; pocket
 
     const WHEEL_REVS = 5, BALL_REVS = 9;
     const wheelTotal = WHEEL_REVS * 360 + ((roundKey * 53) % 360); // arbitrary resting orientation
-    const pocketLocal = sliceAngle(winIndex);
+    // Ball must end at the visual centre of the winning pocket, not the arc
+    // start.  sliceAngle(i) = i/n*360 - 90 gives the arc START; the ball draw
+    // applies its own -90 (ballRad = (ballAngle-90)*PI/180), so the net ball
+    // canvas angle = wheelTotal + pocketLocal - BALL_REVS*360 - 90 (mod 360)
+    //   = wheelTotal + pocketLocal - 90 (mod 360).
+    // Pocket-winIndex centre canvas angle = wheelTotal + winIndex/n*360 - 90 + 180/n.
+    // Equate: pocketLocal = winIndex/n*360 + 180/n.
+    const pocketLocal = (winIndex / n) * 360 + 180 / n;
     const ballFinal = wheelTotal + pocketLocal; // where the ball must be at t=1
     const ballTotal = ballFinal - BALL_REVS * 360; // large negative sweep, same mod-360 landing
 
