@@ -105,10 +105,12 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
       const finalWindow = grid[reel] ?? ['TEN', 'TEN', 'TEN'];
       const seed = (typeof spinKey === 'number' ? spinKey : spinKey.length) * 97 + reel * 31;
       const strip = buildSlotStrip(finalWindow, seed);
+      const tileSize = CELL - 6;
+      const offset = (CELL - tileSize) / 2;
       strip.forEach((sym, i) => {
-        const tile = makeSymbolTile(sym as SlotSymbolId, CELL - 6);
-        tile.x = CELL / 2;
-        tile.y = i * CELL + CELL / 2;
+        const tile = makeSymbolTile(sym as SlotSymbolId, tileSize);
+        tile.x = offset;
+        tile.y = i * CELL + offset;
         scroll.addChild(tile);
       });
 
