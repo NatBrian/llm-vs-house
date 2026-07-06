@@ -231,7 +231,7 @@ export function NewSessionForm() {
 
   return (
     <div className="glass rounded-xl p-4 flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-white/80">New session</h2>
+
 
       <div>
         <span className="text-[11px] uppercase tracking-wide text-white/40">Game</span>
