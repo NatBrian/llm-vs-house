@@ -24,53 +24,48 @@ const THEME: Record<SlotSymbolId, TileTheme> = {
 export function makeSymbolTile(symbolId: SlotSymbolId, size: number): Container {
   const t = THEME[symbolId];
   const container = new Container();
-  const s = size;
-  const cx = s / 2;
-  const cy = s / 2;
-  const radius = s * 0.14;
+  const radius = size * 0.14;
 
-  // coloured background tile
+  // bg fills the whole (0,0)–(size,size) box — no pivot shifts
   const bg = new Graphics()
-    .roundRect(0, 0, s, s, radius)
+    .roundRect(0, 0, size, size, radius)
     .fill({ color: t.bg, alpha: t.bgAlpha });
-  bg.pivot.set(cx, cy);
   container.addChild(bg);
 
-  // accent border (thicker, more visible)
+  // accent border
   const border = new Graphics()
-    .roundRect(1.5, 1.5, s - 3, s - 3, radius)
+    .roundRect(1.5, 1.5, size - 3, size - 3, radius)
     .stroke({ width: 2.5, color: t.accent, alpha: 0.7 });
-  border.pivot.set(cx, cy);
   container.addChild(border);
 
-  // emoji – large, centred
+  // emoji – centred in the tile
   const emoji = new Text({
     text: t.emoji,
     style: {
       fontFamily: 'system-ui, "Segoe UI Emoji", "Apple Color Emoji", sans-serif',
-      fontSize: s * 0.52,
+      fontSize: size * 0.52,
       align: 'center',
     },
   });
   emoji.anchor.set(0.5);
-  emoji.x = cx;
-  emoji.y = cy - (t.label ? s * 0.06 : 0);
+  emoji.x = size / 2;
+  emoji.y = size / 2 - (t.label ? size * 0.06 : 0);
   container.addChild(emoji);
 
-  // label letter (small, bottom-right corner)
+  // label letter – bottom-right corner
   if (t.label) {
     const label = new Text({
       text: t.label,
       style: {
         fontFamily: 'Bungee, system-ui, sans-serif',
-        fontSize: s * 0.28,
+        fontSize: size * 0.28,
         fill: t.accent,
         align: 'center',
       },
     });
     label.anchor.set(0.5);
-    label.x = cx + s * 0.3;
-    label.y = cy + s * 0.28;
+    label.x = size * 0.75;
+    label.y = size * 0.78;
     label.alpha = 0.5;
     container.addChild(label);
   }
