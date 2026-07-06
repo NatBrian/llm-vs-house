@@ -18,6 +18,8 @@ import { SlotReels, CANVAS_WIDTH, CANVAS_HEIGHT, cellRect } from './slot/SlotRee
 import { anticipationFromReel, winTier, creditRollupDurationMs, type SlotSymbolId } from './slot/reelMath';
 import { SYMBOL_STYLE } from './slot/reelMath';
 
+const CABINET_WIDTH = CANVAS_WIDTH + 12 + 8 + 4; // reel-window + padding×2 + border×2 = 476
+
 const SCATTER: SlotSymbolId = 'SCATTER';
 const WILD: SlotSymbolId = 'WILD';
 const SLOT_DENOMS = [1, 2, 5, 10, 25, 50];
@@ -119,6 +121,18 @@ export function SlotBoard({ outcome, roundKey }: { outcome: SlotOutcome; roundKe
   const [bonusStage, setBonusStage] = useState<'none' | 'transition' | 'playing' | 'summary'>('none');
   const [bonusWinTotal, setBonusWinTotal] = useState(0);
   const timers = useRef<number[]>([]);
+  const scaleRef = useRef<HTMLDivElement>(null);
+  const [cabinetScale, setCabinetScale] = useState(1);
+
+  useEffect(() => {
+    const el = scaleRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setCabinetScale(Math.min(1, entry.contentRect.width / CABINET_WIDTH));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const clearTimers = () => { timers.current.forEach((t) => window.clearTimeout(t)); timers.current = []; };
   const after = (ms: number, fn: () => void) => { timers.current.push(window.setTimeout(fn, ms)); };
@@ -174,72 +188,77 @@ export function SlotBoard({ outcome, roundKey }: { outcome: SlotOutcome; roundKe
 
   return (
     <div className="w-full flex flex-col items-center gap-3">
-      {/* cabinet frame — chrome-wrapped slot machine cabinet */}
-      <div className="relative rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.6)] overflow-hidden"
-        style={{
-          background: 'linear-gradient(180deg,#2a1f10 0%,#1a1410 3%,#0a0e12 40%,#0a0e12 60%,#1a1410 97%,#2a1f10 100%)',
-          border: '2px solid rgba(218,180,90,0.25)',
-          padding: 4,
-        }}>
-        {/* inner gold shadow border */}
-        <div className="rounded-xl overflow-hidden"
-          style={{ boxShadow: 'inset 0 0 20px rgba(218,180,90,0.08), 0 0 8px rgba(218,180,90,0.06)' }}>
-          {/* reel window area */}
-          <div className="relative rounded-lg overflow-hidden border-2"
+      {/* responsive wrapper — scales cabinet to fit viewport */}
+      <div ref={scaleRef} className="w-full flex justify-center">
+        <div style={{ transform: `scale(${cabinetScale})`, transformOrigin: 'top center' }}>
+          {/* cabinet frame — chrome-wrapped slot machine cabinet */}
+          <div className="relative rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.6)] overflow-hidden"
             style={{
-              width: CANVAS_WIDTH + 12,
-              height: CANVAS_HEIGHT + 12,
-              borderColor: 'rgba(218,180,90,0.35)',
-              boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5), 0 0 2px rgba(218,180,90,0.2)',
-              background: 'transparent',
-              margin: -6,
-            }}
-          >
-            {/* corner bolts */}
-            {[[6, 6], [CANVAS_WIDTH + 6, 6], [6, CANVAS_HEIGHT + 6], [CANVAS_WIDTH + 6, CANVAS_HEIGHT + 6]].map(([left, top], i) => (
-              <span key={i}
-                className="absolute w-2.5 h-2.5 rounded-full pointer-events-none z-10"
-                style={{ left, top, background: 'radial-gradient(circle,#5a4a30 0%,#2a1f10 70%)', border: '1px solid rgba(218,180,90,0.2)' }}
-              />
-            ))}
-            {/* reel glass overlay — subtle reflection gradient */}
-            <span className="absolute inset-0 pointer-events-none z-10 rounded-sm"
-              style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 20%, transparent 80%, rgba(255,255,255,0.015) 100%)',
-              }}
-            />
-            <SlotReels grid={currentSpin.grid} spinKey={spinKey} anticipationFromReel={anticipation} onSettled={onSettled} />
-          {/* winning-cell highlight overlay (DOM, positioned at known grid coordinates) */}
-          {[...cells].map((key) => {
-            const [reel, row] = key.split(',').map(Number);
-            const r = cellRect(reel!, row!);
-            return (
-              <motion.span key={key}
-                className="absolute pointer-events-none rounded-md"
+              background: 'linear-gradient(180deg,#2a1f10 0%,#1a1410 3%,#0a0e12 40%,#0a0e12 60%,#1a1410 97%,#2a1f10 100%)',
+              border: '2px solid rgba(218,180,90,0.25)',
+              padding: 4,
+            }}>
+            {/* inner gold shadow border */}
+            <div className="rounded-xl overflow-hidden"
+              style={{ boxShadow: 'inset 0 0 20px rgba(218,180,90,0.08), 0 0 8px rgba(218,180,90,0.06)' }}>
+              {/* reel window area */}
+              <div className="relative rounded-lg overflow-hidden border-2"
                 style={{
-                  left: r.x, top: r.y, width: r.w, height: r.h,
-                  boxShadow: 'inset 0 0 0 2px var(--color-gold-400), 0 0 18px 2px rgba(245,196,81,0.7)',
+                  width: CANVAS_WIDTH + 12,
+                  height: CANVAS_HEIGHT + 12,
+                  borderColor: 'rgba(218,180,90,0.35)',
+                  boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5), 0 0 2px rgba(218,180,90,0.2)',
+                  background: 'transparent',
+                  margin: -6,
                 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.1, repeat: Infinity }}
-              />
-            );
-          })}
-        </div>
+              >
+                {/* corner bolts */}
+                {[[6, 6], [CANVAS_WIDTH + 6, 6], [6, CANVAS_HEIGHT + 6], [CANVAS_WIDTH + 6, CANVAS_HEIGHT + 6]].map(([left, top], i) => (
+                  <span key={i}
+                    className="absolute w-2.5 h-2.5 rounded-full pointer-events-none z-10"
+                    style={{ left, top, background: 'radial-gradient(circle,#5a4a30 0%,#2a1f10 70%)', border: '1px solid rgba(218,180,90,0.2)' }}
+                  />
+                ))}
+                {/* reel glass overlay — subtle reflection gradient */}
+                <span className="absolute inset-0 pointer-events-none z-10 rounded-sm"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 20%, transparent 80%, rgba(255,255,255,0.015) 100%)',
+                  }}
+                />
+                <SlotReels grid={currentSpin.grid} spinKey={spinKey} anticipationFromReel={anticipation} onSettled={onSettled} />
+              {/* winning-cell highlight overlay (DOM, positioned at known grid coordinates) */}
+              {[...cells].map((key) => {
+                const [reel, row] = key.split(',').map(Number);
+                const r = cellRect(reel!, row!);
+                return (
+                  <motion.span key={key}
+                    className="absolute pointer-events-none rounded-md"
+                    style={{
+                      left: r.x, top: r.y, width: r.w, height: r.h,
+                      boxShadow: 'inset 0 0 0 2px var(--color-gold-400), 0 0 18px 2px rgba(245,196,81,0.7)',
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.1, repeat: Infinity }}
+                  />
+                );
+              })}
+            </div>
 
-        {/* free-spins HUD */}
-        <AnimatePresence>
-          {(bonusStage === 'playing' || bonusStage === 'summary') && (
-            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-ink-950 border border-gold-500/60 px-3 py-1 text-[10px] flex items-center gap-2">
-              <span className="text-gold-300 font-semibold">FREE SPINS {Math.min(spinIndex + 1, outcome.bonusSpins.length)}/{outcome.bonusSpins.length}</span>
-              <span className="text-white/60">Bonus win <CreditRollup from={0} to={bonusWinTotal} /></span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {/* free-spins HUD */}
+            <AnimatePresence>
+              {(bonusStage === 'playing' || bonusStage === 'summary') && (
+                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-ink-950 border border-gold-500/60 px-3 py-1 text-[10px] flex items-center gap-2">
+                  <span className="text-gold-300 font-semibold">FREE SPINS {Math.min(spinIndex + 1, outcome.bonusSpins.length)}/{outcome.bonusSpins.length}</span>
+                  <span className="text-white/60">Bonus win <CreditRollup from={0} to={bonusWinTotal} /></span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
-    </div>
+      </div>
 
     {/* transition / summary banners */}
       <AnimatePresence>
