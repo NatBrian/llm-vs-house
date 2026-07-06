@@ -18,7 +18,7 @@ export const PROVIDERS: ProviderPreset[] = [
   { id: 'ollama', label: 'Ollama (local)', needsKey: false, needsBaseURL: false, exampleModel: 'gemma3:12b' },
   { id: 'openrouter', label: 'OpenRouter', needsKey: true, needsBaseURL: false, exampleModel: 'anthropic/claude-sonnet-5' },
   { id: 'kilocode', label: 'KiloCode', needsKey: true, needsBaseURL: false, exampleModel: 'kilo-auto/free' },
-  { id: 'openai-compatible', label: 'Custom (OpenAI-compatible)', needsKey: false, needsBaseURL: true, exampleModel: '' },
+  { id: 'openai-compatible', label: 'Custom (OpenAI-compatible)', needsKey: true, needsBaseURL: true, exampleModel: '' },
 ];
 
 export interface LlmClientConfig {
