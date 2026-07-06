@@ -9,7 +9,7 @@ import { fmt, signed, GAME_META } from '../lib/format';
 // Pulls in pixi.js + gsap — lazy-loaded so the other 4 games never pay that bundle cost.
 const SlotBoard = lazy(() => import('./SlotBoard').then((m) => ({ default: m.SlotBoard })));
 
-export function GameStage() {
+export function GameStage({ onSettled }: { onSettled?: () => void }) {
   const session = useStore(activeSession);
   const playhead = useStore((s) => s.playhead);
 
@@ -92,6 +92,7 @@ export function GameStage() {
             variant={(session.config.gameConfig as any).variant}
             history={session.rounds.slice(0, idx).map((r) => (r.outcome as any).pocket).reverse()}
             roundKey={idx}
+            onSettled={onSettled}
           />
         )}
         {game === 'blackjack' && <BlackjackView outcome={round.outcome} />}
@@ -105,6 +106,7 @@ export function GameStage() {
               bankerPair: !!(r.outcome as any).bankerPair,
             }))}
             roundKey={idx}
+            onSettled={onSettled}
           />
         )}
         {game === 'sicbo' && (
@@ -113,11 +115,12 @@ export function GameStage() {
             placedBets={(round.outcome as any).placedBets ?? []}
             history={session.rounds.slice(0, idx).map((r) => (r.outcome as any).dice).reverse()}
             roundKey={idx}
+            onSettled={onSettled}
           />
         )}
         {game === 'slot' && (
           <Suspense fallback={<div className="text-white/40 text-sm">Loading slot machine…</div>}>
-            <SlotBoard outcome={round.outcome as any} roundKey={idx} />
+            <SlotBoard outcome={round.outcome as any} roundKey={idx} onSettled={onSettled} />
           </Suspense>
         )}
       </div>

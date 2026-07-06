@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { useStore, activeSession } from './store';
 import { NewSessionForm } from './components/NewSessionForm';
@@ -23,13 +23,21 @@ export function App() {
   const mainRef = useRef<HTMLDivElement>(null);
   const prevCount = useRef(sessionCount);
 
-  // Autoplay: advance the playhead through the logged rounds.
+  const [animationDone, setAnimationDone] = useState(false);
+
+  // Reset when playhead advances — must wait for new board's animation
+  useEffect(() => { setAnimationDone(false); }, [playhead]);
+
+  // Stable callback passed to GameStage → board → fires when animation settles + reveal shown
+  const onRoundSettled = useCallback(() => { setAnimationDone(true); }, []);
+
+  // Autoplay: advance playhead after the board's animation completes + a hold to view result.
   useEffect(() => {
-    if (!autoplay || !session) return;
+    if (!autoplay || !session || !animationDone) return;
     if (playhead >= session.rounds.length - 1) { setAutoplay(false); return; }
-    const t = setTimeout(() => setPlayhead(playhead + 1), 1100);
+    const t = setTimeout(() => setPlayhead(playhead + 1), 600);
     return () => clearTimeout(t);
-  }, [autoplay, playhead, session, setPlayhead, setAutoplay]);
+  }, [autoplay, playhead, session, animationDone, setPlayhead, setAutoplay]);
 
   // When a new session is run, jump to the table and (on mobile) scroll it into view.
   useEffect(() => {
@@ -86,7 +94,7 @@ export function App() {
           </div>
           {tab === 'table' ? (
             <>
-              <GameStage />
+              <GameStage onSettled={onRoundSettled} />
               <ReasoningPanel />
             </>
           ) : (

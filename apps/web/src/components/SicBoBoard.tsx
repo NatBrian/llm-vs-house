@@ -353,8 +353,8 @@ function SicBoTrendPanel({ history }: { history: Dice[] }) {
 }
 
 // ---------------------------------------------------------------- board
-export function SicBoBoard({ dice, placedBets, history = [], roundKey }: {
-  dice: number[]; placedBets: any[]; roundKey: number; history?: number[][];
+export function SicBoBoard({ dice, placedBets, history = [], roundKey, onSettled }: {
+  dice: number[]; placedBets: any[]; roundKey: number; history?: number[][]; onSettled?: () => void;
 }) {
   const d = dice as Dice;
   const sum = d[0] + d[1] + d[2];
@@ -365,6 +365,15 @@ export function SicBoBoard({ dice, placedBets, history = [], roundKey }: {
   // win highlights + result banner only appear once the dice have settled
   const [reveal, setReveal] = useState(false);
   useEffect(() => { setReveal(false); }, [roundKey]);
+
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
+
+  useEffect(() => {
+    if (!reveal) return;
+    const t = window.setTimeout(() => onSettledRef.current?.(), 800);
+    return () => window.clearTimeout(t);
+  }, [reveal]);
 
   // aggregate bot chips by cell id
   const staked: Record<string, number> = {};

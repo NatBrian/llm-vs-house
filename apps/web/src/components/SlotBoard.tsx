@@ -115,12 +115,14 @@ function BetControlHud({ denomination, betLevel, betMax, amount }: {
   );
 }
 
-export function SlotBoard({ outcome, roundKey }: { outcome: SlotOutcome; roundKey: number }) {
+export function SlotBoard({ outcome, roundKey, onSettled: onSettledProp }: { outcome: SlotOutcome; roundKey: number; onSettled?: () => void }) {
   const [spinIndex, setSpinIndex] = useState(-1); // -1 = main spin, 0..N-1 = bonus spin
   const [revealed, setRevealed] = useState(false);
   const [bonusStage, setBonusStage] = useState<'none' | 'transition' | 'playing' | 'summary'>('none');
   const [bonusWinTotal, setBonusWinTotal] = useState(0);
   const timers = useRef<number[]>([]);
+  const onSettledPropRef = useRef(onSettledProp);
+  onSettledPropRef.current = onSettledProp;
   const scaleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [cabinetScale, setCabinetScale] = useState(1);
@@ -188,9 +190,14 @@ export function SlotBoard({ outcome, roundKey }: { outcome: SlotOutcome; roundKe
           setSpinIndex((i) => i + 1);
         } else {
           setBonusStage('summary');
+          after(1200, () => onSettledPropRef.current?.());
         }
       });
+      return;
     }
+
+    // No bonus: show result, signal completion after hold
+    after(1200, () => onSettledPropRef.current?.());
   };
 
   const cells = revealed ? winningCells(currentSpin) : new Set<string>();

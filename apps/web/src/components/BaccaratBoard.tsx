@@ -8,7 +8,7 @@
 // tracking) — the pattern-reading scorecards real players lean on, useful here for
 // studying whether an LLM chases patterns a truly random shoe can't support.
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PlayingCard, Chip, Badge } from './primitives';
 
 type Result = 'player' | 'banker' | 'tie';
@@ -172,11 +172,20 @@ function Box({ box, reveal, className = '', pill }: { box: BetBox; reveal: boole
   );
 }
 
-export function BaccaratBoard({ outcome, placedBets, history, roundKey }: {
-  outcome: any; placedBets: any[]; history: RoadHand[]; roundKey: number;
+export function BaccaratBoard({ outcome, placedBets, history, roundKey, onSettled }: {
+  outcome: any; placedBets: any[]; history: RoadHand[]; roundKey: number; onSettled?: () => void;
 }) {
   const [reveal, setReveal] = useState(false);
   const r: Result = outcome.result;
+
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
+
+  useEffect(() => {
+    if (!reveal) return;
+    const t = setTimeout(() => onSettledRef.current?.(), 800);
+    return () => clearTimeout(t);
+  }, [reveal]);
 
   // Reconstruct authentic P,B,P,B,[P3],[B3] deal order for the card-flip animation.
   const dealOrder: Array<{ hand: 'player' | 'banker'; idx: number }> = [

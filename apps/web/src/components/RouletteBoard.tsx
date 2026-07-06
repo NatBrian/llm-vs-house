@@ -273,11 +273,20 @@ function betCellIds(bet: any, variant: string): string[] {
 
 const ROW_H = 52;
 
-export function RouletteBoard({ pocket, placedBets, variant, history, roundKey }: {
-  pocket: Pocket; placedBets: any[]; variant: 'european' | 'american'; history: Pocket[]; roundKey: number;
+export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, onSettled }: {
+  pocket: Pocket; placedBets: any[]; variant: 'european' | 'american'; history: Pocket[]; roundKey: number; onSettled?: () => void;
 }) {
   const order = variant === 'american' ? AMERICAN_ORDER : EUROPEAN_ORDER;
   const [reveal, setReveal] = useState(false);
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
+
+  // Signal round complete after user sees the winning reveal
+  useEffect(() => {
+    if (!reveal) return;
+    const t = window.setTimeout(() => onSettledRef.current?.(), 800);
+    return () => window.clearTimeout(t);
+  }, [reveal]);
   const scaleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
