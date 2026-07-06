@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useStore, activeSession } from '../store';
 import { fmt, signed } from '../lib/format';
 
@@ -8,8 +7,6 @@ export function ReasoningPanel() {
   const setPlayhead = useStore((s) => s.setPlayhead);
   const autoplay = useStore((s) => s.autoplay);
   const setAutoplay = useStore((s) => s.setAutoplay);
-  const replayActive = useStore((s) => s.replayActive);
-  const [verify, setVerify] = useState<{ ok: boolean; message: string } | null>(null);
 
   if (!session) {
     return <div className="glass rounded-xl p-6 text-center text-white/40 text-sm">Run a session to inspect the agent's reasoning.</div>;
@@ -68,18 +65,6 @@ export function ReasoningPanel() {
         ))}
       </div>
 
-      {/* Replay verify */}
-      <div className="flex items-center gap-3 pt-1 border-t border-white/5">
-        <button
-          onClick={async () => setVerify(await replayActive())}
-          className="text-xs px-3 py-1.5 rounded-lg bg-ink-800 border border-white/10 hover:border-gold-500/50"
-        >
-          ⟲ Replay &amp; verify determinism
-        </button>
-        {verify && (
-          <span className={`text-xs ${verify.ok ? 'text-chip-green' : 'text-chip-red'}`}>{verify.message}</span>
-        )}
-      </div>
     </div>
   );
 }

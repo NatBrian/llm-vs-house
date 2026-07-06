@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import {
-  runSession, replaySession, naiveDecide, makeRuleBot, DEFAULT_RULE_BOT_CONFIG, makeSessionConfig, computeStats,
+  runSession, naiveDecide, makeRuleBot, DEFAULT_RULE_BOT_CONFIG, makeSessionConfig, computeStats,
   type Session, type GameId, type Decide, type RuleBotConfig,
 } from '@casino/core';
 import type { LlmClientConfig, ProviderId } from './lib/providers';
@@ -60,7 +60,6 @@ interface StoreState {
   removeSession: (id: string) => void;
   setPlayhead: (i: number) => void;
   setAutoplay: (v: boolean) => void;
-  replayActive: () => Promise<{ ok: boolean; message: string } | null>;
   clearError: () => void;
 }
 
@@ -196,22 +195,6 @@ export const useStore = create<StoreState>()(
       }),
       setPlayhead: (i) => set({ playhead: Math.max(0, i) }),
       setAutoplay: (v) => set({ autoplay: v }),
-
-      replayActive: async () => {
-        const { sessions, activeId } = get();
-        const session = sessions.find((s) => s.config.id === activeId);
-        if (!session) return null;
-        const replay = await replaySession(session);
-        const same = replay.finalBankroll === session.finalBankroll
-          && replay.rounds.length === session.rounds.length
-          && replay.rounds.every((r, i) => r.net === session.rounds[i]!.net);
-        return {
-          ok: same,
-          message: same
-            ? `Replay verified identical: ${replay.rounds.length} rounds, final ${replay.finalBankroll} pts.`
-            : 'Replay diverged — determinism violation!',
-        };
-      },
 
       clearError: () => set({ error: null }),
     }),
