@@ -11,7 +11,7 @@ export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number 
   SCATTER: { glyph: '💎', accent: 0xe04070 },
   DRAGON:  { glyph: '🐉', accent: 0xef4444 },
   TIGER:   { glyph: '🐯', accent: 0xf59e0b },
-  LOTUS:   { glyph: '🪷', accent: 0x22c55e },
+  LOTUS:   { glyph: '🌸', accent: 0x22c55e },
   ACE:     { glyph: '♠', accent: 0x60a5fa },
   KING:    { glyph: '♣', accent: 0x9ca3af },
   QUEEN:   { glyph: '♥', accent: 0xc084fc },
