@@ -1,5 +1,5 @@
-import { useStore, computeStats } from '../store';
-import { fmt, signed, sessionColor, GAME_META } from '../lib/format';
+import { useStore } from '../store';
+import { fmt, sessionColor, GAME_META } from '../lib/format';
 
 export function SessionsList() {
   const sessions = useStore((s) => s.sessions);
@@ -20,9 +20,8 @@ export function SessionsList() {
       <h2 className="text-sm font-semibold text-white/80 px-1">Sessions ({sessions.length})</h2>
       <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1">
       {sessions.map((s) => {
-        const stats = computeStats(s);
+        const up = s.finalBankroll >= s.config.startingBankroll;
         const active = s.config.id === activeId;
-        const up = stats.net >= 0;
         return (
           <button
             key={s.config.id}
@@ -43,7 +42,7 @@ export function SessionsList() {
             <div className="flex items-center justify-between mt-1 text-[11px] text-white/45">
               <span>{s.rounds.length} rounds · {s.config.deciderId.startsWith('llm') ? 'LLM' : 'bot'}{s.stopped ? ' · stopped' : s.bustedOut ? ' · bust' : s.quitVoluntarily ? ' · quit' : s.targetHit ? ' · target hit' : ''}</span>
               <span className={up ? 'text-chip-green' : 'text-chip-red'}>
-                {signed(stats.net)} → {fmt(s.finalBankroll)}
+                {fmt(s.config.startingBankroll)} → {fmt(s.finalBankroll)}
               </span>
             </div>
           </button>
