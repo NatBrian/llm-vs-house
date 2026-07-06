@@ -1,11 +1,21 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
 import {
   runSession, replaySession, naiveDecide, makeRuleBot, DEFAULT_RULE_BOT_CONFIG, makeSessionConfig, computeStats,
   type Session, type GameId, type Decide, type RuleBotConfig,
 } from '@casino/core';
 import type { LlmClientConfig, ProviderId } from './lib/providers';
 import { createClientLlmDecide, CancelledError } from './lib/decide-client';
+
+/** localStorage shim that silently drops writes when quota is exceeded. */
+const quotaSafeStorage: StateStorage = {
+  getItem: (name) => localStorage.getItem(name),
+  setItem: (name, value) => {
+    try { localStorage.setItem(name, value); }
+    catch (e) { if (!(e instanceof DOMException && e.name === 'QuotaExceededError')) throw e; }
+  },
+  removeItem: (name) => localStorage.removeItem(name),
+};
 
 export interface FormState {
   label: string;
@@ -125,7 +135,7 @@ export const useStore = create<StoreState>()(
 
           // Push a live placeholder so the table renders as rounds stream in (esp. for slow LLM runs).
           const live: Session = { config, rounds: [], finalBankroll: config.startingBankroll, bustedOut: false };
-          set((s) => ({ sessions: [live, ...s.sessions].slice(0, 40), activeId: id, playhead: 0, autoplay: false }));
+          set((s) => ({ sessions: [live, ...s.sessions].slice(0, 20), activeId: id, playhead: 0, autoplay: false }));
 
           let decide: Decide;
           if (!isLlm) {
@@ -207,12 +217,13 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'llm-vs-house',
-      // Bump when the persisted shape changes (e.g. new Sic Bo bet types / player
-      // options, new rule-bot config). A version mismatch discards incompatible
-      // old state instead of rendering it into a crash loop.
-      version: 3, // bumped: RuleBotConfig gained a required `slot` control block
-      migrate: () => ({ sessions: [], form: defaultForm }), // drop any pre-version persisted state, start clean
-      partialize: (s) => ({ sessions: s.sessions, form: { ...s.form, llm: { ...s.form.llm, apiKey: '' } } }),
+      version: 4,
+      storage: createJSONStorage(() => quotaSafeStorage),
+      migrate: () => ({ sessions: [] as Session[], form: defaultForm }),
+      partialize: (s) => ({
+        sessions: s.sessions.slice(0, 10) as Session[],
+        form: { ...s.form, llm: { ...s.form.llm, apiKey: '' } },
+      }),
     },
   ),
 );
