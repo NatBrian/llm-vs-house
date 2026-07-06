@@ -153,7 +153,10 @@ export const useStore = create<StoreState>()(
             set((s) => ({
               sessions: s.sessions.map((x) =>
                 x.config.id === id ? { ...x, rounds: [...x.rounds, round], finalBankroll: round.bankrollAfter } : x),
-              playhead: round.index,
+              // Only advance playhead for LLM (live streaming); deterministic bots
+              // keep playhead=0 so the final autoplay reset doesn't cause a React
+              // nested-update back-and-forth.
+              playhead: isLlm ? round.index : 0,
               progress: { done: round.index + 1, label: `Round ${round.index + 1}/${config.rounds}` },
             }));
           };
