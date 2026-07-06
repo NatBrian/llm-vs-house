@@ -5,19 +5,17 @@
 export const SLOT_SYMBOLS = ['WILD', 'SCATTER', 'DRAGON', 'TIGER', 'LOTUS', 'ACE', 'KING', 'QUEEN', 'TEN'] as const;
 export type SlotSymbolId = (typeof SLOT_SYMBOLS)[number];
 
-/** Glyph + accent color per symbol. Use readable English letters for all symbols
- *  (no CJK characters), and a small secondary badge character for card ranks so
- *  every tile is instantly recognizable regardless of locale. */
-export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number; badge?: string }> = {
-  WILD:    { glyph: 'W', accent: 0xf5c451 },
-  SCATTER: { glyph: '★', accent: 0xe04070 },
-  DRAGON:  { glyph: 'D', accent: 0xd23b3b, badge: '龍' },
-  TIGER:   { glyph: 'T', accent: 0xe0a92e, badge: '虎' },
-  LOTUS:   { glyph: '✿', accent: 0x23a06b },
-  ACE:     { glyph: 'A', accent: 0xe7edf3, badge: '♠' },
-  KING:    { glyph: 'K', accent: 0xe7edf3, badge: '♣' },
-  QUEEN:   { glyph: 'Q', accent: 0xe7edf3, badge: '♥' },
-  TEN:     { glyph: '10', accent: 0xe7edf3, badge: '♦' },
+/** Emoji + accent color per symbol, shown in win-badge labels. */
+export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number }> = {
+  WILD:    { glyph: '⭐', accent: 0xf5c451 },
+  SCATTER: { glyph: '💎', accent: 0xe04070 },
+  DRAGON:  { glyph: '🐉', accent: 0xef4444 },
+  TIGER:   { glyph: '🐯', accent: 0xf59e0b },
+  LOTUS:   { glyph: '🪷', accent: 0x22c55e },
+  ACE:     { glyph: '♠', accent: 0x60a5fa },
+  KING:    { glyph: '♣', accent: 0x9ca3af },
+  QUEEN:   { glyph: '♥', accent: 0xc084fc },
+  TEN:     { glyph: '♦', accent: 0x94a3b8 },
 };
 
 // ---------------------------------------------------------------- strip layout for downward spin
