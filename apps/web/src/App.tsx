@@ -52,22 +52,9 @@ export function App() {
             <p className="hidden sm:block text-[11px] text-white/40 -mt-0.5">How does an LLM take risk on unbeatable games?</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="flex rounded-lg overflow-hidden border border-white/10">
-            {(['table', 'compare'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm capitalize transition ${tab === t ? 'bg-gold-500 text-ink-950 font-medium' : 'text-white/60 hover:text-white'}`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <span className="hidden sm:inline-block text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-chip-red/20 text-chip-red border border-chip-red/30">
-            Simulated points only
-          </span>
-        </div>
+        <span className="hidden sm:inline-block text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-chip-red/20 text-chip-red border border-chip-red/30">
+          Simulated points only
+        </span>
       </header>
 
       {error && (
@@ -83,12 +70,25 @@ export function App() {
           <SessionsList />
         </aside>
 
-        <main ref={mainRef} className="lg:min-h-0 lg:overflow-y-auto scroll-mt-16">
+        <main ref={mainRef} className="lg:min-h-0 lg:overflow-y-auto scroll-mt-16 flex flex-col gap-3 sm:gap-4">
+          <div className="flex justify-end">
+            <div className="flex rounded-lg overflow-hidden border border-white/10">
+              {(['table', 'compare'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm capitalize transition ${tab === t ? 'bg-gold-500 text-ink-950 font-medium' : 'text-white/60 hover:text-white'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
           {tab === 'table' ? (
-            <div className="flex flex-col gap-3 sm:gap-4">
+            <>
               <GameStage />
               <ReasoningPanel />
-            </div>
+            </>
           ) : (
             <Suspense fallback={<div className="glass rounded-xl p-10 text-center text-white/40">Loading charts…</div>}>
               <Dashboard />
