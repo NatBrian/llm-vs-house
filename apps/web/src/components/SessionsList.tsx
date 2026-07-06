@@ -18,6 +18,7 @@ export function SessionsList() {
   return (
     <div className="glass rounded-xl p-3 flex flex-col gap-2">
       <h2 className="text-sm font-semibold text-white/80 px-1">Sessions ({sessions.length})</h2>
+      <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1">
       {sessions.map((s) => {
         const stats = computeStats(s);
         const active = s.config.id === activeId;
@@ -48,6 +49,7 @@ export function SessionsList() {
           </button>
         );
       })}
+      </div>
     </div>
   );
 }
