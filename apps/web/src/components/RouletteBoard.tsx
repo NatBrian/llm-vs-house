@@ -279,12 +279,23 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey }
   const order = variant === 'american' ? AMERICAN_ORDER : EUROPEAN_ORDER;
   const [reveal, setReveal] = useState(false);
   const scaleRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [contentH, setContentH] = useState(0);
   useEffect(() => {
     const el = scaleRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       setScale(Math.min(1, entry.contentRect.width / 760));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContentH(entry.contentRect.height);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -320,7 +331,7 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey }
 
   return (
     <div ref={scaleRef} className="w-full flex justify-center">
-        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+        <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center', marginBottom: contentH * (scale - 1) }}>
       <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 760 }}>
         {/* wheel + winning number + history/trend */}
         <div className="flex items-center justify-center gap-6 pb-1">

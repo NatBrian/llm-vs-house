@@ -436,7 +436,9 @@ export function SicBoBoard({ dice, placedBets, history = [], roundKey }: {
   }).length ?? 0;
 
   const scaleRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [contentH, setContentH] = useState(0);
   useEffect(() => {
     const el = scaleRef.current;
     if (!el) return;
@@ -446,11 +448,20 @@ export function SicBoBoard({ dice, placedBets, history = [], roundKey }: {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContentH(entry.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div className="w-full flex flex-col items-center gap-3">
       <div ref={scaleRef} className="w-full flex justify-center">
-        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+        <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top center', marginBottom: contentH * (scale - 1) }}>
       <div className="mx-auto flex flex-col gap-3" style={{ minWidth: 900 }}>
           {/* shaker + result banner */}
           <div className="flex items-center justify-center gap-6 pb-1 min-h-[132px]">

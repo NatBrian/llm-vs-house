@@ -122,13 +122,25 @@ export function SlotBoard({ outcome, roundKey }: { outcome: SlotOutcome; roundKe
   const [bonusWinTotal, setBonusWinTotal] = useState(0);
   const timers = useRef<number[]>([]);
   const scaleRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [cabinetScale, setCabinetScale] = useState(1);
+  const [contentH, setContentH] = useState(0);
 
   useEffect(() => {
     const el = scaleRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       setCabinetScale(Math.min(1, entry.contentRect.width / CABINET_WIDTH));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContentH(entry.contentRect.height);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -190,7 +202,7 @@ export function SlotBoard({ outcome, roundKey }: { outcome: SlotOutcome; roundKe
     <div className="w-full flex flex-col items-center gap-3">
       {/* responsive wrapper — scales cabinet to fit viewport */}
       <div ref={scaleRef} className="w-full flex justify-center">
-        <div style={{ transform: `scale(${cabinetScale})`, transformOrigin: 'top center' }}>
+        <div ref={contentRef} style={{ transform: `scale(${cabinetScale})`, transformOrigin: 'top center', marginBottom: contentH * (cabinetScale - 1) }}>
           {/* cabinet frame — chrome-wrapped slot machine cabinet */}
           <div className="relative rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.6)] overflow-hidden"
             style={{
