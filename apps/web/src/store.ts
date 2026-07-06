@@ -58,6 +58,7 @@ interface StoreState {
   stop: () => void;
   selectSession: (id: string) => void;
   removeSession: (id: string) => void;
+  clearSessions: () => void;
   setPlayhead: (i: number) => void;
   setAutoplay: (v: boolean) => void;
   clearError: () => void;
@@ -193,6 +194,7 @@ export const useStore = create<StoreState>()(
         const activeId = s.activeId === id ? (sessions[0]?.config.id ?? null) : s.activeId;
         return { sessions, activeId, playhead: 0 };
       }),
+      clearSessions: () => set({ sessions: [], activeId: null, playhead: 0, autoplay: false }),
       setPlayhead: (i) => set({ playhead: Math.max(0, i) }),
       setAutoplay: (v) => set({ autoplay: v }),
 

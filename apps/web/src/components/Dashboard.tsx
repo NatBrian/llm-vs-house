@@ -4,6 +4,7 @@ import { fmt, signed, pct, sessionColor, GAME_META } from '../lib/format';
 
 export function Dashboard() {
   const sessions = useStore((s) => s.sessions);
+  const clear = useStore((s) => s.clearSessions);
 
   if (sessions.length === 0) {
     return <div className="glass rounded-xl p-10 text-center text-white/40">Run one or more sessions to compare them here.</div>;
@@ -62,6 +63,9 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <button onClick={clear} className="text-[11px] text-white/30 hover:text-chip-red transition">Clear all sessions</button>
+      </div>
       <div className="glass rounded-xl p-4">
         <h2 className="text-sm font-semibold text-white/80 mb-2">Bankroll over time</h2>
         <ReactECharts option={bankrollOption} style={{ height: 300 }} notMerge lazyUpdate />
