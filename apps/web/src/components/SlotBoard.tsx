@@ -1,11 +1,11 @@
-// 243-ways video slot board — mirrors the SicBoBoard/RouletteBoard/BaccaratBoard
+// 243-ways video slot board, mirrors the SicBoBoard/RouletteBoard/BaccaratBoard
 // sibling convention (outcome + roundKey props, reset-on-new-round via useEffect).
 // All DOM chrome (cabinet frame, bet-control HUD, win banners, free-spins HUD) lives
 // here; the reel grid itself is the one Pixi canvas island (SlotReels).
 //
 // Bet-control HUD is a REPLAY visualization, not a live-interactive control: every
 // board in this app visualizes an already-decided round (placedBets/dice/cards),
-// never solicits a new one — there is no live-human-clicking mode anywhere in this
+// never solicits a new one, there is no live-human-clicking mode anywhere in this
 // app. Because the decision schema itself is `{denomination, betLevel, betMax}` (not
 // a bare number), the HUD shows exactly which control the rule bot / naive bot / LLM
 // actually pressed that round.
@@ -207,10 +207,10 @@ export function SlotBoard({ outcome, roundKey, onSettled: onSettledProp }: { out
 
   return (
     <div className="w-full flex flex-col items-center gap-3">
-      {/* responsive wrapper — scales cabinet to fit viewport */}
+      {/* responsive wrapper, scales cabinet to fit viewport */}
       <div ref={scaleRef} className="w-full flex justify-center">
         <div ref={contentRef} style={{ transform: `scale(${cabinetScale})`, transformOrigin: 'top center', marginBottom: contentH * (cabinetScale - 1) }}>
-          {/* cabinet frame — chrome-wrapped slot machine cabinet */}
+          {/* cabinet frame, chrome-wrapped slot machine cabinet */}
           <div className="relative rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.6)] overflow-hidden"
             style={{
               background: 'linear-gradient(180deg,#2a1f10 0%,#1a1410 3%,#0a0e12 40%,#0a0e12 60%,#1a1410 97%,#2a1f10 100%)',
@@ -238,7 +238,7 @@ export function SlotBoard({ outcome, roundKey, onSettled: onSettledProp }: { out
                     style={{ left, top, background: 'radial-gradient(circle,#5a4a30 0%,#2a1f10 70%)', border: '1px solid rgba(218,180,90,0.2)' }}
                   />
                 ))}
-                {/* reel glass overlay — subtle reflection gradient */}
+                {/* reel glass overlay, subtle reflection gradient */}
                 <span className="absolute inset-0 pointer-events-none z-10 rounded-sm"
                   style={{
                     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 20%, transparent 80%, rgba(255,255,255,0.015) 100%)',
@@ -284,7 +284,7 @@ export function SlotBoard({ outcome, roundKey, onSettled: onSettledProp }: { out
         {bonusStage === 'transition' && (
           <motion.div initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
             className="font-display text-gold-400 text-2xl tracking-widest">
-            FREE SPINS AWARDED — {outcome.mainSpin.freeSpinsAwarded}!
+            FREE SPINS AWARDED, {outcome.mainSpin.freeSpinsAwarded}!
           </motion.div>
         )}
         {bonusStage === 'summary' && (
@@ -304,7 +304,7 @@ export function SlotBoard({ outcome, roundKey, onSettled: onSettledProp }: { out
           {revealed && outcome.mainSpin.wins.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1">
               {outcome.mainSpin.wins.map((w, i) => (
-                <Badge key={i} tone="win">{SYMBOL_STYLE[w.symbol as SlotSymbolId]?.glyph ?? w.symbol} ×{w.count} — pays {w.payout.toFixed(1)}×</Badge>
+                <Badge key={i} tone="win">{SYMBOL_STYLE[w.symbol as SlotSymbolId]?.glyph ?? w.symbol} ×{w.count}, pays {w.payout.toFixed(1)}×</Badge>
               ))}
             </div>
           )}

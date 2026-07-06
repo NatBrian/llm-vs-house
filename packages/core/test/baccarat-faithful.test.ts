@@ -53,7 +53,7 @@ describe('naive human bot plays a faithful Baccarat table', () => {
     expect(multiBetRounds).toBeGreaterThan(0); // genuinely adds a side bet sometimes
   });
 
-  it('is deterministic — replay reproduces the naive spread exactly', async () => {
+  it('is deterministic, replay reproduces the naive spread exactly', async () => {
     const original = await runSession(cfg('replay-1'), naiveDecide);
     const replay = await replaySession(original);
     expect(replay.finalBankroll).toBe(original.finalBankroll);

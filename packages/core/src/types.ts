@@ -35,7 +35,7 @@ export interface DecideResult {
 
 export type Decide = (req: DecisionRequest) => Promise<DecideResult>;
 
-/** One recorded decision inside a round (a round may have several — Blackjack). */
+/** One recorded decision inside a round (a round may have several, Blackjack). */
 export interface DecisionStep {
   kind: 'bet' | 'action';
   observation: Record<string, unknown>;
@@ -71,7 +71,7 @@ export interface SessionConfig {
   rounds: number;
   createdAt: string;
   /**
-   * A fixed bankroll target set by the human running the session (not the decider) —
+   * A fixed bankroll target set by the human running the session (not the decider),
    * a stop-loss/take-profit rail for the deterministic bots, which can't reason about
    * when to walk away themselves. 0 disables it. If >= startingBankroll it's a target
    * to reach (stop once bankroll >= target); if < startingBankroll it's a floor to
@@ -89,12 +89,12 @@ export interface Session {
   /** True if the run was stopped by the user before completing all rounds. */
   stopped?: boolean;
   /** True if the decider itself chose to end the session (walked away) before
-   *  running out of rounds or bankroll — distinct from `stopped` (user-aborted)
+   *  running out of rounds or bankroll, distinct from `stopped` (user-aborted)
    *  and `bustedOut` (couldn't cover a bet). */
   quitVoluntarily?: boolean;
   /** The decider's own reasoning for walking away, when `quitVoluntarily` is true. */
   quitReason?: string;
-  /** True if the session stopped early because `config.stopTarget` was reached —
+  /** True if the session stopped early because `config.stopTarget` was reached,
    *  a human-set rail, not the decider's own choice (see `quitVoluntarily`). */
   targetHit?: boolean;
 }
@@ -106,7 +106,7 @@ export interface RoundContext {
   baseBet: number;
   config: unknown;
   decide: Decide;
-  /** Completed rounds so far this session, oldest first — lets an adapter surface history (e.g. roulette hot/cold). */
+  /** Completed rounds so far this session, oldest first, lets an adapter surface history (e.g. roulette hot/cold). */
   history: RoundRecord[];
 }
 
@@ -114,7 +114,7 @@ export interface RoundResult {
   steps: DecisionStep[];
   outcome: unknown;
   net: number;
-  /** The decider chose to end the session after this round — a real casino is
+  /** The decider chose to end the session after this round, a real casino is
    *  walk-in-walk-out free, so this is always available and never required. */
   stop?: boolean;
 }

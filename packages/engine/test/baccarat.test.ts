@@ -5,7 +5,7 @@ import {
 } from '../src/index.js';
 
 const c = (rank: number, suit = 0): Card => ({ rank, suit });
-// Deal order is P,B,P,B then P3,B3 — so the shoe list is [P1,B1,P2,B2,P3?,B3?].
+// Deal order is P,B,P,B then P3,B3, so the shoe list is [P1,B1,P2,B2,P3?,B3?].
 
 describe('baccarat drawing rules', () => {
   it('player natural 9 stands, no third cards', () => {
@@ -50,8 +50,8 @@ describe('baccarat drawing rules', () => {
   });
 
   it('two DIFFERENT face cards are NOT a pair, even though both are worth 0 (GRA rule 1.1.6)', () => {
-    // Player: K,Q (ranks 13,12) — both baccaratValue 0, but not identical faces -> no pair.
-    // Banker: J,J (rank 11,11) — identical face -> a pair.
+    // Player: K,Q (ranks 13,12), both baccaratValue 0, but not identical faces -> no pair.
+    // Banker: J,J (rank 11,11), identical face -> a pair.
     const coup = playBaccaratCoup(Shoe.fromCards([c(13), c(11), c(12), c(11), c(3), c(4)]));
     expect(coup.playerPair).toBe(false);
     expect(coup.bankerPair).toBe(true);

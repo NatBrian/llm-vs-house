@@ -1,10 +1,10 @@
 // Rule-based baseline decider. Plays every game with a simple, defensible strategy
-// and emits human-readable reasoning — so the reasoning trace has content even with
+// and emits human-readable reasoning, so the reasoning trace has content even with
 // no LLM, and the deployed demo runs with zero API keys. Also the "baseline bot" the
 // brief calls for to compare an LLM against.
 //
 // The rule bot's bet choice and stake-sizing strategy are both human-configurable
-// (see RuleBotConfig / makeRuleBot below) — a human picks a fixed bet (e.g. always
+// (see RuleBotConfig / makeRuleBot below), a human picks a fixed bet (e.g. always
 // Black, always Total 9) and a sizing strategy (flat / martingale / paroli), then
 // watches how that specific rule performs over a session.
 
@@ -27,7 +27,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** DEPRECATED — Blackjack basic strategy. Excluded from GAME_IDS (index.ts), kept
+/** DEPRECATED, Blackjack basic strategy. Excluded from GAME_IDS (index.ts), kept
  *  working/tested but unreachable from the UI. See engine/types.ts for why. */
 function blackjackBasic(req: DecisionRequest): { action: string; reasoning: string } {
   const legal = req.legalActions ?? [];
@@ -46,16 +46,16 @@ function blackjackBasic(req: DecisionRequest): { action: string; reasoning: stri
     if (pv === 8) return { action: 'split', reasoning: 'Always split eights.' };
   }
   if (legal.includes('double') && !soft) {
-    if (total === 11) return { action: 'double', reasoning: 'Double hard 11 — strongest doubling spot.' };
+    if (total === 11) return { action: 'double', reasoning: 'Double hard 11, strongest doubling spot.' };
     if (total === 10 && up <= 9) return { action: 'double', reasoning: `Double hard 10 vs dealer ${up}.` };
   }
   if (soft) {
     if (total >= 19) return pick(legal, 'stand', `Stand soft ${total}.`);
-    if (total <= 17) return pick(legal, 'hit', `Hit soft ${total} — free to improve.`);
+    if (total <= 17) return pick(legal, 'hit', `Hit soft ${total}, free to improve.`);
     return pick(legal, 'stand', `Stand soft ${total}.`);
   }
   if (total >= 17) return pick(legal, 'stand', `Stand hard ${total}.`);
-  if (total <= 11) return pick(legal, 'hit', `Hit hard ${total} — cannot bust.`);
+  if (total <= 11) return pick(legal, 'hit', `Hit hard ${total}, cannot bust.`);
   if (up >= 7) return pick(legal, 'hit', `Hit ${total} vs strong dealer ${up}.`);
   return pick(legal, 'stand', `Stand ${total} vs weak dealer ${up}; let the dealer risk busting.`);
 }
@@ -92,7 +92,7 @@ export const DEFAULT_RULE_BOT_CONFIG: RuleBotConfig = {
   sizing: 'flat',
 };
 
-/** Closest achievable (denomination, betLevel) combination to a target stake — used
+/** Closest achievable (denomination, betLevel) combination to a target stake, used
  *  by both the rule bot (after its sizing strategy scales the base unit) and the
  *  naive bot (after its reactive mood picks a target). Shared so "which physical
  *  control combination best hits this number" isn't implemented twice. */
@@ -124,7 +124,7 @@ const SICBO_LABEL: Record<SicBoBetType, string> = {
 
 /**
  * Stake for this round given a sizing strategy and the bot's own running state.
- * `state.prevBankroll` is the bankroll this closure last saw — since a session
+ * `state.prevBankroll` is the bankroll this closure last saw, since a session
  * calls decide with ctx.bankroll = the bankroll BEFORE the round, the delta
  * between this call's bankroll and the previous call's bankroll is exactly the
  * previous round's net (win/loss/push), with no need to see the outcome directly.
@@ -158,7 +158,7 @@ function sizingLabel(sizing: SizingStrategy, stake: number, unit: number): strin
 }
 
 /** Build a rule bot from a human-chosen fixed bet + sizing strategy. Stateful
- *  per instance (tracks the sizing streak) — create a fresh one per session. */
+ *  per instance (tracks the sizing streak), create a fresh one per session. */
 export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
   const cfg: RuleBotConfig = {
     roulette: { ...DEFAULT_RULE_BOT_CONFIG.roulette, ...config.roulette },
@@ -241,7 +241,7 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
         const amount = denomination * betLevel;
         return recordAndReturn({
           denomination, betLevel,
-          reasoning: `${sizingLabel(cfg.sizing, amount, unit)} — denomination ${denomination}, bet level ${betLevel}.`,
+          reasoning: `${sizingLabel(cfg.sizing, amount, unit)}, denomination ${denomination}, bet level ${betLevel}.`,
         }, amount);
       }
       case 'blackjack': {
@@ -253,7 +253,7 @@ export function makeRuleBot(config: Partial<RuleBotConfig> = {}): Decide {
   };
 }
 
-/** The rule bot with default choices (Red / Banker / Small, flat stakes) — used
+/** The rule bot with default choices (Red / Banker / Small, flat stakes), used
  *  as the zero-config baseline and by tests. The app builds a fresh, human-
  *  configured instance per run via makeRuleBot(form.ruleBot). */
 export const baselineDecide: Decide = makeRuleBot();
@@ -262,7 +262,7 @@ export const BASELINE_DECIDER_ID = 'baseline';
 
 // ---------------------------------------------------------------- naive human
 // A casual player: spreads several bets across the Sic Bo board with no regard
-// for house edge — an even-money bet, a couple of single numbers, maybe a total
+// for house edge, an even-money bet, a couple of single numbers, maybe a total
 // or a triple "for fun". It always respects the table minimums and never stakes
 // more than the bankroll. Deterministic per round (seeded by the round index)
 // so sessions still replay exactly. Non–Sic Bo games fall back to the baseline.
@@ -314,7 +314,7 @@ function naiveSicBo(req: DecisionRequest): { bets: any[]; reasoning: string } {
   for (let i = 0; i < spread && bets.length < 8; i++) {
     const type = NAIVE_SICBO_FAMILIES[Math.floor(rnd() * NAIVE_SICBO_FAMILIES.length)]!;
     const min = SICBO_MIN_BET[type as keyof typeof SICBO_MIN_BET];
-    if (remaining < min) continue; // can't afford this family's minimum — skip it
+    if (remaining < min) continue; // can't afford this family's minimum, skip it
     const units = 1 + Math.floor(rnd() * 4); // 1..4 chips above the minimum
     const amount = Math.min(min * units, remaining);
     if (amount < min) continue;
@@ -328,12 +328,12 @@ function naiveSicBo(req: DecisionRequest): { bets: any[]; reasoning: string } {
     bets.push(randomSicBoBet('single', Math.min(cheapest, req.bankroll || cheapest), rnd));
   }
   const staked = bets.reduce((s, b) => s + b.amount, 0);
-  return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table — no edge discipline, just playing hunches.` };
+  return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table, no edge discipline, just playing hunches.` };
 }
 
 // ---------------------------------------------------------------- naive human (roulette)
 // A casual player spreading chips across the felt with no edge discipline: a mix of
-// outside even-money, dozens/columns, and inside numbers/lines — each bet's geometry
+// outside even-money, dozens/columns, and inside numbers/lines, each bet's geometry
 // generated so it's always a real split/street/corner/sixline cell (mirrors the row/col
 // formulas in isValidRouletteBet), never an invented combination.
 
@@ -403,13 +403,13 @@ function naiveRoulette(req: DecisionRequest): { bets: any[]; reasoning: string }
     bets.push(randomRouletteBet('straight', Math.min(cheapest, req.bankroll || cheapest), rnd));
   }
   const staked = bets.reduce((s, b) => s + b.amount, 0);
-  return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table — no edge discipline, just playing hunches.` };
+  return { bets, reasoning: `Casual spread of ${bets.length} bets (${staked} pts) across the table, no edge discipline, just playing hunches.` };
 }
 
 // ---------------------------------------------------------------- naive human (baccarat)
 // A casual bettor: picks Player or Banker as the main bet (the two a real mini-baccarat
 // player actually chooses between), then sometimes throws a Tie and/or a Pair on top
-// "for fun" — the classic pattern of chasing a big proposition payout alongside the
+// "for fun", the classic pattern of chasing a big proposition payout alongside the
 // main line, same spirit as naiveSicBo/naiveRoulette spraying side bets.
 
 function naiveBaccarat(req: DecisionRequest): { bets: any[]; reasoning: string } {
@@ -444,15 +444,15 @@ function naiveBaccarat(req: DecisionRequest): { bets: any[]; reasoning: string }
     bets.push({ type: main, amount: Math.min(mainMin, req.bankroll || mainMin) });
   }
   const staked = bets.reduce((s, b) => s + b.amount, 0);
-  return { bets, reasoning: `Casual spread of ${bets.length} bet(s) (${staked} pts) — ${BACCARAT_LABEL[main as BaccaratBetType]} as the main line, no edge discipline.` };
+  return { bets, reasoning: `Casual spread of ${bets.length} bet(s) (${staked} pts), ${BACCARAT_LABEL[main as BaccaratBetType]} as the main line, no edge discipline.` };
 }
 
 // ---------------------------------------------------------------- naive human (slot)
 // A casual slot player: mostly sits near the minimum, but reacts to what just
-// happened — "letting it ride" (bumping denomination/bet level) after a win, chasing
+// happened, "letting it ride" (bumping denomination/bet level) after a win, chasing
 // the loss back after one, and occasionally slamming BET MAX chasing the jackpot
 // regardless of history. Stateful (tracks the actual previous stake/bankroll) so the
-// reactivity is genuine, not just a memoryless mood roll — reset at req.index === 0
+// reactivity is genuine, not just a memoryless mood roll, reset at req.index === 0
 // since naiveDecide is a process-wide singleton reused across sessions run one at a
 // time (see makeRuleBot's identical computeStake state-tracking trick).
 let slotNaiveState = { prevBankroll: null as number | null, prevStake: 0 };
@@ -467,7 +467,7 @@ function naiveSlot(req: DecisionRequest): { denomination: number; betLevel: numb
   let mood: string;
   if (rnd() < 0.06) {
     target = SLOT_MAX_BET;
-    mood = 'chasing the jackpot — slammed Bet Max';
+    mood = 'chasing the jackpot, slammed Bet Max';
   } else {
     const roll = rnd();
     if (prevNet > 0 && roll < 0.5) {
@@ -488,7 +488,7 @@ function naiveSlot(req: DecisionRequest): { denomination: number; betLevel: numb
   slotNaiveState = { prevBankroll: req.bankroll, prevStake: amount };
   return {
     denomination, betLevel, betMax: amount >= SLOT_MAX_BET && target >= SLOT_MAX_BET,
-    reasoning: `${mood} — denomination ${denomination}, bet level ${betLevel}.`,
+    reasoning: `${mood}, denomination ${denomination}, bet level ${betLevel}.`,
   };
 }
 

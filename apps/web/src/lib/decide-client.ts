@@ -52,13 +52,13 @@ export function createClientLlmDecide(cfg: LlmClientConfig, onCall?: () => void,
       } catch (err) {
         clearTimeout(timer);
         external?.removeEventListener('abort', onExternalAbort);
-        if (external?.aborted) throw new CancelledError(); // user stopped — don't retry or error
+        if (external?.aborted) throw new CancelledError(); // user stopped, don't retry or error
         const aborted = err instanceof DOMException && err.name === 'AbortError';
         lastError = aborted
           ? `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`
           : `network error (${err instanceof Error ? err.message : String(err)})`;
         if (attempt < MAX_ATTEMPTS) { await sleep(800 * attempt); continue; }
-        throw new Error(`Could not reach /api/decide: ${lastError}. The model may be slow, or the request was dropped — try again or lower the round count.`);
+        throw new Error(`Could not reach /api/decide: ${lastError}. The model may be slow, or the request was dropped, try again or lower the round count.`);
       }
       clearTimeout(timer);
       external?.removeEventListener('abort', onExternalAbort);

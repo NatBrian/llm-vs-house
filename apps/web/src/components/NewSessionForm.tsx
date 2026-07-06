@@ -302,7 +302,7 @@ export function NewSessionForm() {
           ))}
         </div>
         {form.player === 'naive' && (
-          <p className="mt-1 text-[11px] text-white/45">Casual player: sprays a few random bets across the table respecting table minimums (Sic Bo, Roulette, Baccarat — Player/Banker as the main line plus an occasional Tie/Pair side bet); Slot and Blackjack fall back to a flat Rule Bot bet.</p>
+          <p className="mt-1 text-[11px] text-white/45">Casual player: sprays a few random bets across the table respecting table minimums (Sic Bo, Roulette, Baccarat, Player/Banker as the main line plus an occasional Tie/Pair side bet); Slot and Blackjack fall back to a flat Rule Bot bet.</p>
         )}
       </div>
 
@@ -312,7 +312,7 @@ export function NewSessionForm() {
             onChange={(e) => setForm({ stopTarget: Math.max(0, +e.target.value || 0) })}
             className={inputCls} placeholder="0 = disabled" />
           <p className="mt-1 text-[10px] text-white/40">
-            0 disables it. Above bankroll ({form.startingBankroll}): take-profit — stop once reached. Below: stop-loss —
+            0 disables it. Above bankroll ({form.startingBankroll}): take-profit, stop once reached. Below: stop-loss,
             stop once dropped to it. The bot itself never decides to stop; this is a hard rail you set.
           </p>
         </Field>
@@ -342,7 +342,7 @@ export function NewSessionForm() {
           )}
           <p className="text-[10px] text-white/35 leading-snug">
             Keys are sent to the serverless route per request and never stored. Leave blank to use a server-side env key.
-            Each round is a separate model call, so a full run streams in over time — rounds appear live as they finish.
+            Each round is a separate model call, so a full run streams in over time, rounds appear live as they finish.
           </p>
         </div>
       )}

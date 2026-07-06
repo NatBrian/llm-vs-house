@@ -1,12 +1,12 @@
 // Roulette engine. European (single-zero, 37 pockets, MBS-style) and American
 // (double-zero, 38 pockets, RWS-style). Bet types/payouts/geometry follow the
 // GRA-approved "Roulette (MBS) Game Rules Version 3" and "RWS Roulette Game
-// Rules" (w.e.f. 3 Feb 2023) — see docs/PAYOUTS.md for rule-by-rule citations.
+// Rules" (w.e.f. 3 Feb 2023), see docs/PAYOUTS.md for rule-by-rule citations.
 //
 // Simplification: RWS actually publishes 4 separate pay tables (plain / +0-00
 // combo / +series bets / +both), all on a double-zero wheel. Rather than model
 // four table sub-types, the American variant here enables every RWS-only bet
-// (zeroCombo, series3, series6) at once — a real RWS table may only offer a
+// (zeroCombo, series3, series6) at once, a real RWS table may only offer a
 // subset, but every bet type modeled here is a real GRA-approved bet.
 
 import type { Rng } from '../rng.js';
@@ -36,7 +36,7 @@ export const ROULETTE_ODDS: Record<RouletteBetType, number> = {
 };
 
 /**
- * Table minimum stake per bet family, in points — mirrors SICBO_MIN_BET.
+ * Table minimum stake per bet family, in points, mirrors SICBO_MIN_BET.
  * Outside even-money bets carry the higher minimum; every other bet (inside
  * numbers, columns, dozens, the American basket/combo/series bets) shares the
  * lower one. Enforced by the adapter, same as Sic Bo's table rules.
@@ -94,7 +94,7 @@ export const SERIES3_GROUPS: number[][] = (() => {
   return groups;
 })();
 
-/** The 6 "6 Numbers Series Bet" groups — adjacent pairs of SERIES3_GROUPS. */
+/** The 6 "6 Numbers Series Bet" groups, adjacent pairs of SERIES3_GROUPS. */
 export const SERIES6_GROUPS: number[][] = (() => {
   const groups: number[][] = [];
   for (let i = 0; i < SERIES3_GROUPS.length; i += 2) {
@@ -150,7 +150,7 @@ const sameSet = (a: Pocket[], b: Pocket[]): boolean => {
 /**
  * Does `bet.numbers` describe an actual cell/line/corner on the felt? Prevents
  * a decider from inventing e.g. a "corner" out of four unrelated numbers to
- * collect its payout — a real dealer would refuse the bet outright.
+ * collect its payout, a real dealer would refuse the bet outright.
  */
 export function isValidRouletteBet(bet: RouletteBet, variant: RouletteVariant): boolean {
   const nums = bet.numbers ?? [];
@@ -198,7 +198,7 @@ export function isValidRouletteBet(bet: RouletteBet, variant: RouletteVariant): 
 }
 
 /**
- * Every legal split/street on the felt, for `variant` — mirrors the exact same
+ * Every legal split/street on the felt, for `variant`, mirrors the exact same
  * row/col/zero-adjacency rules `isValidRouletteBet` checks, so anything listed
  * here is guaranteed to pass validation. Fed to the decider so it can pick a
  * real cell without having to re-derive table geometry from general knowledge.
@@ -223,14 +223,14 @@ export function allStreets(variant: RouletteVariant): Pocket[][] {
   return out;
 }
 
-/** Every legal corner (variant-independent — corners never touch 0/00). */
+/** Every legal corner (variant-independent, corners never touch 0/00). */
 export const ALL_CORNERS: number[][] = (() => {
   const out: number[][] = [];
   for (let n = 1; n <= 32; n++) if (n % 3 !== 0) out.push([n, n + 1, n + 3, n + 4]);
   return out;
 })();
 
-/** Every legal sixline (variant-independent — sixlines never touch 0/00). */
+/** Every legal sixline (variant-independent, sixlines never touch 0/00). */
 export const ALL_SIXLINES: number[][] = (() => {
   const out: number[][] = [];
   for (let n = 1; n <= 31; n += 3) out.push([n, n + 1, n + 2, n + 3, n + 4, n + 5]);
@@ -243,7 +243,7 @@ export function rouletteColor(pocket: Pocket): 'red' | 'black' | 'green' {
 }
 
 export interface SpinHistoryStats {
-  /** Most-recent-first, capped at `window` — mirrors an electronic roadmap display. */
+  /** Most-recent-first, capped at `window`, mirrors an electronic roadmap display. */
   recent: Pocket[];
   hot: { pocket: Pocket; count: number }[];
   cold: { pocket: Pocket; count: number }[];
@@ -264,7 +264,7 @@ function streakOf<T>(recent: Pocket[], classify: (p: Pocket) => T): { value: T |
 }
 
 /**
- * Hot/cold counts + trailing streaks over the session's actual spin history —
+ * Hot/cold counts + trailing streaks over the session's actual spin history,
  * the same "roadmap" board a real table displays. `window` bounds the
  * displayed `recent` list; hot/cold counts run over full `history` so they
  * stay meaningful even early in a short window.

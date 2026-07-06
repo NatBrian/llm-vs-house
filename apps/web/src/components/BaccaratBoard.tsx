@@ -1,11 +1,11 @@
-// Authentic Mini-Baccarat table — Punto Banco, single seat (this sim has one bettor).
+// Authentic Mini-Baccarat table, Punto Banco, single seat (this sim has one bettor).
 // Layout follows the standard felt convention (baccarat.net / baccarattraining.com table
 // diagrams): Player box and Banker box as the two main betting ovals with Tie between
 // them, small Player Pair / Banker Pair circles at the outer corners. Commission is
 // deducted immediately per hand (confirmed against MBS/RWS GRA rule sheets for
-// Singapore mini-baccarat — no deferred lammer/marker, unlike big-table Vegas pits).
+// Singapore mini-baccarat, no deferred lammer/marker, unlike big-table Vegas pits).
 // Below the felt: Bead Plate (one cell per hand) + Big Road (streak/"dragon tail"
-// tracking) — the pattern-reading scorecards real players lean on, useful here for
+// tracking), the pattern-reading scorecards real players lean on, useful here for
 // studying whether an LLM chases patterns a truly random shoe can't support.
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
@@ -35,7 +35,7 @@ function Hand({ cards, label, total, tone, delays }: {
 /**
  * Big Road placement: a streak of the same result stacks downward in one column
  * (max 6 rows); when it would exceed 6 rows, or the natural cell is already taken,
- * it continues rightward instead ("dragon tail") — dragons never overlap, so a
+ * it continues rightward instead ("dragon tail"), dragons never overlap, so a
  * tail that runs into another one keeps sliding right until it finds an empty cell.
  * Ties don't get their own column; they tally onto whichever P/B cell preceded them.
  */
@@ -135,7 +135,7 @@ interface BetBox { type: 'player' | 'banker' | 'tie' | 'playerPair' | 'bankerPai
 
 /** shape/order matches GRA MBS Baccarat Game Rules v8, Appendix "D"/"E" (the single-playing-position
  *  felt this sim's one bettor corresponds to): a small P Pair / Tie / B Pair circle row, then a wide
- *  Banker pill, then a wide Player pill beneath it — not a left-to-right single row. Filled with a
+ *  Banker pill, then a wide Player pill beneath it, not a left-to-right single row. Filled with a
  *  radial highlight + inset ring rather than a flat outline so each spot reads as an inlaid felt
  *  betting area (raised, lit) instead of a wireframe box. */
 function Box({ box, reveal, className = '', pill }: { box: BetBox; reveal: boolean; className?: string; pill?: boolean }) {
@@ -230,7 +230,7 @@ export function BaccaratBoard({ outcome, placedBets, history, roundKey, onSettle
           tone={r === 'banker' ? 'win' : 'neutral'} delays={outcome.banker.map((_: string, i: number) => delayOf('banker', i))} />
       </div>
 
-      {/* felt: GRA Appendix D/E single-position layout — decorative banner (Appendix E's
+      {/* felt: GRA Appendix D/E single-position layout, decorative banner (Appendix E's
           "BACCARAT / TIE BETS PAY 8 TO 1" signage), then a P Pair/Tie/B Pair circle row,
           then a wide Banker pill, then a wide Player pill beneath it. Sized to its content
           (not stretched to the stage width) so it reads as a table, not a dead green field. */}
@@ -254,7 +254,7 @@ export function BaccaratBoard({ outcome, placedBets, history, roundKey, onSettle
         </div>
 
         <div className="text-center text-[8px] text-gold-200/70 mt-3 relative">
-          Table minimums — Player/Banker 50 · Tie/Pair 10 · commission deducted immediately (mini-baccarat convention)
+          Table minimums, Player/Banker 50 · Tie/Pair 10 · commission deducted immediately (mini-baccarat convention)
         </div>
       </div>
 

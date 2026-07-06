@@ -116,7 +116,7 @@ export function SlotReels({ grid, spinKey, anticipationFromReel, onSettled }: Sl
 
       // DOWNWARD SPIN: finalWindow sits at strip index FILLER_BEFORE (targetY).
       // Initial position shows the END of the strip (fillers_after area), then
-      // scrolls DOWNWARD (increasing Y) to settle on the result — matching real
+      // scrolls DOWNWARD (increasing Y) to settle on the result, matching real
       // slot machines where symbols appear to fall from above.
       const targetY = -(FILLER_BEFORE * CELL);
       const initialY = -((FILLER_BEFORE + FILLER_AFTER) * CELL);

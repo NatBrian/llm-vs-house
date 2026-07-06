@@ -1,4 +1,4 @@
-// AUTO-GENERATED from server/decide.ts by scripts/build-api.mjs — do not edit.
+// AUTO-GENERATED from server/decide.ts by scripts/build-api.mjs, do not edit.
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -5230,7 +5230,7 @@ function ownSessionSummary(ctx, window2 = 10) {
     // negative = deficit
     roundsPlayed: ctx.history.length,
     recentRounds
-    // your own decisions+reasoning, what was placed, win/lose, bankroll trail — most-recent-last
+    // your own decisions+reasoning, what was placed, win/lose, bankroll trail, most-recent-last
   };
 }
 function applyBaccaratTableRules(bets, bankroll) {
@@ -5404,13 +5404,13 @@ var sicboAdapter = {
         },
         boardLayout: {
           // threeFromFour's `group` (1-4) and doubleAny's (face,partner) pair are felt
-          // cells picked by index/pair, not free-form numbers — expose the actual
+          // cells picked by index/pair, not free-form numbers, expose the actual
           // mapping so a choice is grounded, not a blind index guess (mirrors the
           // roulette series3/series6 fix: same class of bug, same fix).
           threeFromFourGroups: SICBO_THREE_FROM_FOUR_GROUPS,
           // group -> the 4 numbers it covers
           validDoubleAnyPairs: SICBO_DOUBLE_ANY_PAIRS
-          // every legal [face, partner] cell (28 of 30 possible pairs — (1,2)/(6,5) aren't on the felt)
+          // every legal [face, partner] cell (28 of 30 possible pairs, (1,2)/(6,5) aren't on the felt)
         },
         diceHistory: summarizeSicBoHistory(priorDice),
         ownSession: ownSessionSummary(ctx),
@@ -5460,7 +5460,7 @@ var slotAdapter = {
         // The pay-glass every cabinet displays: symbol -> [3-of-a-kind, 4-of-a-kind,
         // 5-of-a-kind] multiplier of total bet, plus scatter pay and free-spins award
         // by scatter count. Without this the model can't know DRAGON x5 pays 750x
-        // versus TEN x3 paying 7x — exactly the number a human reads off the glass
+        // versus TEN x3 paying 7x, exactly the number a human reads off the glass
         // before deciding whether the top symbols are worth chasing.
         paytable: config2.paytable,
         scatterPay: config2.scatterPay,
@@ -18553,7 +18553,7 @@ var SCHEMAS = {
   BaccaratDecision: BaccaratDecisionSchema,
   SicBoDecision: SicBoDecisionSchema,
   SlotDecision: SlotDecisionSchema,
-  // Blackjack is DEPRECATED (not in GAME_IDS, unreachable from the UI) — entries
+  // Blackjack is DEPRECATED (not in GAME_IDS, unreachable from the UI), entries
   // kept so the deprecated adapter/engine still resolve if invoked directly.
   BlackjackBet: BlackjackBetSchema,
   BlackjackAction: BlackjackActionSchema

@@ -95,7 +95,7 @@ describe('sic bo mechanics', () => {
   });
 });
 
-describe('isValidSicBoBet — real felt cells only', () => {
+describe('isValidSicBoBet, real felt cells only', () => {
   it('accepts real cells', () => {
     const valid: SicBoBet[] = [
       { type: 'small', amount: 1 },
@@ -110,11 +110,11 @@ describe('isValidSicBoBet — real felt cells only', () => {
   });
   it('rejects invented/ill-formed bets', () => {
     const invalid: SicBoBet[] = [
-      { type: 'total', amount: 1, total: 3 },                 // out of range
-      { type: 'combo', amount: 1, faces: [2, 2] },             // not distinct
-      { type: 'doubleAny', amount: 1, face: 1, partner: 2 },   // not on the real felt
+      { type: 'total', amount: 1, total: 3 },                // out of range
+      { type: 'combo', amount: 1, faces: [2, 2] },            // not distinct
+      { type: 'doubleAny', amount: 1, face: 1, partner: 2 },  // not on the real felt
       { type: 'threeSingleCombo', amount: 1, triple: [1, 1, 2] as any }, // not 3 distinct faces
-      { type: 'threeFromFour', amount: 1, group: 5 },          // only 4 groups exist
+      { type: 'threeFromFour', amount: 1, group: 5 },         // only 4 groups exist
     ];
     for (const bet of invalid) expect(isValidSicBoBet(bet)).toBe(false);
   });

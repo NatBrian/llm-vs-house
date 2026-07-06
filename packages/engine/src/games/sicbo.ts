@@ -1,6 +1,6 @@
 // Sic Bo engine. Three dice, 216 equally-likely outcomes.
 // Payouts and bet families match Singapore's gazetted "SIC BO (MBS) Game Rules Version 7"
-// (GRA, w.e.f. 19 Sep 2025), rule 4.1 settlement tables and rule 3.5 bet definitions —
+// (GRA, w.e.f. 19 Sep 2025), rule 4.1 settlement tables and rule 3.5 bet definitions,
 // read directly from the primary source, not a secondary paraphrase (docs/PAYOUTS.md).
 // Includes the three exotic side-bet families from the real felt (Three-Single-Dice-Combo,
 // Double+Single-Combo, Four-Number-Combo) alongside the ten core bets.
@@ -43,10 +43,10 @@ export const SICBO_ODDS = {
 
 /**
  * Every valid (double face, partner face) pair for the `doubleAny` bet, per GRA
- * Appendix A/B — one felt cell per pair, each an exact "double D + single P"
+ * Appendix A/B, one felt cell per pair, each an exact "double D + single P"
  * target (NOT a group where any partner wins: verified by house-edge math,
  * treating a group as a single OR-bet gives an impossible +183% player edge).
- * The real felt omits exactly two of the 30 possible pairs — (1,2) and (6,5) —
+ * The real felt omits exactly two of the 30 possible pairs, (1,2) and (6,5),
  * so those two combinations simply aren't offered as a bet.
  */
 export const SICBO_DOUBLE_ANY_PAIRS: Array<[number, number]> = (() => {
@@ -64,7 +64,7 @@ export const SICBO_DOUBLE_ANY_PAIRS: Array<[number, number]> = (() => {
 
 /**
  * The four felt-colour clusters `threeSingleCombo` cells are grouped into on
- * the real table (purely cosmetic/UI clustering — the bet itself always
+ * the real table (purely cosmetic/UI clustering, the bet itself always
  * targets one exact 3-distinct-face triple; these four groups partition all
  * 20 possible distinct-face triples with no overlap).
  */
@@ -86,7 +86,7 @@ export const SICBO_THREE_FROM_FOUR_GROUPS: Record<number, [number, number, numbe
 /**
  * Table minimum stake per bet family, in points. Mirrors a real casino: the
  * even-money "outside" bets (Small/Big/Odd/Even) carry a higher minimum than
- * the higher-paying "inside" bets. Enforced by the adapter — a stake below the
+ * the higher-paying "inside" bets. Enforced by the adapter, a stake below the
  * family minimum is not accepted.
  */
 export const SICBO_MIN_BET: Record<SicBoBetType, number> = {
@@ -95,7 +95,7 @@ export const SICBO_MIN_BET: Record<SicBoBetType, number> = {
   doubleAny: 10, threeSingleCombo: 10, threeFromFour: 10,
 };
 
-/** The lowest table minimum across all families — the cheapest legal bet. */
+/** The lowest table minimum across all families, the cheapest legal bet. */
 export const SICBO_TABLE_MIN = Math.min(...Object.values(SICBO_MIN_BET));
 
 export interface SicBoBet {
@@ -220,7 +220,7 @@ export function rollSicBo(rng: Rng): Dice {
 }
 
 export interface SicBoHistoryStats {
-  /** Most-recent-first, capped at `window` — mirrors a real table's roadmap board. */
+  /** Most-recent-first, capped at `window`, mirrors a real table's roadmap board. */
   recent: Dice[];
   /** % of all rolls so far landing in each category (not mutually exclusive with triple). */
   smallBigPct: { small: number; big: number };
@@ -231,10 +231,10 @@ export interface SicBoHistoryStats {
 }
 
 /**
- * Hot/cold + percentage board over the session's actual dice history — the
+ * Hot/cold + percentage board over the session's actual dice history, the
  * "recent rolls, % small/big/triple/odd/even" scoreboard a real Sic Bo table
  * displays. Percentages are raw descriptive frequency (a triple's sum still
- * counts toward small/big/odd/even here — the "voids those bets" rule is a
+ * counts toward small/big/odd/even here, the "voids those bets" rule is a
  * payout rule, not a display rule).
  */
 export function summarizeSicBoHistory(history: Dice[], window = 20): SicBoHistoryStats {

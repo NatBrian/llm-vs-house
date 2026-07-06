@@ -114,13 +114,13 @@ describe('SERIES3_GROUPS / SERIES6_GROUPS (RWS wheel-sector bets)', () => {
   });
 });
 
-describe('isValidRouletteBet — real felt cells only', () => {
+describe('isValidRouletteBet, real felt cells only', () => {
   it('accepts real cells', () => {
     const valid: RouletteBet[] = [
       { type: 'straight', amount: 1, numbers: [17] },
-      { type: 'split', amount: 1, numbers: [1, 2] },   // horizontal
-      { type: 'split', amount: 1, numbers: [1, 4] },   // vertical
-      { type: 'split', amount: 1, numbers: [0, 1] },   // zero-adjacent
+      { type: 'split', amount: 1, numbers: [1, 2] },  // horizontal
+      { type: 'split', amount: 1, numbers: [1, 4] },  // vertical
+      { type: 'split', amount: 1, numbers: [0, 1] },  // zero-adjacent
       { type: 'street', amount: 1, numbers: [1, 2, 3] },
       { type: 'street', amount: 1, numbers: [0, 1, 2] }, // zero-adjacent trio, valid on both variants
       { type: 'corner', amount: 1, numbers: [1, 2, 4, 5] },
@@ -136,9 +136,9 @@ describe('isValidRouletteBet — real felt cells only', () => {
 
   it('rejects invented combinations', () => {
     const invalid: RouletteBet[] = [
-      { type: 'split', amount: 1, numbers: [1, 36] },        // not adjacent
-      { type: 'street', amount: 1, numbers: [1, 2, 4] },     // not one row
-      { type: 'street', amount: 1, numbers: [0, 2, 3] },     // requires '00' — not a real European (or American) street
+      { type: 'split', amount: 1, numbers: [1, 36] },       // not adjacent
+      { type: 'street', amount: 1, numbers: [1, 2, 4] },    // not one row
+      { type: 'street', amount: 1, numbers: [0, 2, 3] },    // requires '00', not a real European (or American) street
       { type: 'corner', amount: 1, numbers: [1, 36, 17, 5] }, // not a real square
       { type: 'sixline', amount: 1, numbers: [1, 2, 3, 4, 5, 7] }, // not two adjacent streets
     ];

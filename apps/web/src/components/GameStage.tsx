@@ -6,7 +6,7 @@ import { RouletteBoard } from './RouletteBoard';
 import { BaccaratBoard } from './BaccaratBoard';
 import { fmt, signed, GAME_META } from '../lib/format';
 
-// Pulls in pixi.js + gsap — lazy-loaded so the other 4 games never pay that bundle cost.
+// Pulls in pixi.js + gsap, lazy-loaded so the other 4 games never pay that bundle cost.
 const SlotBoard = lazy(() => import('./SlotBoard').then((m) => ({ default: m.SlotBoard })));
 
 export function GameStage({ onSettled }: { onSettled?: () => void }) {
@@ -27,7 +27,7 @@ export function GameStage({ onSettled }: { onSettled?: () => void }) {
       return (
         <div className="felt rounded-2xl min-h-[300px] sm:min-h-[360px] flex flex-col items-center justify-center text-white/60 gap-3">
           <div className="text-4xl">🎯</div>
-          <p className="text-sm text-gold-200">Stop target ({fmt(session.config.stopTarget ?? 0)}) already equals starting bankroll — no rounds played.</p>
+          <p className="text-sm text-gold-200">Stop target ({fmt(session.config.stopTarget ?? 0)}) already equals starting bankroll, no rounds played.</p>
         </div>
       );
     }
@@ -35,7 +35,7 @@ export function GameStage({ onSettled }: { onSettled?: () => void }) {
       <div className="felt rounded-2xl min-h-[300px] sm:min-h-[360px] flex flex-col items-center justify-center text-white/60 gap-3">
         <div className="text-4xl animate-pulse">{GAME_META[session.config.game]!.icon}</div>
         <p className="text-sm">Waiting for the first round…</p>
-        <p className="text-xs text-white/35">{session.config.deciderId.startsWith('llm') ? 'The model is deciding — this can take a few seconds per round.' : 'Dealing…'}</p>
+        <p className="text-xs text-white/35">{session.config.deciderId.startsWith('llm') ? 'The model is deciding, this can take a few seconds per round.' : 'Dealing…'}</p>
       </div>
     );
   }
@@ -76,7 +76,7 @@ export function GameStage({ onSettled }: { onSettled?: () => void }) {
             : 'border-chip-red/40 bg-chip-red/10 text-chip-red'
         }`}>
           <div className="font-semibold">
-            🎯 Stop target reached — {session.finalBankroll >= session.config.startingBankroll ? 'target hit, stopped a winner' : 'floor hit, stopped the bleeding'}.
+            🎯 Stop target reached, {session.finalBankroll >= session.config.startingBankroll ? 'target hit, stopped a winner' : 'floor hit, stopped the bleeding'}.
           </div>
           <div className="mt-0.5 opacity-80">
             Target {fmt(session.config.stopTarget ?? 0)} · ended {signed(session.finalBankroll - session.config.startingBankroll)} ({fmt(session.finalBankroll)} final bankroll).
@@ -138,7 +138,7 @@ export function GameStage({ onSettled }: { onSettled?: () => void }) {
 function BetChips({ outcome, game }: { outcome: any; game: string }) {
   const bets: any[] = outcome.placedBets
     ?? (game === 'slot' ? [{ type: outcome.betMax ? 'bet max' : `${outcome.denomination}×${outcome.betLevel}`, amount: outcome.amount }] : []);
-  if (!bets.length) return <span className="text-xs text-white/40">—</span>;
+  if (!bets.length) return <span className="text-xs text-white/40">, </span>;
   return (
     <div className="flex items-center gap-2">
       {bets.slice(0, 4).map((b, i) => (

@@ -6,7 +6,7 @@ import { SessionsList } from './components/SessionsList';
 import { GameStage } from './components/GameStage';
 import { ReasoningPanel } from './components/ReasoningPanel';
 
-// ECharts is heavy and only needed on the Compare tab — load it on demand.
+// ECharts is heavy and only needed on the Compare tab, load it on demand.
 const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
 
 export function App() {
@@ -25,7 +25,7 @@ export function App() {
 
   const [animationDone, setAnimationDone] = useState(false);
 
-  // Reset when playhead advances — must wait for new board's animation
+  // Reset when playhead advances, must wait for new board's animation
   useEffect(() => { setAnimationDone(false); }, [playhead]);
 
   // Stable callback passed to GameStage → board → fires when animation settles + reveal shown

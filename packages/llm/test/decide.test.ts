@@ -7,7 +7,7 @@ import { RouletteDecisionSchema } from '@casino/core';
 
 const cfg = { provider: 'anthropic' as const, model: 'claude-test', apiKey: 'sk-test' };
 
-describe('provider resolution (offline — construction only)', () => {
+describe('provider resolution (offline, construction only)', () => {
   it('builds a model for each provider without calling the API', () => {
     expect(() => resolveModel({ provider: 'anthropic', model: 'm', apiKey: 'k' })).not.toThrow();
     expect(() => resolveModel({ provider: 'openai', model: 'm', apiKey: 'k' })).not.toThrow();

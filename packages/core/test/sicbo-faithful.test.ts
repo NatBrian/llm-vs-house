@@ -71,7 +71,7 @@ describe('naive human bot plays a faithful Sic Bo table', () => {
     expect(seenTypes.has('threeFromFour')).toBe(true);
   });
 
-  it('is deterministic — replay reproduces the naive spread exactly', async () => {
+  it('is deterministic, replay reproduces the naive spread exactly', async () => {
     const original = await runSession(cfg('replay-1'), naiveDecide);
     const replay = await replaySession(original);
     expect(replay.finalBankroll).toBe(original.finalBankroll);

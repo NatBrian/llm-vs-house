@@ -93,7 +93,7 @@ describe('a decider can voluntarily end the session', () => {
 
   it('stops after the round where stop=true, well short of the round budget', async () => {
     const session = await runSession(cfg('roulette', 'quit-seed', 40), quitAfterRound3 as any);
-    expect(session.rounds.length).toBe(3); // rounds 0,1,2 — stopped after index 2
+    expect(session.rounds.length).toBe(3); // rounds 0,1,2, stopped after index 2
     expect(session.quitVoluntarily).toBe(true);
     expect(session.quitReason).toBe('walking away up a little');
     expect(session.bustedOut).toBe(false);
@@ -111,7 +111,7 @@ describe('a decider can voluntarily end the session', () => {
 });
 
 describe('a human-set bankroll target stops the session (bots too, no reasoning needed)', () => {
-  // Stakes 90% of the CURRENT bankroll on red every round — one spin's outcome alone
+  // Stakes 90% of the CURRENT bankroll on red every round, one spin's outcome alone
   // is enough to cross either target, so the seed alone (not luck across many rounds)
   // determines which direction fires. Seeds picked so round 0 lands red / not-red.
   const allInOnRed = async (req: { bankroll: number }) => ({

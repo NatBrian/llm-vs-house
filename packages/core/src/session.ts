@@ -26,7 +26,7 @@ export async function runSession(config: SessionConfig, decide: Decide, hooks: R
   let targetHit = false;
 
   // A human-set stop-loss/take-profit rail, checked against the LIVE bankroll before
-  // each round — not the decider's choice, so it applies the same to bots and LLMs.
+  // each round, not the decider's choice, so it applies the same to bots and LLMs.
   // 0 (the default) disables it entirely.
   const target = config.stopTarget ?? 0;
   const targetReached = (b: number): boolean =>
@@ -54,7 +54,7 @@ export async function runSession(config: SessionConfig, decide: Decide, hooks: R
     };
     rounds.push(round);
     hooks.onRound?.(round, i, config.rounds);
-    // The decider chose to walk away after this round — a real casino is walk-in-
+    // The decider chose to walk away after this round, a real casino is walk-in-
     // walk-out free, so this ends the session cleanly (not a bust, not an abort).
     if (res.stop) {
       quitVoluntarily = true;
@@ -81,7 +81,7 @@ export function replayDecider(session: Session): Decide {
   let i = 0;
   return async () => {
     const next = queue[i++];
-    if (!next) throw new Error('replay decider exhausted — decision stream diverged');
+    if (!next) throw new Error('replay decider exhausted, decision stream diverged');
     return next;
   };
 }

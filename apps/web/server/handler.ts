@@ -15,7 +15,7 @@ const SCHEMAS: Record<string, ZodTypeAny> = {
   BaccaratDecision: BaccaratDecisionSchema,
   SicBoDecision: SicBoDecisionSchema,
   SlotDecision: SlotDecisionSchema,
-  // Blackjack is DEPRECATED (not in GAME_IDS, unreachable from the UI) — entries
+  // Blackjack is DEPRECATED (not in GAME_IDS, unreachable from the UI), entries
   // kept so the deprecated adapter/engine still resolve if invoked directly.
   BlackjackBet: BlackjackBetSchema,
   BlackjackAction: BlackjackActionSchema,

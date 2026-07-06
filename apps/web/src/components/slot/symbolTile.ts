@@ -25,7 +25,7 @@ export function makeSymbolTile(symbolId: SlotSymbolId, size: number): Container 
   const container = new Container();
   const radius = size * 0.14;
 
-  // bg fills the whole (0,0)–(size,size) box — no pivot shifts
+  // bg fills the whole (0,0)–(size,size) box, no pivot shifts
   const bg = new Graphics()
     .roundRect(0, 0, size, size, radius)
     .fill({ color: t.bg, alpha: t.bgAlpha });

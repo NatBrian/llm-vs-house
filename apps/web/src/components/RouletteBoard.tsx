@@ -1,10 +1,10 @@
-// Authentic Roulette table — MBS (single-zero) or RWS (double-zero, adds the
+// Authentic Roulette table, MBS (single-zero) or RWS (double-zero, adds the
 // Top Line, dedicated 0/00 Combo box, and wheel-sector Series bets), English/
-// American felt layout (no racetrack — matches the Singapore casino convention
+// American felt layout (no racetrack, matches the Singapore casino convention
 // documented in docs/PAYOUTS.md: no la partage/en prison, no French call bets).
 // Two parts:
 //   1. Wheel + ball: a real angular-friction simulation on <canvas>, not
-//      keyframe tweens — the wheel decelerates to a resting orientation, the
+//      keyframe tweens, the wheel decelerates to a resting orientation, the
 //      ball spins the opposite way on the outer rim, decelerates faster (it
 //      "loses the race"), drops onto the pocket ring, wobbles as if bouncing
 //      off the frets, and settles exactly on the winning pocket. The physics
@@ -37,7 +37,7 @@ const decel = (total: number, t: number) => total * (1 - Math.pow(1 - Math.min(1
  * arbitrary resting orientation (`wheelTotal`); the ball spins the opposite
  * way for several more revolutions than the wheel, decelerating on its own
  * (faster) curve, and its landing angle is solved so it lands exactly on the
- * winning pocket wherever the wheel itself ends up — ballFinal = wheelFinal +
+ * winning pocket wherever the wheel itself ends up, ballFinal = wheelFinal +
  * pocketLocalAngle(winIndex). A short bounce wobble decaying to zero and a
  * rim->pocket radius drop in the last third of the spin sell the "ball loses
  * momentum and drops into the pocket" moment.
@@ -91,7 +91,7 @@ function Wheel({ order, pocket, roundKey, onSettled }: { order: Pocket[]; pocket
       const wheelAngle = decel(wheelTotal, tWheel);
       let ballAngle = decel(ballTotal, tBall);
 
-      // Decaying bounce wobble in the last third — bouncing off the deflector pins.
+      // Decaying bounce wobble in the last third, bouncing off the deflector pins.
       if (tBall > 0.62 && tBall < 1) {
         const local = (tBall - 0.62) / 0.38;
         ballAngle += 14 * Math.pow(1 - local, 2) * Math.sin(local * 26);
@@ -260,7 +260,7 @@ function Cell({ state, reveal, children, className = '', title, bg }: {
 }
 
 /** Every board cell id a bet places a chip marker on (a multi-number bet gets
- *  a small chip on each number it covers — simpler and just as legible as
+ *  a small chip on each number it covers, simpler and just as legible as
  *  trying to render it on the exact shared edge/corner). */
 function betCellIds(bet: any, variant: string): string[] {
   switch (bet.type as RouletteBetType) {
@@ -288,7 +288,7 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
 
-  // Prevent reveal from leaking across rounds — reset on new roundKey
+  // Prevent reveal from leaking across rounds, reset on new roundKey
   useEffect(() => { setReveal(false); }, [roundKey]);
 
   // Signal round complete after user sees the winning reveal
@@ -340,7 +340,7 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
   const st = (id: string): CellState => ({ staked: staked[id] ?? 0, win: win(id) });
 
   const NumberCell = ({ n }: { n: Pocket }) => (
-    <Cell state={st(`n-${n}`)} reveal={reveal} className="flex-1" title={`Straight ${n} — 35:1`} bg={pocketHex(n)}>
+    <Cell state={st(`n-${n}`)} reveal={reveal} className="flex-1" title={`Straight ${n}, 35:1`} bg={pocketHex(n)}>
       <span className="font-display text-sm sm:text-base font-bold text-white">{String(n)}</span>
     </Cell>
   );
@@ -373,14 +373,14 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
             <div className="flex" style={{ width: american ? 90 : 60 }}>
               {american ? (
                 <>
-                  <Cell state={st('n-0')} reveal={reveal} className="flex-1" title="Straight 0 — 35:1" bg={pocketHex(0)}><span className="text-white font-bold">0</span></Cell>
-                  <Cell state={st('n-00')} reveal={reveal} className="flex-1" title="Straight 00 — 35:1" bg={pocketHex('00')}><span className="text-white font-bold">00</span></Cell>
-                  <Cell state={st('zerocombo')} reveal={reveal} className="flex-1" title="0/00 Combo — 11:1 (36.84% edge)" bg="#0f5c3d">
+                  <Cell state={st('n-0')} reveal={reveal} className="flex-1" title="Straight 0, 35:1" bg={pocketHex(0)}><span className="text-white font-bold">0</span></Cell>
+                  <Cell state={st('n-00')} reveal={reveal} className="flex-1" title="Straight 00, 35:1" bg={pocketHex('00')}><span className="text-white font-bold">00</span></Cell>
+                  <Cell state={st('zerocombo')} reveal={reveal} className="flex-1" title="0/00 Combo, 11:1 (36.84% edge)" bg="#0f5c3d">
                     <span className="text-[9px] text-gold-200 text-center leading-tight">0<br />00</span>
                   </Cell>
                 </>
               ) : (
-                <Cell state={st('n-0')} reveal={reveal} className="flex-1" title="Straight 0 — 35:1" bg={pocketHex(0)}><span className="text-white font-bold">0</span></Cell>
+                <Cell state={st('n-0')} reveal={reveal} className="flex-1" title="Straight 0, 35:1" bg={pocketHex(0)}><span className="text-white font-bold">0</span></Cell>
               )}
             </div>
             <div className="flex-1 flex flex-col">
@@ -392,7 +392,7 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
             </div>
             <div className="flex flex-col" style={{ width: 60 }}>
               {rows.map((sel) => (
-                <Cell key={sel} state={st(`col-${sel}`)} reveal={reveal} className="flex-1" title={`Column ${sel} — 2:1`}>
+                <Cell key={sel} state={st(`col-${sel}`)} reveal={reveal} className="flex-1" title={`Column ${sel}, 2:1`}>
                   <span className="text-[10px] text-gold-200">2:1</span>
                 </Cell>
               ))}
@@ -401,7 +401,7 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
           <div className="flex border-t-2 border-gold-500/60">
             <div style={{ width: american ? 90 : 60 }} />
             {[1, 2, 3].map((d) => (
-              <Cell key={d} state={st(`dozen-${d}`)} reveal={reveal} className="flex-[4] py-1.5" title={`Dozen ${d} — 2:1`}>
+              <Cell key={d} state={st(`dozen-${d}`)} reveal={reveal} className="flex-[4] py-1.5" title={`Dozen ${d}, 2:1`}>
                 <span className="text-xs text-white">{d === 1 ? '1st 12' : d === 2 ? '2nd 12' : '3rd 12'}</span>
               </Cell>
             ))}
@@ -411,7 +411,7 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
             <div className="flex border-t-2 border-gold-500/60">
               <div style={{ width: 90 }} />
               {SERIES3_GROUPS.map((_, i) => (
-                <Cell key={i} state={st(`series3-${i + 1}`)} reveal={reveal} className="flex-1 py-1" title={`3 Numbers Series ${i + 1} — 11:1`}>
+                <Cell key={i} state={st(`series3-${i + 1}`)} reveal={reveal} className="flex-1 py-1" title={`3 Numbers Series ${i + 1}, 11:1`}>
                   <span className="text-[8px] text-gold-200">{SERIES3_GROUPS[i]!.join('·')}</span>
                 </Cell>
               ))}
@@ -420,19 +420,19 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
           )}
           <div className="flex border-t-2 border-gold-500/60">
             <div style={{ width: american ? 90 : 60 }} />
-            <Cell state={st('outside-low')} reveal={reveal} className="flex-[2] py-1.5" title="1–18 — 1:1"><span className="text-xs text-white">1–18</span></Cell>
-            <Cell state={st('outside-even')} reveal={reveal} className="flex-[2] py-1.5" title="Even — 1:1"><span className="text-xs text-white">EVEN</span></Cell>
-            <Cell state={st('outside-red')} reveal={reveal} className="flex-[2] py-1.5" title="Red — 1:1"><span className="text-xs" style={{ color: '#e05a5a' }}>RED</span></Cell>
-            <Cell state={st('outside-black')} reveal={reveal} className="flex-[2] py-1.5" title="Black — 1:1"><span className="text-xs text-white">BLACK</span></Cell>
-            <Cell state={st('outside-odd')} reveal={reveal} className="flex-[2] py-1.5" title="Odd — 1:1"><span className="text-xs text-white">ODD</span></Cell>
-            <Cell state={st('outside-high')} reveal={reveal} className="flex-[2] py-1.5" title="19–36 — 1:1"><span className="text-xs text-white">19–36</span></Cell>
+            <Cell state={st('outside-low')} reveal={reveal} className="flex-[2] py-1.5" title="1–18, 1:1"><span className="text-xs text-white">1–18</span></Cell>
+            <Cell state={st('outside-even')} reveal={reveal} className="flex-[2] py-1.5" title="Even, 1:1"><span className="text-xs text-white">EVEN</span></Cell>
+            <Cell state={st('outside-red')} reveal={reveal} className="flex-[2] py-1.5" title="Red, 1:1"><span className="text-xs" style={{ color: '#e05a5a' }}>RED</span></Cell>
+            <Cell state={st('outside-black')} reveal={reveal} className="flex-[2] py-1.5" title="Black, 1:1"><span className="text-xs text-white">BLACK</span></Cell>
+            <Cell state={st('outside-odd')} reveal={reveal} className="flex-[2] py-1.5" title="Odd, 1:1"><span className="text-xs text-white">ODD</span></Cell>
+            <Cell state={st('outside-high')} reveal={reveal} className="flex-[2] py-1.5" title="19–36, 1:1"><span className="text-xs text-white">19–36</span></Cell>
             <div style={{ width: 60 }} />
           </div>
           {american && (
             <div className="flex border-t-2 border-gold-500/60">
               <div style={{ width: 90 }} />
               {SERIES6_GROUPS.map((_, i) => (
-                <Cell key={i} state={st(`series6-${i + 1}`)} reveal={reveal} className="flex-1 py-1" title={`6 Numbers Series ${i + 1} — 5:1`}>
+                <Cell key={i} state={st(`series6-${i + 1}`)} reveal={reveal} className="flex-1 py-1" title={`6 Numbers Series ${i + 1}, 5:1`}>
                   <span className="text-[7px] text-gold-200">{SERIES6_GROUPS[i]!.join('·')}</span>
                 </Cell>
               ))}
@@ -440,8 +440,8 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
             </div>
           )}
           <div className="text-center text-[8px] text-gold-200/70 bg-black/30 py-0.5">
-            Table minimums — outside even-money (Red/Black/Odd/Even/1-18/19-36) 50 · everything else 10
-            {american && ' · Top Line/0-00 Combo carry a much worse edge (21.05%/36.84%) — real bets, bad deal'}
+            Table minimums, outside even-money (Red/Black/Odd/Even/1-18/19-36) 50 · everything else 10
+            {american && ' · Top Line/0-00 Combo carry a much worse edge (21.05%/36.84%), real bets, bad deal'}
           </div>
         </div>
       </div>

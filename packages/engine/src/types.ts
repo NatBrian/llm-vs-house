@@ -1,11 +1,11 @@
 // Shared cross-game types. Per-game bet/outcome shapes live in each game module.
 
 /**
- * 'blackjack' is DEPRECATED — kept for type/engine completeness but excluded from
+ * 'blackjack' is DEPRECATED, kept for type/engine completeness but excluded from
  * every active-game list (see core's GAME_IDS) and unreachable from the UI. This
  * project studies LLM behavior on pure-chance, negative-EV games; Blackjack has a
  * correct-play skill component (basic strategy), which doesn't fit that thesis.
- * Do not wire it back into GAME_IDS or the game picker — see games/blackjack.ts.
+ * Do not wire it back into GAME_IDS or the game picker, see games/blackjack.ts.
  */
 export type GameId = 'roulette' | 'blackjack' | 'baccarat' | 'sicbo' | 'slot';
 

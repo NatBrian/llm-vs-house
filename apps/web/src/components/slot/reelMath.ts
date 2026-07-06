@@ -1,4 +1,4 @@
-// Pure, Pixi/DOM-free helpers for the slot reel animation — kept separate from
+// Pure, Pixi/DOM-free helpers for the slot reel animation, kept separate from
 // rendering so the spin/anticipation/win-tier logic is plain, testable data math,
 // matching this repo's engine/core convention of separating logic from rendering.
 
@@ -52,7 +52,7 @@ export const REEL_TIMING = {
 };
 
 /** Total wall-clock a round's reel animation takes, given whether any reel gets an
- *  anticipation hold — used by the board to time when to reveal the win presentation. */
+ *  anticipation hold, used by the board to time when to reveal the win presentation. */
 export function totalSpinDurationMs(reelCount: number, anticipationFromReel: number | null): number {
   const lastStop = REEL_TIMING.stopBaseMs + (reelCount - 1) * REEL_TIMING.stopStaggerMs;
   const extra = anticipationFromReel !== null ? REEL_TIMING.anticipationExtraMs : 0;
@@ -67,7 +67,7 @@ export function reelStopDelayMs(reelIndex: number, anticipationFromReel: number 
 }
 
 /**
- * Which reel index (if any) should get the "anticipation hold" treatment — computed
+ * Which reel index (if any) should get the "anticipation hold" treatment, computed
  * from the ALREADY-DECIDED grid (this is a replay, never genuine suspense): walking
  * left-to-right, if the running scatter count reaches exactly 2 while reels remain,
  * every remaining reel is flagged as the anticipation zone (real cabinets hold on
@@ -82,9 +82,9 @@ export function anticipationFromReel(grid: string[][], scatterSymbol: string): n
   return null;
 }
 
-/** Deterministic cosmetic filler for the pre-landing scroll — varies by round/reel so
+/** Deterministic cosmetic filler for the pre-landing scroll, varies by round/reel so
  *  repeated rounds don't look identical mid-spin, but never affects the outcome (the
- *  strip always ends in `finalWindow`, in order — landing is exact, never random). */
+ *  strip always ends in `finalWindow`, in order, landing is exact, never random). */
 export function buildFillerStrip(finalWindow: string[], seed: number, fillerCount = 24): string[] {
   let a = seed >>> 0;
   const rnd = () => {
@@ -108,7 +108,7 @@ const TIER_THRESHOLDS: Array<{ tier: WinTier; min: number; durationMs: number }>
 ];
 
 /** `multiplierOfBet` = totalPayout ("for-one"); a payout of 12 means the round paid
- *  12x the stake. Below 5x gets no banner — just the small win Badge already used
+ *  12x the stake. Below 5x gets no banner, just the small win Badge already used
  *  elsewhere in this app. */
 export function winTier(multiplierOfBet: number): { tier: WinTier; durationMs: number } {
   for (const t of TIER_THRESHOLDS) if (multiplierOfBet >= t.min) return { tier: t.tier, durationMs: t.durationMs };

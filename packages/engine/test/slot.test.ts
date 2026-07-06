@@ -4,7 +4,7 @@ import {
   type SlotConfig, type Rng,
 } from '../src/index.js';
 
-// A "fake" Rng that always picks the first stop on every reel — used to hand-craft
+// A "fake" Rng that always picks the first stop on every reel, used to hand-craft
 // deterministic grids for the ways/wild/scatter/free-spin correctness tests below
 // without depending on the real PRNG landing on a particular symbol by chance.
 const zeroRng: Rng = { next: () => 0, int: () => 0, intInclusive: (min) => min, pick: (arr) => arr[0]! };

@@ -38,7 +38,7 @@ describe('naive human bot plays a faithful slot machine', () => {
     expect(maxPresses).toBeGreaterThan(0);
   });
 
-  it('is deterministic — replay reproduces the naive slot session exactly', async () => {
+  it('is deterministic, replay reproduces the naive slot session exactly', async () => {
     const original = await runSession(cfg('replay-1'), naiveDecide);
     const replay = await replaySession(original);
     expect(replay.finalBankroll).toBe(original.finalBankroll);

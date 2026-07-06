@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "LLM vs House — a behavioral study of how LLMs take risk on negative-expectation casino games. Simulated points only, no real gambling.",
+  "description": "LLM vs House, a behavioral study of how LLMs take risk on negative-expectation casino games. Simulated points only, no real gambling.",
   "scripts": {
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",

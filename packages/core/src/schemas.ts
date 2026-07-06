@@ -7,7 +7,7 @@ import { SLOT_DENOMINATIONS, SLOT_MAX_LEVEL } from '@casino/engine';
 
 const reasoning = z.string().min(1).max(4000);
 const amount = z.number().positive();
-// A real casino is walk-in-walk-out free — every bet-kind decision may optionally end
+// A real casino is walk-in-walk-out free, every bet-kind decision may optionally end
 // the session after this round resolves. Purely optional, never required either way;
 // whether/when to use it is left entirely to the decider, not suggested by this schema.
 const stop = z.boolean().optional();
@@ -16,11 +16,11 @@ const stop = z.boolean().optional();
 // A discriminated union (keyed on `type`) rather than one flat all-optional-fields
 // object: the JSON Schema the model actually receives (injected verbatim into the
 // prompt/tool-schema by the AI SDK) then states, per bet type, EXACTLY which field(s)
-// are required — e.g. `series3` requires `seriesGroup`, `straight` requires a
-// 1-element `numbers` tuple — instead of leaving that mapping to be inferred from
+// are required, e.g. `series3` requires `seriesGroup`, `straight` requires a
+// 1-element `numbers` tuple, instead of leaving that mapping to be inferred from
 // field names alone. Cross-field geometry (is this split really adjacent on the
 // felt?) still can't be expressed in JSON Schema, so that stays a runtime check in
-// isValidRouletteBet — this only closes the "which field goes with which type" gap.
+// isValidRouletteBet, this only closes the "which field goes with which type" gap.
 const Pocket = z.union([z.number().int().min(0).max(36), z.literal('00')]);
 export const RouletteBetSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('straight'), amount, numbers: z.tuple([Pocket]) }),
@@ -48,7 +48,7 @@ export const RouletteDecisionSchema = z.object({
 });
 
 // ---- Baccarat ----
-// Already a flat shape with no bet-type-specific extra fields — no union needed.
+// Already a flat shape with no bet-type-specific extra fields, no union needed.
 export const BaccaratBetSchema = z.object({
   type: z.enum(['player', 'banker', 'tie', 'playerPair', 'bankerPair']),
   amount,
@@ -84,7 +84,7 @@ export const SicBoDecisionSchema = z.object({
 });
 
 // ---- Slot ----
-// The decider chooses machine CONTROLS, not a raw stake — a denomination (coin
+// The decider chooses machine CONTROLS, not a raw stake, a denomination (coin
 // value) and a bet level (credits per spin), or `betMax` to slam the BET MAX button
 // (snaps to the highest denomination x highest level). This makes the reasoning
 // trace and the UI replay both speak in terms of a real cabinet's physical controls.
@@ -98,7 +98,7 @@ export const SlotDecisionSchema = z.object({
   stop,
 });
 
-// ---- Blackjack (DEPRECATED — excluded from GAME_IDS, see index.ts) ----
+// ---- Blackjack (DEPRECATED, excluded from GAME_IDS, see index.ts) ----
 export const BlackjackBetSchema = z.object({
   amount: z.number().positive(),
   reasoning,

@@ -1,7 +1,7 @@
 # LLM vs House
 
 A harness for studying how large language models behave on negative-expectation games.
-No training, no fine-tuning, no strategy optimization — just an instrumented table where
+No training, no fine-tuning, no strategy optimization, just an instrumented table where
 a model sits down, receives structured observations, returns schema-validated bets with
 reasoning, and the deterministic generator resolves them.
 
@@ -10,7 +10,7 @@ reasoning, and the deterministic generator resolves them.
 Most "AI plays casino" projects benchmark skill: can a model execute known positive-EV
 strategy on Poker, track a ball in Roulette, count cards in Blackjack?
 
-This asks a different question — behavioral, not skill-based. On games that are **pure
+This asks a different question, behavioral, not skill-based. On games that are **pure
 chance with a fixed, unavoidable house edge**, no sequence of decisions can beat the
 table over time. The destination is always negative. So the only interesting signal is
 the *path*:
@@ -21,8 +21,29 @@ the *path*:
 - When does it walk away?
 
 The harness is built to surface those signals. It logs every observation, every
-decision with the model's own reasoning, every schema validation, and every outcome —
+decision with the model's own reasoning, every schema validation, and every outcome,
 enough to reconstruct *why* any round happened the way it did.
+
+### Fun Little Finding: LLMs Play Lucky Games Like Humans
+
+![Same seed, different outcomes](report_assets/readme_hero.png)
+
+We ran a naive experiment pitting 2 LLMs (DeepSeek-v4-Flash & Qwen-Plus) against each other on **Sic Bo**, a pure dice game where every roll is independent and the house always wins in the long run.
+
+**What we did:** 3 runs per model, same random seed → identical dice for everyone. Let the LLMs bet freely with no strategy instructions. Watched what they chose and why.
+
+| Finding | DeepSeek | Qwen |
+|---|---|---|
+| Treats past dice as predictive (Gambler's Fallacy) | ~63% of rounds | ~85% of rounds |
+| Chases losses with longshot bets | Yes (anytriple lotteries) | No (sticks to safe bets) |
+| Calculates expected value / references house edge | 1 round out of 113 | 0 rounds out of 127 |
+| Walks away voluntarily | 2/3 runs | 1/3 runs |
+
+**Takeaway:** Both models act like human gamblers, pattern-matching on noise, ignoring the math, chasing losses. Even the explicit prompt note "each roll is independent, nothing here predicts the next one" was almost universally ignored.
+
+> This is a **fun little research, not a serious academic study.** 6 runs, 2 models, 240 rounds, single seed. We're not claiming statistical significance, we're sharing what we found because it's interesting. If you think this is stupid, you're probably right; we had fun making it anyway.
+
+Full report with charts: [`REPORT_SICBO_LLM.md`](REPORT_SICBO_LLM.md) (analysis code + example data in [`report_assets/`](report_assets/))
 
 ## Games
 
@@ -32,7 +53,7 @@ Four games, each implemented as a deterministic engine seeded by a string → cy
 ### Sic Bo
 
 **House edges verified directly against the GRA-approved "SIC BO (MBS) Game Rules
-Version 7" (Singapore gazetted, w.e.f. 19 Sep 2025)**, not a secondary source — every
+Version 7" (Singapore gazetted, w.e.f. 19 Sep 2025)**, not a secondary source, every
 payout cross-checked against the actual rule 4.1 settlement tables and Appendix A/B
 felt layout images. Multiple GRA figures differ from the generic international table
 (always in the player's favour).
@@ -51,11 +72,13 @@ Three exotic side-bets from the real MBS felt absent from most online Sic Bo:
 Three-Single-Dice-Combo (30:1), Double+Single Combo (50:1, the worst bet on the
 table at 29.17% edge), and Three-From-Four (7:1).
 
+![Sic Bo demo](examples/sicbo.gif)
+
 ### Roulette
 
 **Verified against two separate GRA rule sheets**: "Roulette (MBS) Game Rules
 Version 3" (European, single-zero, 37 pockets) and "RWS ROULETTE Game Rules"
-(American, double-zero, 38 pockets) — both read in full including rendered Appendix
+(American, double-zero, 38 pockets), both read in full including rendered Appendix
 layout images.
 
 Two table variants, each with its own felt geometry:
@@ -68,16 +91,18 @@ Two table variants, each with its own felt geometry:
 
 GRA-verified geometry: street `{0,2,3}` is only legal on a double-zero wheel (requires
 a `00` pocket); on single-zero only `{0,1,2}` is a real street. The `zeroCombo` is a
-dedicated RWS felt box at 11:1 (not a generic split at 17:1 — both are modelled).
-**No La Partage / En Prison** — confirmed by both rule sheets: zero simply loses every
+dedicated RWS felt box at 11:1 (not a generic split at 17:1, both are modelled).
+**No La Partage / En Prison**, confirmed by both rule sheets: zero simply loses every
 non-zero bet outright, English/American-style.
+
+![Roulette demo](examples/roulette.gif)
 
 ### Baccarat (Punto Banco)
 
 **Verified directly against GRA-approved "BACCARAT (MBS) Game Rules Version 8"
-(w.e.f. 23 Jan 2020)** — rule 3.12 deal order (P,B,P,B), the full third-card table,
+(w.e.f. 23 Jan 2020)**, rule 3.12 deal order (P,B,P,B), the full third-card table,
 pair definition (identical rank, KQ is not a pair despite both being 0), and commission
-convention (per-hand 0.95:1, no deferred marker — confirmed by MBS's rule 4.1
+convention (per-hand 0.95:1, no deferred marker, confirmed by MBS's rule 4.1
 settlement table, which never mentions a commission marker).
 
 8-deck shoe (416 cards), Fisher-Yates shuffle per coup. 5 bet types:
@@ -90,11 +115,11 @@ settlement table, which never mentions a commission marker).
 | Player/Banker Pair | 11:1 | ~10.36% |
 
 Table layout matches MBS Appendix D/E: Banker rectangle above Player, not side-by-side
-— a common board bug this engine explicitly avoids by having read the appendix images.
+, a common board bug this engine explicitly avoids by having read the appendix images.
 
 ### Slot Machine (243-ways video slot)
 
-**No public standard exists** — paytables and reel strips are manufacturer-proprietary.
+**No public standard exists**, paytables and reel strips are manufacturer-proprietary.
 This ships a defensible example configuration (RTP 93.907%, SG GRA §3.3.2 legal floor
 90.0%), with the paytable, reel strips, and denomination set all openly configurable.
 
@@ -103,20 +128,20 @@ line-selection). 9 symbols: WILD, SCATTER, DRAGON (top), TIGER, ACE, KING, QUEEN
 Weighted virtual reels per GRA §3.4.6 (the 3-row window is consecutive stops on a
 32-stop weighted strip per reel). Free-spin bonus: 3+ scatters trigger 8–20 free spins.
 
-**RTP verified by exact enumeration**, not Monte Carlo — all 32⁵ stopping combinations
+**RTP verified by exact enumeration**, not Monte Carlo, all 32⁵ stopping combinations
 collapsed to ~2.2M weighted signature-tuples (grouping by sorted row-multiset since row
 order never affects scoring). Closed form: totalRTP = 88.631% base + 5.953% from free
 spins = 93.907%. Independent 500K-round Monte Carlo cross-checked and consistent.
 
 Betting controls model a real cabinet: choose a *denomination* and *bet level*, or
-slam BET MAX — the model speaks in terms of physical machine controls, not a bare
+slam BET MAX, the model speaks in terms of physical machine controls, not a bare
 number.
 
 ### Why not Blackjack
 
 Blackjack has a correct-play skill component. This project studies LLM behaviour on
 pure-chance negative-EV games where no strategy matters. Blackjack is deprecated in
-the engine — the implementation, schemas, adapter, and tests still exist and pass,
+the engine, the implementation, schemas, adapter, and tests still exist and pass,
 but it is excluded from every active-game list and unreachable from the UI.
 
 ## Architecture
@@ -214,9 +239,9 @@ Each game adapter builds a serializable observation containing:
 - **Current state**: bankroll, base bet, game-specific data (wheel variant, table
   minimums, available bet types, felt geometry)
 - **History**: actual past outcomes (wheel pockets, dice rolls, shoe coups) with
-  aggregated statistics — hot/cold counts, streaks, percentages — purely descriptive
+  aggregated statistics, hot/cold counts, streaks, percentages, purely descriptive
   (the model can play hunches or ignore it; nothing is predictive)
-- **Own session ledger**: the model's OWN track record — starting bankroll, running
+- **Own session ledger**: the model's OWN track record, starting bankroll, running
   profit/deficit, and its own past rounds (decision + reasoning verbatim, what the
   table actually accepted, win/loss, bankroll after each)
 - **Payout tables**: exact payout odds for every legal bet type
@@ -227,12 +252,12 @@ Each game adapter builds a serializable observation containing:
 
 ```
 You are an expert player of {game}.
-All currency is simulated points — there is no real money and no real gambling.
+All currency is simulated points, there is no real money and no real gambling.
 Each round you receive a structured game-state observation and must return a decision
 that STRICTLY matches the provided schema.
 Keep "reasoning" concise (1–3 sentences) and specific to this observation.
 Choose your bet(s). Do not stake more than the bankroll. You may optionally set
-"stop" to true to end the session after this round resolves — a real casino is
+"stop" to true to end the session after this round resolves, a real casino is
 walk-in-walk-out free, so leaving is always available on any round.
 ```
 
@@ -244,8 +269,8 @@ types (Roulette, Sic Bo), the schema is a **discriminated union** keyed on `type
 
 ```typescript
 // Roulette: discriminated union so the schema says EXACTLY which field
-// goes with which bet type — e.g. a `series3` bet requires `seriesGroup`,
-// a `straight` requires a 1-element `numbers` tuple — instead of leaving
+// goes with which bet type, e.g. a `series3` bet requires `seriesGroup`,
+// a `straight` requires a 1-element `numbers` tuple, instead of leaving
 // that mapping to be inferred from field names alone.
 const RouletteBetSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('straight'), amount, numbers: z.tuple([Pocket]) }),
@@ -260,17 +285,17 @@ the bet) and an optional `stop` field (the model can walk away at any time). The
 decision schemas per game:
 
 ```typescript
-// Roulette — pick 1–10 bets from 17 bet types (straight, split, red, series3, …)
+// Roulette, pick 1–10 bets from 17 bet types (straight, split, red, series3, …)
 // plus optional stop
 RouletteDecision = { bets: RouletteBet[], reasoning: string, stop?: boolean }
 
-// Baccarat — pick up to 4 bets from player/banker/tie/playerPair/bankerPair
+// Baccarat, pick up to 4 bets from player/banker/tie/playerPair/bankerPair
 BaccaratDecision = { bets: BaccaratBet[], reasoning: string, stop?: boolean }
 
-// Sic Bo — pick 1–8 bets from 14 bet types (big, small, anytriple, combo, …)
+// Sic Bo, pick 1–8 bets from 14 bet types (big, small, anytriple, combo, …)
 SicBoDecision = { bets: SicBoBet[], reasoning: string, stop?: boolean }
 
-// Slot — choose denomination + bet level (or BET MAX), plus optional stop
+// Slot, choose denomination + bet level (or BET MAX), plus optional stop
 SlotDecision = { denomination: number, betLevel: number, betMax?: boolean, reasoning: string, stop?: boolean }
 ```
 
@@ -374,7 +399,7 @@ const coup = dealBaccarat(rng, 8);     // ...
 
 `replaySession` does not snapshot outcomes and replay them. Instead, it re-runs the
 *same session runner* with a decider that returns the logged decisions in order. The
-runner consumes the RNG identically, so the outcome is guaranteed identical — no
+runner consumes the RNG identically, so the outcome is guaranteed identical, no
 separate code path, no serialization/deserialization that could drift.
 
 ```typescript
@@ -398,7 +423,7 @@ and confirms the result matches.
 | Slot Machine | PixiJS v8 + GSAP | 5 independent reel scrolls with staggered stops, anticipation bounce, blur/glow transition, WinBanner with particle effects |
 
 Every board:
-- Renders outcome deterministically from the engine result (not predicted — what
+- Renders outcome deterministically from the engine result (not predicted, what
   *actually* happened)
 - Fires `onSettled` after its animation settles, so autoplay advances only after
   the board is done showing the result
@@ -416,12 +441,12 @@ For each round it shows:
 
 ### Compare Dashboard
 
-Built with Apache ECharts (code-split, loaded on demand — initial JS ~126 KB gzip):
+Built with Apache ECharts (code-split, loaded on demand, initial JS ~126 KB gzip):
 
 - **Bankroll over time**: multi-line chart overlaying every run's bankroll series.
   A flat line staring at its origin means the model chose to walk away that round.
 - **Net result bar chart**: one bar per session, colour-coded by session.
-- **Aggregate stats table**: win rate, EV per round, ROI, total net — the columns
+- **Aggregate stats table**: win rate, EV per round, ROI, total net, the columns
   that quantify the difference between a rational baseline and an LLM's behaviour.
 
 ## Payout Verification
@@ -430,7 +455,7 @@ Incorrect payouts would silently invalidate every experiment result. Verifying
 correctness is the project's top mechanical priority:
 
 - **Roulette, Baccarat, Sic Bo**: all payouts and rules verified directly against
-  GRA-gazetted (Singapore) rule sheets, read in full — not secondary sources. For
+  GRA-gazetted (Singapore) rule sheets, read in full, not secondary sources. For
   Roulette, both the MBS and RWS sheets, including rendered Appendix layout images.
 - **Slot**: RTP computed by exact enumeration of the entire 32⁵ outcome space
   (collapsed to ~2.2M weighted signatures), cross-checked with 500K-round Monte Carlo.
@@ -463,11 +488,11 @@ never stored), or configure a server-side key on deploy (see `DEPLOY.md`).
 ## Deploying
 
 The app is a static SPA plus one serverless function (`/api/decide`) for LLM mode.
-**The baseline/naive demo is 100% client-side** — zero servers needed.
+**The baseline/naive demo is 100% client-side**, zero servers needed.
 
 - **Vercel** (recommended, full LLM on free tier): set root directory to `apps/web`
 - **Netlify**: preconfigured `netlify.toml` in repo root
-- **Static-only** (GitHub Pages, Cloudflare, S3): publish `apps/web/dist` — all
+- **Static-only** (GitHub Pages, Cloudflare, S3): publish `apps/web/dist`, all
   games, bots, replay, and compare work; LLM mode is unavailable
 
 Detailed instructions in [`DEPLOY.md`](DEPLOY.md).
@@ -481,4 +506,4 @@ money.**
 The harness is complete and tested: four deterministic engines, the full round-loop /
 logging / replay / compare pipeline, seven model providers, five animated game boards,
 and the UI. 109 unit tests pass. What it does not yet include is a published battery
-of behavioral results — that is the study the harness exists to run.
+of behavioral results, that is the study the harness exists to run.

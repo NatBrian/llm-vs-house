@@ -127,7 +127,7 @@ export const useStore = create<StoreState>()(
             startingBankroll: form.startingBankroll,
             baseBet: form.baseBet,
             rounds: form.rounds,
-            // Only bots get a human-set stop target — the LLM decides for itself (see its
+            // Only bots get a human-set stop target, the LLM decides for itself (see its
             // own `stop` field in the decision schema instead).
             stopTarget: isLlm ? 0 : form.stopTarget,
             ...(form.game === 'roulette' ? { gameConfig: { variant: form.rouletteVariant } } : {}),
@@ -173,7 +173,7 @@ export const useStore = create<StoreState>()(
             stopping: false,
             abortController: null,
             progress: null,
-            autoplay: !isLlm && !session.stopped,          // baseline: replay-animate; LLM already streamed live
+            autoplay: !isLlm && !session.stopped,         // baseline: replay-animate; LLM already streamed live
             playhead: isLlm ? Math.max(0, session.rounds.length - 1) : 0,
             form: { ...s.form, seed: randomSeed(), label: '' },
           }));

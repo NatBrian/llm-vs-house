@@ -1,4 +1,4 @@
-// Baccarat (Punto Banco, 8-deck). Fixed drawing rules — no player choices, only a bet.
+// Baccarat (Punto Banco, 8-deck). Fixed drawing rules, no player choices, only a bet.
 // Drawing-rule tables verified against docs/PAYOUTS.md (Wizard of Odds).
 
 import type { Rng } from '../rng.js';
@@ -35,7 +35,7 @@ export function playBaccaratCoup(shoe: Shoe): BaccaratCoup {
   player.push(shoe.draw());
   banker.push(shoe.draw());
 
-  // "Pair" = same point value OR same face card — but two DIFFERENT face cards (e.g.
+  // "Pair" = same point value OR same face card, but two DIFFERENT face cards (e.g.
   // K+Q) do NOT count, even though both are worth 0 (GRA MBS Baccarat Game Rules v8,
   // rule 1.1.6). Comparing raw rank (J=11/Q=12/K=13 stay distinct) rather than
   // baccaratValue() gets this right without special-casing face cards.
@@ -90,11 +90,11 @@ export interface BaccaratBet {
 export const BACCARAT_BANKER_COMMISSION = 0.05;
 
 /**
- * Table minimum stake per bet family, in points — mirrors ROULETTE_MIN_BET /
+ * Table minimum stake per bet family, in points, mirrors ROULETTE_MIN_BET /
  * SICBO_MIN_BET. Neither GRA (MBS/RWS) rule sheet publishes a dollar minimum
  * (floor discretion, posted table-side), so this reuses the project-wide
  * convention: the two even-money-ish main bets (Player/Banker) carry the
- * higher minimum, the high-payout proposition bets (Tie/Pair) the lower one —
+ * higher minimum, the high-payout proposition bets (Tie/Pair) the lower one,
  * same split as Sic Bo/Roulette's outside-vs-inside distinction. Real Vegas
  * mini-baccarat pits commonly run a $25 table min as a reference point.
  */
@@ -125,7 +125,7 @@ export function dealBaccarat(rng: Rng, decks = 8): BaccaratCoup {
 }
 
 export interface BaccaratHistoryStats {
-  /** Most-recent-first, capped at `window` — mirrors a real table's Big Road / Bead Plate. */
+  /** Most-recent-first, capped at `window`, mirrors a real table's Big Road / Bead Plate. */
   recent: BaccaratResult[];
   resultPct: { player: number; banker: number; tie: number };
   pairPct: { playerPair: number; bankerPair: number };
@@ -134,7 +134,7 @@ export interface BaccaratHistoryStats {
 }
 
 /**
- * Hot/cold + Big-Road-style streak over the session's actual hand history —
+ * Hot/cold + Big-Road-style streak over the session's actual hand history,
  * the same road/bead-plate board a real baccarat table displays. Purely
  * descriptive (each coup is independent), fed so the decider can play hunches
  * or ignore it, exactly like a human reading the board.

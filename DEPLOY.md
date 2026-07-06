@@ -1,11 +1,11 @@
 # Deploying LLM vs House (free tier)
 
 The app is a static Vite SPA plus one serverless function (`/api/decide`) for LLM mode.
-**The baseline (rule-bot) demo is 100% client-side and needs no server, no keys** — it
+**The baseline (rule-bot) demo is 100% client-side and needs no server, no keys**, it
 works even on pure static hosting. The serverless function is only used when a session's
 player is set to "LLM".
 
-## Vercel (recommended — full LLM support on free tier)
+## Vercel (recommended, full LLM support on free tier)
 
 1. Push the repo to GitHub.
 2. In Vercel: **New Project → import the repo**.
@@ -16,7 +16,7 @@ player is set to "LLM".
 4. (Optional) Add provider keys as **Environment Variables** so users don't have to paste
    their own: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`,
    `OPENROUTER_API_KEY`, `KILOCODE_API_KEY`. If unset, users supply a key in the UI
-   (sent per request, never stored) — or just use the keyless rule-bot.
+   (sent per request, never stored), or just use the keyless rule-bot.
 5. Deploy.
 
 ## Netlify
@@ -31,7 +31,7 @@ player is set to "LLM".
 ## Static-only (GitHub Pages, Cloudflare Pages, S3, …)
 
 Run `pnpm build` and publish `apps/web/dist`. The rule-bot, all five games, replay, and
-the compare dashboard work fully. LLM mode will error (no `/api/decide`) — expected.
+the compare dashboard work fully. LLM mode will error (no `/api/decide`), expected.
 
 ## Local
 
@@ -49,5 +49,5 @@ pnpm --filter @casino/web preview  # serve the production build
   no key at all and it stays fully server-side.
 - **Bundle**: ECharts is code-split into an on-demand chunk (loads only on the Compare tab);
   initial JS is ~126 KB gzip.
-- **Determinism**: a session is fully reproducible from its seed + logged decisions — the
+- **Determinism**: a session is fully reproducible from its seed + logged decisions, the
   "Replay & verify" button re-runs it and confirms an identical result.

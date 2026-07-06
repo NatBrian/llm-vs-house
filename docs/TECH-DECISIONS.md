@@ -12,7 +12,7 @@ Two visually distinct classes → potentially different answers, but one base co
   (Apache-2.0, deterministic → seed-reproducible rolls), mounted in isolation. Otherwise a Pixi canned-roll
   landing on the RNG value does the whole product with a smaller bundle.
 - **Avoid:** cannon-es (discontinued 2026), Phaser as app-wide engine (fights React, heavier), raw Canvas 2D.
-- Note: a roulette wheel is a rotation tween, not physics — Pixi/SVG + GSAP with an eased landing you control
+- Note: a roulette wheel is a rotation tween, not physics, Pixi/SVG + GSAP with an eased landing you control
   to match the RNG outcome. 3D only if a realistic bouncing ball is a product requirement.
 
 ## 2. LLM orchestration (multi-provider + structured output)
@@ -33,8 +33,8 @@ Two visually distinct classes → potentially different answers, but one base co
 
 ## 3. Dashboard + charts + state
 - **Component kit: shadcn/ui** (own the code, dark-first, casino-styleable) + **Tremor blocks** (Vercel-owned,
-  free, interoperates — KPI/stat tiles) + **TanStack Table** for the session-log grid.
-- **Charts: Apache ECharts** (Apache-2.0) as primary — best for multi-session bankroll overlays + `markLine`/
+  free, interoperates, KPI/stat tiles) + **TanStack Table** for the session-log grid.
+- **Charts: Apache ECharts** (Apache-2.0) as primary, best for multi-session bankroll overlays + `markLine`/
   `markArea` for EV/threshold lines + `dataZoom` doubling as a replay scrubber + Canvas stays smooth on long
   logs. **Recharts** only for simple inline cards (single sparkline / bet-distribution bar).
 - **State: Zustand** (append-only event log → replay = re-derive state at index i) **+ TanStack Query**
@@ -46,10 +46,10 @@ Two visually distinct classes → potentially different answers, but one base co
 ## 4. Reasoning-trace visualization
 - **Do NOT use a node-graph (React Flow).** Reasoning is linear per round; history is a flat sequence.
   A node-graph adds pan/zoom/layout machinery that buys nothing and hurts scrubbing.
-- **Use vertical timeline/stepper for the single round + horizontal round scrubber across history** —
+- **Use vertical timeline/stepper for the single round + horizontal round scrubber across history**,
   the pattern every 2026 agent-observability tool (LangSmith, Langfuse, Arize Phoenix, Azure "Trace Replay")
   converged on: ordered step tree/timeline + details pane, plus time-travel/replay.
-- **Fastest path: AgentPrism** (Evil Martians, open source, shadcn-style copy-paste, OTel-shaped data) —
+- **Fastest path: AgentPrism** (Evil Martians, open source, shadcn-style copy-paste, OTel-shaped data),
   ships TreeView/Timeline/SpanCard/DetailsPanel. Or build a plain shadcn/Radix stepper + custom scrubber.
 - Blueprint: round scrubber strip (chips 1…N, color by win/loss + bankroll delta, play/pause + ←/→ + playhead);
   center vertical stepper with 4 fixed stops Observation→Reasoning→Decision→Outcome; right detail panel
@@ -58,16 +58,16 @@ Two visually distinct classes → potentially different answers, but one base co
 
 ## 5. OSS reference repos (verified last-push dates + licenses)
 Safe to borrow (MIT/permissive + fresh):
-- Slots: **johakr/html5-slot-machine** (616★, 2026-02, MIT) — complete, polished reels, safe to borrow.
-- Sic Bo: **wy/PySicBo** (MIT, Python) — verify payout table only; no good UI ref exists.
+- Slots: **johakr/html5-slot-machine** (616★, 2026-02, MIT), complete, polished reels, safe to borrow.
+- Sic Bo: **wy/PySicBo** (MIT, Python), verify payout table only; no good UI ref exists.
 
-Study-only for logic (copyleft / non-standard license — reimplement, don't copy):
-- **jconradi/baccarat-engine** (non-standard license) — best ref for fiddly third-card rules.
+Study-only for logic (copyleft / non-standard license, reimplement, don't copy):
+- **jconradi/baccarat-engine** (non-standard license), best ref for fiddly third-card rules.
 
-Visual/UX inspiration (no/unclear license — look, don't vendor):
-- **GizzZmo/Cassanova** (Next.js 15, 2026-06) — polished casino dashboard/lobby.
-- **oanapopescu93/casino** (2025-06) — all 5 target games in one app.
-- **bocaletto-luca/Roulette** (2025-06, GPL) — wheel animation with realistic deceleration.
+Visual/UX inspiration (no/unclear license, look, don't vendor):
+- **GizzZmo/Cassanova** (Next.js 15, 2026-06), polished casino dashboard/lobby.
+- **oanapopescu93/casino** (2025-06), all 5 target games in one app.
+- **bocaletto-luca/Roulette** (2025-06, GPL), wheel animation with realistic deceleration.
 
-Weak spots: Roulette + Sic Bo have no fresh+permissive+polished repo — build those UIs ourselves,
+Weak spots: Roulette + Sic Bo have no fresh+permissive+polished repo, build those UIs ourselves,
 verify payouts against PAYOUTS.md not repos.

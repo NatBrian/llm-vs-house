@@ -1,17 +1,17 @@
-# Free Game Assets — License-Verified Sourcing (2026)
+# Free Game Assets, License-Verified Sourcing (2026)
 
 Legend: **CC0/PD** = zero obligations (safest for a private/proprietary project) ·
 **CC-BY / OGA-BY / LGPL** = usable but attribution/conditions apply ·
-**CC-BY-SA** = share-alike — AVOID for proprietary · **CC-BY-NC / personal-use** = NOT usable.
+**CC-BY-SA** = share-alike, AVOID for proprietary · **CC-BY-NC / personal-use** = NOT usable.
 
-> Keep a license manifest (source URL + license + download date) for every asset, even CC0 — cheap insurance.
+> Keep a license manifest (source URL + license + download date) for every asset, even CC0, cheap insurance.
 > Wire assets in M2 (polish); M1 is headless engines + thin UI.
 
 ## Recommended all-CC0 core (max legal safety, zero attribution)
 | Category | Pick | License | URL |
 |---|---|---|---|
-| Cards (Baccarat) | **Byron Knoll — Vector Playing Cards** | Public Domain | github.com/notpeter/Vector-Playing-Cards |
-| Chips + dice | **Kenney — Board Game Pack** (+ 2D Poker Pack for chip colors) | CC0 | kenney.nl/assets/boardgame-pack · opengameart.org/content/2d-poker-pack |
+| Cards (Baccarat) | **Byron Knoll, Vector Playing Cards** | Public Domain | github.com/notpeter/Vector-Playing-Cards |
+| Chips + dice | **Kenney, Board Game Pack** (+ 2D Poker Pack for chip colors) | CC0 | kenney.nl/assets/boardgame-pack · opengameart.org/content/2d-poker-pack |
 | Roulette wheel | **Basic roulette wheel.svg** (D. Perkins) | CC0 | commons.wikimedia.org/wiki/File:Basic_roulette_wheel.svg |
 | Roulette felt | redraw PD layout as our own SVG + **ambientCG Fabric019** texture | PD + CC0 | ambientcg.com/view?id=Fabric019 |
 | Slot symbols | **Good Fruits (M484)** | CC0 | opengameart.org/content/good-fruits-m484-games |
@@ -30,24 +30,24 @@ Freesound CC0 fills: roulette spin Joao_Janz #482663 · card deal el_boss #57157
   doesn't map onto that sheet. Interim: symbols are Pixi `Graphics`-drawn vector tiles (gold/ink gradient +
   glyph, matching the existing casino palette) via one factory module (`apps/web/src/components/slot/
   symbolTile.ts`), so swapping in a real texture atlas later is a single-seam change. Vendoring a real
-  taxonomy-matched CC0 pack (or commissioning one) is a follow-up, not blocking — self-built reel frame/cabinet
+  taxonomy-matched CC0 pack (or commissioning one) is a follow-up, not blocking, self-built reel frame/cabinet
   chrome either way (no strong CC0 full-cabinet asset exists, same gap noted below) · Kenney reel-stop/spin SFX
   + Fupi win jingle still apply whenever audio is wired in.
 
 ## Traps to avoid (looked best in search, legally unusable)
-- **Betzaar** roulette layouts/wheels on Wikimedia — **CC-BY-SA 3.0** (viral share-alike).
-- **Cburnett/Wikipedia** standard card deck — GFDL + CC-BY-SA, NOT public domain.
-- **Chris Aguilar** cards — LGPL, mandatory public credit + NFT-use banned (awkward for a product).
-- dafont "Casino"/"Vegas" fonts — personal-use only. Approximate with Monoton + Bungee Shade.
-- Kia 32x32 slot itch pack — paid despite "free" tag.
+- **Betzaar** roulette layouts/wheels on Wikimedia, **CC-BY-SA 3.0** (viral share-alike).
+- **Cburnett/Wikipedia** standard card deck, GFDL + CC-BY-SA, NOT public domain.
+- **Chris Aguilar** cards, LGPL, mandatory public credit + NFT-use banned (awkward for a product).
+- dafont "Casino"/"Vegas" fonts, personal-use only. Approximate with Monoton + Bungee Shade.
+- Kia 32x32 slot itch pack, paid despite "free" tag.
 - Freesound is per-sound: verify each; any CC-BY-NC is unusable.
 
 ## Gaps needing self-build / commission / AI-gen
-1. **Slot reel frame / cabinet** — no strong CC0 full cabinet; build our own frame around CC0 symbols (or accept one CC-BY credit line for Vircon32/Cougarmint kits).
-2. **Polished roulette betting-layout felt** — only CC0 is a low-res PD PNG; good SVGs are CC-BY-SA. Redraw as our own SVG → becomes our copyright.
-3. **CC0 high-fidelity 3D roulette wheel** — none found (only CC-BY Sketchfab). CC0 route = flat SVG wheel.
-4. **Cohesive art direction** — CC0 pieces span styles (Kenney rounded vs M484 pixel vs SVG cards). Expect to recolor/restyle for consistency, or AI-generate a unified skin.
-5. **Distinctive ambient music** — CC0 (OGA) options generic; commission or royalty-free license for a signature track.
+1. **Slot reel frame / cabinet**, no strong CC0 full cabinet; build our own frame around CC0 symbols (or accept one CC-BY credit line for Vircon32/Cougarmint kits).
+2. **Polished roulette betting-layout felt**, only CC0 is a low-res PD PNG; good SVGs are CC-BY-SA. Redraw as our own SVG → becomes our copyright.
+3. **CC0 high-fidelity 3D roulette wheel**, none found (only CC-BY Sketchfab). CC0 route = flat SVG wheel.
+4. **Cohesive art direction**, CC0 pieces span styles (Kenney rounded vs M484 pixel vs SVG cards). Expect to recolor/restyle for consistency, or AI-generate a unified skin.
+5. **Distinctive ambient music**, CC0 (OGA) options generic; commission or royalty-free license for a signature track.
 
 ## Optional attribution upgrades (one credit line each)
 Vircon32 or Cougarmint slot kit (CC-BY) · rattenheimer 3D roulette wheel (CC-BY).

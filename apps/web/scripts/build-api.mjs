@@ -36,7 +36,7 @@ await esbuild.build({
     '@casino/llm': pkgSrc('llm'),
   },
   plugins: [tsJsPlugin],
-  banner: { js: '// AUTO-GENERATED from server/decide.ts by scripts/build-api.mjs — do not edit.' },
+  banner: { js: '// AUTO-GENERATED from server/decide.ts by scripts/build-api.mjs, do not edit.' },
   logLevel: 'info',
 });
 

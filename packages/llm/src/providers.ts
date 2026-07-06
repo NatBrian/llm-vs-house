@@ -1,6 +1,6 @@
 // Provider registry. Native SDKs for Anthropic / OpenAI / Google; everything else
 // (Ollama, OpenRouter, KiloCode, any custom gateway) via the OpenAI-compatible
-// adapter. Which provider+model is used is pure config — never hardcoded.
+// adapter. Which provider+model is used is pure config, never hardcoded.
 
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';

@@ -45,7 +45,7 @@ describe('naive human bot plays a faithful Roulette table', () => {
       if (bets.length >= 2) multiBetRounds++;
       for (const b of bets) seenTypes.add(b.type);
     }
-    // a casual player touches most of the board over 300 rounds — inside and outside bets
+    // a casual player touches most of the board over 300 rounds, inside and outside bets
     expect(seenTypes.size).toBeGreaterThanOrEqual(6);
     expect(multiBetRounds).toBeGreaterThan(0); // genuinely spreads, not a single bet
   });
@@ -70,7 +70,7 @@ describe('naive human bot plays a faithful Roulette table', () => {
     expect(seenTypes.has('series6')).toBe(true);
   });
 
-  it('is deterministic — replay reproduces the naive spread exactly', async () => {
+  it('is deterministic, replay reproduces the naive spread exactly', async () => {
     const original = await runSession(cfg('replay-1'), naiveDecide);
     const replay = await replaySession(original);
     expect(replay.finalBankroll).toBe(original.finalBankroll);
@@ -100,7 +100,7 @@ describe('table-rule enforcement (dealer refuses under-minimum or invented-geome
     const decide = async () => ({
       value: {
         bets: [
-          { type: 'corner', amount: 10, numbers: [1, 36, 17, 5] }, // invented — not a real corner
+          { type: 'corner', amount: 10, numbers: [1, 36, 17, 5] }, // invented, not a real corner
           { type: 'straight', amount: 10, numbers: [1] },
         ],
         reasoning: 'x',

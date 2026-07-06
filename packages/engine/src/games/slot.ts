@@ -1,14 +1,14 @@
-// Slot machine engine — 5-reel, 243-ways-to-win video slot (the dominant real-cabinet
+// Slot machine engine, 5-reel, 243-ways-to-win video slot (the dominant real-cabinet
 // style on Singapore casino floors; "Reel Power"/ways games have no line-selection
 // decision, all 243 ways are always active, matching this sim's one-stake-per-round
 // architecture exactly, not as a simplification). No single real-world paytable is a
 // public standard (manufacturer-proprietary), so this is a defensible worked example,
-// verified by enumeration — see docs/PAYOUTS.md §4 for the full derivation.
+// verified by enumeration, see docs/PAYOUTS.md §4 for the full derivation.
 //
 // Mechanics mirror real EGM virtual-reel behavior (SG GRA Technical Standards for
 // Electronic Gaming Machines §3.4.6): each reel is a weighted strip of stops; a spin
 // picks one stop per reel uniformly, and the 3 visible rows are that stop plus the
-// next two stops on the (circular) strip — not 3 independently-sampled symbols. This
+// next two stops on the (circular) strip, not 3 independently-sampled symbols. This
 // is what makes symbol weighting "bake in" via strip composition, same principle the
 // old 3-reel engine used, extended to a 3-row window per reel.
 
@@ -20,17 +20,17 @@ export const SLOT_WAYS = SLOT_ROWS ** SLOT_REEL_COUNT; // 3^5 = 243
 
 /**
  * Real cabinets separate "how much is each credit worth" (denomination/coin value)
- * from "how many credits per spin" (bet level) — the player presses a denomination
+ * from "how many credits per spin" (bet level), the player presses a denomination
  * chip and a bet-level stepper, or slams BET MAX, rather than typing a raw stake.
  * This sim mirrors that: every decider (rule bot / naive bot / LLM) chooses
- * `{ denomination, betLevel, betMax }`, not a bare amount — see SlotDecisionSchema.
+ * `{ denomination, betLevel, betMax }`, not a bare amount, see SlotDecisionSchema.
  */
 export const SLOT_DENOMINATIONS = [1, 2, 5, 10, 25, 50] as const;
 export const SLOT_MAX_LEVEL = 10;
 export const SLOT_MIN_BET = SLOT_DENOMINATIONS[0] * 1;
 export const SLOT_MAX_BET = SLOT_DENOMINATIONS[SLOT_DENOMINATIONS.length - 1]! * SLOT_MAX_LEVEL;
 
-/** Paying symbols only — excludes WILD/SCATTER, which every config must also define. */
+/** Paying symbols only, excludes WILD/SCATTER, which every config must also define. */
 export type SlotPayingSymbol = 'DRAGON' | 'TIGER' | 'LOTUS' | 'ACE' | 'KING' | 'QUEEN' | 'TEN';
 
 export interface SlotConfig {
@@ -40,7 +40,7 @@ export interface SlotConfig {
   wild: string;
   /** Pays anywhere in the grid regardless of reel/row position; triggers free spins. */
   scatter: string;
-  /** 3-of/4-of/5-of-a-kind payout, "for-one" multiplier of TOTAL bet (already ways-normalized — see evaluateSlotGrid). */
+  /** 3-of/4-of/5-of-a-kind payout, "for-one" multiplier of TOTAL bet (already ways-normalized, see evaluateSlotGrid). */
   paytable: Record<SlotPayingSymbol, [number, number, number]>;
   /** Scatter pay, "for-one" multiplier of TOTAL bet, keyed by scatter count. */
   scatterPay: { 3: number; 4: number; 5: number };
@@ -59,7 +59,7 @@ export interface SlotWin {
 export interface SlotSpin {
   /** [reel][row], SLOT_REEL_COUNT x SLOT_ROWS landed symbols. */
   grid: string[][];
-  /** Sum of every SlotWin's payout — "for-one" multiplier of total bet from ways wins. */
+  /** Sum of every SlotWin's payout, "for-one" multiplier of total bet from ways wins. */
   waysWin: number;
   wins: SlotWin[];
   scatterCount: number;
@@ -70,7 +70,7 @@ export interface SlotSpin {
 
 export interface SlotRoundResult {
   mainSpin: SlotSpin;
-  /** Auto-played inside the engine when the main spin triggers free spins — no new decider call. */
+  /** Auto-played inside the engine when the main spin triggers free spins, no new decider call. */
   bonusSpins: SlotSpin[];
   /** "For-one" total across the main spin and every bonus spin. */
   totalPayout: number;
@@ -78,8 +78,8 @@ export interface SlotRoundResult {
 
 const PAYING_SYMBOLS: SlotPayingSymbol[] = ['DRAGON', 'TIGER', 'LOTUS', 'ACE', 'KING', 'QUEEN', 'TEN'];
 
-/** The worked example from docs/PAYOUTS.md §4. Reel composition varies per reel —
- *  reel 3 is the "loosest" (an extra wild, one fewer king) — real cabinets do this too. */
+/** The worked example from docs/PAYOUTS.md §4. Reel composition varies per reel,
+ *  reel 3 is the "loosest" (an extra wild, one fewer king), real cabinets do this too. */
 export const EXAMPLE_SLOT: SlotConfig = {
   wild: 'WILD',
   scatter: 'SCATTER',
@@ -117,14 +117,14 @@ export const EXAMPLE_SLOT: SlotConfig = {
   freeSpins: { 3: 8, 4: 15, 5: 20 },
 };
 
-/** The 3 visible symbols for a reel stopped at `idx` — that stop plus the next two on
+/** The 3 visible symbols for a reel stopped at `idx`, that stop plus the next two on
  *  the circular strip (real EGM virtual-reel window, not 3 independent samples). */
 function reelWindow(strip: string[], idx: number): string[] {
   const n = strip.length;
   return [strip[idx]!, strip[(idx + 1) % n]!, strip[(idx + 2) % n]!];
 }
 
-/** Pure evaluator — no RNG — so ways/wild/scatter logic is directly unit-testable on
+/** Pure evaluator, no RNG, so ways/wild/scatter logic is directly unit-testable on
  *  hand-built grids. `grid[reel]` is that reel's 3 visible symbols (row order irrelevant
  *  to scoring: only counts-per-reel matter for ways, and total counts for scatter). */
 export function evaluateSlotGrid(config: SlotConfig, grid: string[][]): Omit<SlotSpin, 'grid'> {
@@ -163,11 +163,11 @@ export function spinSlot(rng: Rng, config: SlotConfig): SlotSpin {
 }
 
 /**
- * Full round: one main spin, then — if it triggers — that many free spins played
+ * Full round: one main spin, then, if it triggers, that many free spins played
  * automatically inside the engine (same precedent as Blackjack's post-bet action
  * loop: one decider call, then deterministic auto-play). v1 has no retriggers: a
  * bonus spin's own scatter hits still pay the scatter amount (scatter always pays,
- * that's real), but never extend `bonusSpins` — keeps the RTP a closed form and is a
+ * that's real), but never extend `bonusSpins`, keeps the RTP a closed form and is a
  * common, defensible real-cabinet simplification (some real machines cap/restrict
  * retriggers too). This is the ONLY rng-consuming call site per round.
  */
@@ -185,7 +185,7 @@ export function resolveSlot(round: SlotRoundResult, amount: number): number {
   return round.totalPayout > 0 ? round.totalPayout * amount - amount : -amount;
 }
 
-/** Per-reel probability distribution over 3-symbol window *multisets* — the window's
+/** Per-reel probability distribution over 3-symbol window *multisets*, the window's
  *  row order never affects scoring (ways only cares about per-reel match counts, scatter
  *  only cares about total counts), so grouping equal-multiset windows is exact, not an
  *  approximation, and collapses a 32-stop reel to ~15-20 distinct signatures. */
@@ -205,17 +205,17 @@ function reelSignatures(strip: string[]): Array<{ multiset: string[]; count: num
 export interface SlotRtpBreakdown {
   waysRtp: number;
   scatterRtp: number;
-  /** EV of a single spin (main or bonus — they share the same config). */
+  /** EV of a single spin (main or bonus, they share the same config). */
   baseRtp: number;
   triggerProbability: { 3: number; 4: number; 5: number };
   expectedFreeSpinsPerSpin: number;
-  /** Closed-form total RTP: baseRtp * (1 + expectedFreeSpinsPerSpin) — exact under the v1 no-retrigger rule. */
+  /** Closed-form total RTP: baseRtp * (1 + expectedFreeSpinsPerSpin), exact under the v1 no-retrigger rule. */
   totalRtp: number;
   hitFrequency: number;
   combosEnumerated: number;
 }
 
-/** Exact analysis via the signature-dedup enumeration above — analysis/test-only,
+/** Exact analysis via the signature-dedup enumeration above, analysis/test-only,
  *  never called from the adapter hot path or shipped in the browser bundle (the
  *  adapter states a precomputed static RTP figure, same pattern as before). */
 export function slotRtpBreakdown(config: SlotConfig): SlotRtpBreakdown {

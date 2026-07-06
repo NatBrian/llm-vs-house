@@ -7,7 +7,7 @@ export const pct = (n: number): string => `${(n * 100).toFixed(1)}%`;
 
 export const GAME_META: Record<string, { name: string; icon: string; edge: string }> = {
   roulette: { name: 'Roulette', icon: '🎡', edge: 'EU 2.70%' },
-  // blackjack: DEPRECATED, not in GAME_IDS so never rendered — entry kept only in
+  // blackjack: DEPRECATED, not in GAME_IDS so never rendered, entry kept only in
   // case deprecated code paths look it up directly.
   blackjack: { name: 'Blackjack', icon: '🃏', edge: '~0.5%' },
   baccarat: { name: 'Baccarat', icon: '🎴', edge: 'Banker 1.06%' },
