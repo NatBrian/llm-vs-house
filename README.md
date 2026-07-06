@@ -256,7 +256,32 @@ const RouletteBetSchema = z.discriminatedUnion('type', [
 ```
 
 Every decision includes a `reasoning` field (1–3 sentences, captured atomically with
-the bet) and an optional `stop` field (the model can walk away at any time).
+the bet) and an optional `stop` field (the model can walk away at any time). The full
+decision schemas per game:
+
+```typescript
+// Roulette — pick 1–10 bets from 17 bet types (straight, split, red, series3, …)
+// plus optional stop
+RouletteDecision = { bets: RouletteBet[], reasoning: string, stop?: boolean }
+
+// Baccarat — pick up to 4 bets from player/banker/tie/playerPair/bankerPair
+BaccaratDecision = { bets: BaccaratBet[], reasoning: string, stop?: boolean }
+
+// Sic Bo — pick 1–8 bets from 14 bet types (big, small, anytriple, combo, …)
+SicBoDecision = { bets: SicBoBet[], reasoning: string, stop?: boolean }
+
+// Slot — choose denomination + bet level (or BET MAX), plus optional stop
+SlotDecision = { denomination: number, betLevel: number, betMax?: boolean, reasoning: string, stop?: boolean }
+```
+
+Each round the LLM receives a prompt with round number, bankroll, observation, and
+must return one of the above shapes:
+
+```
+Round #3. Bankroll: 985 points. Base bet: 10.
+Observation: {"pocket":14,"lastDice":[4,2,3],"balance":985,…}
+Return your decision as structured output matching the schema.
+```
 
 ### 4. Schema validation + retry
 
