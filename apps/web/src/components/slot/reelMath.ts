@@ -19,6 +19,27 @@ export const SYMBOL_STYLE: Record<SlotSymbolId, { glyph: string; accent: number 
   TEN: { glyph: '10', accent: 0xe7edf3 },
 };
 
+// ---------------------------------------------------------------- strip layout for downward spin
+/** Filler symbols laid out BEFORE the final window (visible during spin, before landing). */
+export const FILLER_BEFORE = 60;
+/** Filler symbols laid out AFTER the final window (extra room for downward scroll entry). */
+export const FILLER_AFTER = 40;
+/** Convenience sum. */
+export const TOTAL_FILLER = FILLER_BEFORE + FILLER_AFTER;
+
+export function buildSlotStrip(finalWindow: string[], seed: number): string[] {
+  let a = seed >>> 0;
+  const rnd = () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const fillerCount = FILLER_BEFORE + FILLER_AFTER;
+  const allFillers = Array.from({ length: fillerCount }, () => SLOT_SYMBOLS[Math.floor(rnd() * SLOT_SYMBOLS.length)]!);
+  return [...allFillers.slice(0, FILLER_BEFORE), ...finalWindow, ...allFillers.slice(FILLER_BEFORE)];
+}
+
 // ---------------------------------------------------------------- timing
 export const REEL_TIMING = {
   rampMs: 180,
