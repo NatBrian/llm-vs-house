@@ -134,7 +134,7 @@ export const useStore = create<StoreState>()(
 
           // Push a live placeholder so the table renders as rounds stream in (esp. for slow LLM runs).
           const live: Session = { config, rounds: [], finalBankroll: config.startingBankroll, bustedOut: false };
-          set((s) => ({ sessions: [live, ...s.sessions].slice(0, 10), activeId: id, playhead: 0, autoplay: false }));
+          set((s) => ({ sessions: [live, ...s.sessions].slice(0, 20), activeId: id, playhead: 0, autoplay: false }));
 
           let decide: Decide;
           if (!isLlm) {
@@ -200,11 +200,11 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'llm-vs-house',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => quotaSafeStorage),
       migrate: () => ({ sessions: [] as Session[], form: defaultForm }),
       partialize: (s) => ({
-        sessions: s.sessions.slice(0, 10) as Session[],
+        sessions: s.sessions.slice(0, 5) as Session[],
         form: { ...s.form, llm: { ...s.form.llm, apiKey: '' } },
       }),
     },
