@@ -281,6 +281,9 @@ export function RouletteBoard({ pocket, placedBets, variant, history, roundKey, 
   const onSettledRef = useRef(onSettled);
   onSettledRef.current = onSettled;
 
+  // Prevent reveal from leaking across rounds — reset on new roundKey
+  useEffect(() => { setReveal(false); }, [roundKey]);
+
   // Signal round complete after user sees the winning reveal
   useEffect(() => {
     if (!reveal) return;
