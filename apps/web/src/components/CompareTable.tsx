@@ -98,10 +98,10 @@ export function CompareTable() {
         <table className="w-full text-xs tabular-nums">
           <thead className="text-white/40 text-left">
             <tr>
-              <th className="py-1 pr-3">Milestone</th>
-              <th className="pr-3 text-right">Reach milestone</th>
-              <th className="pr-3 text-right">Bust before</th>
-              <th className="text-right">Avg plays</th>
+              <th className="py-1 pr-3">Profit Goal</th>
+              <th className="pr-3 text-right">Success %</th>
+              <th className="pr-3 text-right">Bust %</th>
+              <th className="text-right">Avg Bets</th>
             </tr>
           </thead>
           <tbody>
