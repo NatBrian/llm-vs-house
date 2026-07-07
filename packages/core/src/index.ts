@@ -4,6 +4,7 @@ export * from './adapters.js';
 export * from './bots.js';
 export * from './session.js';
 export * from './stats.js';
+export * from './gamblers-ruin.js';
 
 import type { GameId, SessionConfig } from './types.js';
 import { ADAPTERS } from './adapters.js';
