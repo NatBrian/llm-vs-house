@@ -101,7 +101,7 @@ export function CompareTable() {
               <th className="py-1 pr-3">Profit Goal</th>
               <th className="pr-3 text-right">Success %</th>
               <th className="pr-3 text-right">Bust %</th>
-              <th className="text-right">Avg Bets</th>
+              <th className="text-right">Avg Plays</th>
             </tr>
           </thead>
           <tbody>
