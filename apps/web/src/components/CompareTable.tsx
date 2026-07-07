@@ -100,7 +100,8 @@ export function CompareTable() {
             <tr>
               <th className="py-1 pr-3">Milestone</th>
               <th className="pr-3 text-right">Reach milestone</th>
-              <th className="text-right">Bust before milestone</th>
+              <th className="pr-3 text-right">Bust before</th>
+              <th className="text-right">Avg plays</th>
             </tr>
           </thead>
           <tbody>
@@ -118,9 +119,10 @@ export function CompareTable() {
                   <td className={`pr-3 text-right ${r.reachProb > 0.5 ? 'text-chip-green' : 'text-white/70'}`}>
                     {pct(r.reachProb)}
                   </td>
-                  <td className={`text-right ${r.bustProb > 0.5 ? 'text-chip-red' : 'text-white/70'}`}>
+                  <td className={`pr-3 text-right ${r.bustProb > 0.5 ? 'text-chip-red' : 'text-white/70'}`}>
                     {pct(r.bustProb)}
                   </td>
+                  <td className="text-right text-white/60">{r.avgPlays.toFixed(1)} bets</td>
                 </tr>
               );
             })}

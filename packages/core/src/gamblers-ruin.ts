@@ -19,6 +19,8 @@ export interface GamblersRuinRow {
   reachProb: number;
   /** 1 - reachProb. */
   bustProb: number;
+  /** Expected number of bets until absorption (reach milestone or bust). */
+  avgPlays: number;
 }
 
 export interface BetInfo {
@@ -198,6 +200,45 @@ function reachProb(startUnits: number, milestoneUnits: number, p: number, payout
   return P[startUnits]!;
 }
 
+/** Expected number of bets until absorption (reach milestoneUnits or hit 0),
+ *  starting from `startUnits` (< milestoneUnits).
+ *
+ *  Even-money (payout = 1): closed-form.
+ *  Uneven: Gauss-Seidel iteration on [0, milestoneUnits]. */
+function expectedBets(startUnits: number, milestoneUnits: number, p: number, payout: number): number {
+  if (startUnits >= milestoneUnits) return 0;
+  if (startUnits <= 0) return 0;
+  if (milestoneUnits <= 0) return 0;
+
+  const q = 1 - p;
+
+  if (payout === 1) {
+    if (Math.abs(p - q) < 1e-12) return startUnits * (milestoneUnits - startUnits);
+    const r = q / p;
+    return startUnits / (q - p) - (milestoneUnits / (q - p)) * (1 - r ** startUnits) / (1 - r ** milestoneUnits);
+  }
+
+  // Numerical: Gauss-Seidel for expected hitting time
+  const N = milestoneUnits;
+  const E = new Array<number>(N + 1);
+  E[0] = 0;
+  E[N] = 0;
+  for (let i = 1; i < N; i++) E[i] = 0;
+
+  for (let iter = 0; iter < 5000; iter++) {
+    let maxDiff = 0;
+    for (let i = N - 1; i >= 1; i--) {
+      const winNext = Math.min(i + payout, N);
+      const newVal = 1 + p * E[winNext]! + q * E[i - 1]!;
+      const diff = Math.abs(newVal - E[i]!);
+      if (diff > maxDiff) maxDiff = diff;
+      E[i] = newVal;
+    }
+    if (maxDiff < 1e-12) break;
+  }
+  return E[startUnits]!;
+}
+
 // ---------------------------------------------------------------- public API
 
 export interface GamblersRuinInput {
@@ -269,7 +310,8 @@ export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutpu
   for (let m = s + 1; m <= t; m++) {
     const bankroll = m * baseBet;
     const r = reachProb(s, m, betInfo.p, effectivePayout);
-    rows.push({ bankroll, reachProb: r, bustProb: 1 - r });
+    const avg = expectedBets(s, m, betInfo.p, effectivePayout);
+    rows.push({ bankroll, reachProb: r, bustProb: 1 - r, avgPlays: avg });
   }
 
   return {
