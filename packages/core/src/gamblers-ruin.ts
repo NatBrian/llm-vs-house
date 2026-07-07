@@ -1,19 +1,24 @@
 // Gambler's ruin probability tables for the Compare tab.
-// Computes P(reach target bankroll before busting at 0) for each bankroll
-// level, given a game's win probability and payout odds.
 //
-// Even-money bets (payout = 1) use the closed-form formula. Uneven bets
-// use Gauss-Seidel value iteration over the full state space.
+// The table uses ONE fixed starting bankroll and computes, for each bankroll
+// milestone M > startingBankroll: P(reach M before 0 | start at startingBankroll).
+// Milestones at or below the starting bankroll are "already reached" (P = 1).
+//
+// Even-money bets (payout ≈ 1) use the closed-form formula. Uneven bets
+// (straight 35:1, tie 8:1, etc.) use Gauss-Seidel iteration.
 
 import {
-  ROULETTE_ODDS, rouletteWins, rouletteWheel, allSicBoOutcomes, resolveSicBoBet,
+  ROULETTE_ODDS, allSicBoOutcomes, resolveSicBoBet,
   type RouletteBetType, type RouletteVariant, type SicBoBetType, type SicBoBet,
-  type Dice, type BaccaratBetType, type BaccaratCoup,
+  type BaccaratBetType,
 } from '@casino/engine';
 
 export interface GamblersRuinRow {
   bankroll: number;
-  winProb: number;
+  /** P(reach this milestone before 0 | start at the fixed startingBankroll).
+   *  1.0 for milestones ≤ startingBankroll. */
+  reachProb: number;
+  /** 1 - reachProb. */
   bustProb: number;
 }
 
@@ -64,7 +69,7 @@ export function rouletteBetLabel(type: RouletteBetType): string {
 
 // ---------------------------------------------------------------- sic bo
 
-export function sicboWinProb(type: SicBoBetType, _params?: Partial<SicBoBet>): number {
+export function sicboWinProb(type: SicBoBetType): number {
   const outcomes = allSicBoOutcomes();
   switch (type) {
     case 'small': case 'big': case 'odd': case 'even':
@@ -80,7 +85,7 @@ export function sicboWinProb(type: SicBoBetType, _params?: Partial<SicBoBet>): n
     case 'single':
       return outcomes.filter((d) => resolveSicBoBet({ type, amount: 1, face: 1 }, d) > 0).length / 216;
     case 'total':
-      return 1 / 216; // each total happens with varying ways, resolved below
+      return 1 / 216;
     case 'doubleAny':
       return outcomes.filter((d) => resolveSicBoBet({ type, amount: 1, face: 2, partner: 3 }, d) > 0).length / 216;
     case 'threeSingleCombo':
@@ -100,8 +105,8 @@ export function sicboPayout(type: SicBoBetType): number {
     case 'doubleAny': return 50;
     case 'threeSingleCombo': return 30;
     case 'threeFromFour': return 7;
-    case 'single': return 1; // varies, simplified as 1
-    case 'total': return 6; // varies 6:1 to 62:1, simplified
+    case 'single': return 1;
+    case 'total': return 6;
   }
 }
 
@@ -118,9 +123,6 @@ export function sicboBetLabel(type: SicBoBetType): string {
 
 // ---------------------------------------------------------------- baccarat
 
-// Well-known theoretical probabilities (8-deck, excluding commission on banker):
-// Banker win 0.458597, Player win 0.446247, Tie 0.095156.
-// For gambler's ruin we fold ties into the denominator: p_eff = p / (p + q).
 export function baccaratWinProb(type: BaccaratBetType): number {
   switch (type) {
     case 'banker': return 0.458597;
@@ -133,7 +135,7 @@ export function baccaratWinProb(type: BaccaratBetType): number {
 
 export function baccaratPushProb(type: BaccaratBetType): number {
   switch (type) {
-    case 'banker': case 'player': return 0.095156; // ties push
+    case 'banker': case 'player': return 0.095156;
     default: return 0;
   }
 }
@@ -157,43 +159,44 @@ export function baccaratBetLabel(type: BaccaratBetType): string {
 
 // ---------------------------------------------------------------- gambler's ruin engine
 
-function gamblersRuin(targetUnits: number, p: number, payout: number): number[] {
-  const P = new Array<number>(targetUnits + 1);
-  P[0] = 0;
-  P[targetUnits] = 1;
-
-  if (targetUnits <= 1) return P;
+/** Probability of reaching `milestoneUnits` before reaching 0, starting from
+ *  `startUnits` (< milestoneUnits), for a game with win prob p and payout odds.
+ *
+ *  Even-money (payout = 1): closed-form gambler's ruin.
+ *  Uneven: Gauss-Seidel iteration on [0, milestoneUnits]. */
+function reachProb(startUnits: number, milestoneUnits: number, p: number, payout: number): number {
+  if (startUnits >= milestoneUnits) return 1;
+  if (startUnits <= 0) return 0;
+  if (milestoneUnits <= 0) return 0;
 
   const q = 1 - p;
 
   if (payout === 1) {
-    // Closed-form: even-money gambler's ruin
-    if (Math.abs(p - q) < 1e-12) {
-      for (let i = 1; i < targetUnits; i++) P[i] = i / targetUnits;
-    } else {
-      const r = q / p;
-      const denom = 1 - r ** targetUnits;
-      for (let i = 1; i < targetUnits; i++) P[i] = (1 - r ** i) / denom;
-    }
-  } else {
-    // Numerical: Gauss-Seidel iteration for asymmetric steps
-    for (let i = 1; i < targetUnits; i++) P[i] = i / targetUnits;
-
-    for (let iter = 0; iter < 5000; iter++) {
-      let maxDiff = 0;
-      for (let i = targetUnits - 1; i >= 1; i--) {
-        const winNext = Math.min(i + payout, targetUnits);
-        const loseNext = Math.max(i - 1, 0);
-        const newVal = p * P[winNext]! + q * P[loseNext]!;
-        const diff = Math.abs(newVal - P[i]!);
-        if (diff > maxDiff) maxDiff = diff;
-        P[i] = newVal;
-      }
-      if (maxDiff < 1e-12) break;
-    }
+    if (Math.abs(p - q) < 1e-12) return startUnits / milestoneUnits;
+    const r = q / p;
+    return (1 - r ** startUnits) / (1 - r ** milestoneUnits);
   }
 
-  return P;
+  // Numerical: Gauss-Seidel on [0, milestoneUnits]
+  const N = milestoneUnits;
+  const P = new Array<number>(N + 1);
+  P[0] = 0;
+  P[N] = 1;
+  for (let i = 1; i < N; i++) P[i] = i / N;
+
+  for (let iter = 0; iter < 5000; iter++) {
+    let maxDiff = 0;
+    for (let i = N - 1; i >= 1; i--) {
+      const winNext = Math.min(i + payout, N);
+      const loseNext = i - 1;
+      const newVal = p * P[winNext]! + q * P[loseNext]!;
+      const diff = Math.abs(newVal - P[i]!);
+      if (diff > maxDiff) maxDiff = diff;
+      P[i] = newVal;
+    }
+    if (maxDiff < 1e-12) break;
+  }
+  return P[startUnits]!;
 }
 
 // ---------------------------------------------------------------- public API
@@ -211,16 +214,21 @@ export interface GamblersRuinOutput {
   rows: GamblersRuinRow[];
   betInfo: BetInfo;
   effectiveP: number;
-  stepCount: number;
   startingUnits: number;
   targetUnits: number;
+  /** The fixed bankroll every row's probability is computed from. */
+  fixedStartBankroll: number;
 }
 
+/** Build a probability table from a single fixed starting bankroll.
+ *
+ *  Each row = a milestone. P(milestone) = P(reach this milestone before 0 |
+ *  start at the fixed startingBankroll). Milestones ≤ startingBankroll return
+ *  P = 1 ("already reached"). */
 export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutput | null {
   const { game, betType, variant, startingBankroll, baseBet, targetMoney } = input;
 
   if (baseBet <= 0 || targetMoney <= 0 || startingBankroll <= 0) return null;
-  if (targetMoney <= startingBankroll) return null;
 
   let betInfo: BetInfo;
   switch (game) {
@@ -236,8 +244,7 @@ export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutpu
       const rawP = baccaratWinProb(t);
       const pushP = baccaratPushProb(t);
       const payout = baccaratPayout(t);
-      const effectiveP = pushP > 0 ? rawP / (1 - pushP) : rawP;
-      betInfo = { label: baccaratBetLabel(t), p: effectiveP, payout };
+      betInfo = { label: baccaratBetLabel(t), p: pushP > 0 ? rawP / (1 - pushP) : rawP, payout };
       break;
     }
     case 'sicbo': {
@@ -251,34 +258,30 @@ export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutpu
       return null;
   }
 
-  // Clamp payout to at least 1 for the gambler's ruin step size
-  // (baccarat banker 0.95 → treat as 1, close enough)
   const effectivePayout = Math.max(1, Math.round(betInfo.payout));
+  const s = Math.round(startingBankroll / baseBet);
+  const t = Math.round(targetMoney / baseBet);
 
-  const startingUnits = Math.round(startingBankroll / baseBet);
-  const targetUnits = Math.round(targetMoney / baseBet);
-
-  if (targetUnits <= 0 || startingUnits <= 0) return null;
-  if (targetUnits <= startingUnits) return null;
-
-  const P = gamblersRuin(targetUnits, betInfo.p, effectivePayout);
+  if (t <= 0 || s <= 0) return null;
+  if (t <= s) return null;
 
   const rows: GamblersRuinRow[] = [];
-  for (let u = 0; u <= targetUnits; u++) {
-    const winProb = P[u] ?? 0;
-    rows.push({
-      bankroll: u * baseBet,
-      winProb,
-      bustProb: 1 - winProb,
-    });
+  for (let m = 0; m <= t; m++) {
+    const bankroll = m * baseBet;
+    if (m <= s) {
+      rows.push({ bankroll, reachProb: 1, bustProb: 0 });
+    } else {
+      const r = reachProb(s, m, betInfo.p, effectivePayout);
+      rows.push({ bankroll, reachProb: r, bustProb: 1 - r });
+    }
   }
 
   return {
     rows,
     betInfo,
     effectiveP: betInfo.p,
-    stepCount: targetUnits + 1,
-    startingUnits,
-    targetUnits,
+    startingUnits: s,
+    targetUnits: t,
+    fixedStartBankroll: startingBankroll,
   };
 }
