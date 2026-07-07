@@ -1,8 +1,8 @@
 // Gambler's ruin probability tables for the Compare tab.
 //
-// The table uses ONE fixed starting bankroll and computes, for each bankroll
+// The table uses ONE fixed starting bankroll and computes, for each winning
 // milestone M > startingBankroll: P(reach M before 0 | start at startingBankroll).
-// Milestones at or below the starting bankroll are "already reached" (P = 1).
+// Only winning milestones are shown — the start is a fixed reference point.
 //
 // Even-money bets (payout ≈ 1) use the closed-form formula. Uneven bets
 // (straight 35:1, tie 8:1, etc.) use Gauss-Seidel iteration.
@@ -15,8 +15,7 @@ import {
 
 export interface GamblersRuinRow {
   bankroll: number;
-  /** P(reach this milestone before 0 | start at the fixed startingBankroll).
-   *  1.0 for milestones ≤ startingBankroll. */
+  /** P(reach this milestone before 0 | start at the fixed startingBankroll). */
   reachProb: number;
   /** 1 - reachProb. */
   bustProb: number;
@@ -222,9 +221,9 @@ export interface GamblersRuinOutput {
 
 /** Build a probability table from a single fixed starting bankroll.
  *
- *  Each row = a milestone. P(milestone) = P(reach this milestone before 0 |
- *  start at the fixed startingBankroll). Milestones ≤ startingBankroll return
- *  P = 1 ("already reached"). */
+ *  Only returns rows for milestones ABOVE the starting bankroll (winning
+ *  amounts). Each row = P(reach this milestone before 0 | start at the fixed
+ *  startingBankroll). */
 export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutput | null {
   const { game, betType, variant, startingBankroll, baseBet, targetMoney } = input;
 
@@ -266,14 +265,11 @@ export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutpu
   if (t <= s) return null;
 
   const rows: GamblersRuinRow[] = [];
-  for (let m = 0; m <= t; m++) {
+  // Only generate rows above the starting bankroll
+  for (let m = s + 1; m <= t; m++) {
     const bankroll = m * baseBet;
-    if (m <= s) {
-      rows.push({ bankroll, reachProb: 1, bustProb: 0 });
-    } else {
-      const r = reachProb(s, m, betInfo.p, effectivePayout);
-      rows.push({ bankroll, reachProb: r, bustProb: 1 - r });
-    }
+    const r = reachProb(s, m, betInfo.p, effectivePayout);
+    rows.push({ bankroll, reachProb: r, bustProb: 1 - r });
   }
 
   return {

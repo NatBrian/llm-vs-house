@@ -68,19 +68,18 @@ export function CompareTable() {
   }
 
   const rows = result?.rows ?? [];
-  const startIdx = result ? result.startingUnits : -1;
-  const targetIdx = result ? result.targetUnits : -1;
+  const targetIdx = rows.length - 1; // last row is the target milestone
+  // The starting bankroll is a fixed reference (shown in the description, not a row)
 
   return (
     <div className="glass rounded-xl p-4 overflow-auto">
       <h2 className="text-sm font-semibold text-white/80 mb-1">Probability comparison</h2>
       <p className="text-xs text-white/40 mb-3 leading-relaxed">
-        Starting from a fixed bankroll of <strong>${form.startingBankroll}</strong>
+        Fixed bankroll: <strong>${form.startingBankroll}</strong>
         {result && (
-          <> · betting <strong>{result.betInfo.label}</strong> (p = {pct(result.effectiveP)})</>
+          <> · Bet: <strong>{result.betInfo.label}</strong> (p = {pct(result.effectiveP)})</>
         )}
-        , the probability of reaching each milest<wbr/>one <strong>before</strong> busting (hitting $0).
-        Milestones at or below the starting bankroll are already reached.
+        . Probability of reaching each winning milest<wbr/>one <strong>before</strong> busting ($0).
         {isDefaultTarget && (
           <span> Target: <strong>${effectiveTarget}</strong>{
             form.stopTarget === 0
@@ -106,34 +105,22 @@ export function CompareTable() {
           </thead>
           <tbody>
             {rows.map((r, i) => {
-              const isStart = i === startIdx;
               const isTarget = i === targetIdx;
-              const isAlreadyReached = i <= startIdx;
               return (
                 <tr
                   key={r.bankroll}
-                  className={`border-t border-white/5 transition-colors ${isStart ? 'ring-1 ring-inset ring-gold-500/30 bg-gold-500/10' : ''} ${isTarget && !isStart ? 'bg-gold-500/5' : ''}`}
+                  className={`border-t border-white/5 transition-colors ${isTarget ? 'bg-gold-500/5' : ''}`}
                 >
-                  <td className={`py-1 pr-3 font-medium ${isStart ? 'text-gold-300' : isTarget ? 'text-gold-200' : 'text-white/70'}`}>
+                  <td className={`py-1 pr-3 font-medium ${isTarget ? 'text-gold-200' : 'text-white/70'}`}>
                     ${r.bankroll}
-                    {isStart && <span className="ml-1.5 text-[10px] text-gold-400/60">← start</span>}
-                    {isTarget && !isStart && <span className="ml-1.5 text-[10px] text-gold-400/60">← target</span>}
+                    {isTarget && <span className="ml-1.5 text-[10px] text-gold-400/60">← target</span>}
                   </td>
-                  {isAlreadyReached ? (
-                    <>
-                      <td className="pr-3 text-right text-chip-green">Already reached</td>
-                      <td className="text-right text-white/30">{pct(0)}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className={`pr-3 text-right ${r.reachProb > 0.5 ? 'text-chip-green' : 'text-white/70'}`}>
-                        {pct(r.reachProb)}
-                      </td>
-                      <td className={`text-right ${r.bustProb > 0.5 ? 'text-chip-red' : 'text-white/70'}`}>
-                        {pct(r.bustProb)}
-                      </td>
-                    </>
-                  )}
+                  <td className={`pr-3 text-right ${r.reachProb > 0.5 ? 'text-chip-green' : 'text-white/70'}`}>
+                    {pct(r.reachProb)}
+                  </td>
+                  <td className={`text-right ${r.bustProb > 0.5 ? 'text-chip-red' : 'text-white/70'}`}>
+                    {pct(r.bustProb)}
+                  </td>
                 </tr>
               );
             })}
