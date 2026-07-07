@@ -9,9 +9,33 @@
 
 import {
   ROULETTE_ODDS, allSicBoOutcomes, resolveSicBoBet,
+  slotPayoutHistogram, slotRtp,
   type RouletteBetType, type RouletteVariant, type SicBoBetType, type SicBoBet,
-  type BaccaratBetType,
+  type BaccaratBetType, type SlotConfig, type SlotHistogramEntry,
 } from '@casino/engine';
+
+// Cache the expensive histogram + derived CDF arrays (config never changes per session).
+// The CDF is built lazily on first need and reused across all simulation calls.
+interface CachedSlotData {
+  hist: ReturnType<typeof slotPayoutHistogram>;
+  sorted: SlotHistogramEntry[];
+  cdf: number[];
+  bonusEntries: SlotHistogramEntry[];
+  bonusCdf: number[];
+}
+const slotCache = new WeakMap<SlotConfig, CachedSlotData>();
+function getCachedSlotData(config: SlotConfig): CachedSlotData {
+  let d = slotCache.get(config);
+  if (!d) {
+    const hist = slotPayoutHistogram(config);
+    const { entries, cdf } = buildCdf(hist.entries);
+    const bonusEntries = entries.filter((e) => e.freeSpinsAwarded === 0);
+    const bonusCdf = buildCdf(bonusEntries).cdf;
+    d = { hist, sorted: entries, cdf, bonusEntries, bonusCdf };
+    slotCache.set(config, d);
+  }
+  return d;
+}
 
 export interface GamblersRuinRow {
   bankroll: number;
@@ -323,3 +347,189 @@ export function computeGamblersRuin(input: GamblersRuinInput): GamblersRuinOutpu
     fixedStartBankroll: startingBankroll,
   };
 }
+
+// ---------------------------------------------------------------- slot outcome UI
+
+/**
+ * Tier thresholds aligned with the actual symbol paytable values.
+ * Boundary at each symbol's 3OAK payout at full 243 ways:
+ *   TEN/QUEEN 7×, KING/ACE 16×, TIGER 42×, DRAGON 75×, 5OAK combos 100×+ */
+export const SLOT_TIERS = [
+  { label: 'Miss', minPayout: 0, maxPayout: 1e-9, color: 'bg-white/10', textColor: 'text-white/30' },
+  { label: 'Mini win', minPayout: 1e-9, maxPayout: 7, color: 'bg-sky-500/30', textColor: 'text-sky-300' },
+  { label: 'Nice win', minPayout: 7, maxPayout: 16, color: 'bg-green-500/30', textColor: 'text-green-300' },
+  { label: 'Big win', minPayout: 16, maxPayout: 42, color: 'bg-violet-500/30', textColor: 'text-violet-300' },
+  { label: 'Mega win', minPayout: 42, maxPayout: 100, color: 'bg-pink-500/30', textColor: 'text-pink-300' },
+  { label: 'Jackpot', minPayout: 100, maxPayout: Infinity, color: 'bg-amber-500/30', textColor: 'text-amber-300' },
+] as const;
+
+export interface SlotTierInfo {
+  label: string;
+  /** Dollar range for this tier at the given bet */
+  dollarRange: string;
+  probability: number;
+  oneIn: number;
+  color: string;
+  textColor: string;
+}
+
+export interface SlotPerSpinBreakdown {
+  tiers: SlotTierInfo[];
+  triggerProb: number;
+  freeSpinsLabel: string;
+}
+
+export interface SlotSimulationResult {
+  /** For each non-Miss tier + Free spins, P(hit at least once in the session) */
+  tierHitRates: Record<string, number>;
+  /** How many spins until bust (or max spins) */
+  medianSurvival: number;
+  p90BustBy: number;
+  /** Expected net loss = spins × bet × (1 - rtp) */
+  expectedLoss: number;
+}
+
+/** Build a CDF array for fast inverse-transform sampling from the histogram. */
+function buildCdf(entries: SlotHistogramEntry[]): { entries: SlotHistogramEntry[]; cdf: number[] } {
+  const sorted = [...entries].sort((a, b) => a.payout - b.payout);
+  const cdf: number[] = [];
+  let cum = 0;
+  for (const e of sorted) {
+    cum += e.probability;
+    cdf.push(cum);
+  }
+  return { entries: sorted, cdf };
+}
+
+/** Sample from the CDF using a uniform [0,1) random value. */
+function sampleFrom(u: number, entries: SlotHistogramEntry[], cdf: number[]): SlotHistogramEntry {
+  let lo = 0, hi = cdf.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (cdf[mid]! <= u) lo = mid + 1;
+    else hi = mid;
+  }
+  return entries[lo]!;
+}
+
+/** Simulate N sessions on the slot machine and aggregate results.
+ *  Each session: start at bankroll, spin until (bankroll <= 0) or (maxSpins reached).
+ *  Uses the exact per-spin histogram + free spins sampling for each round. */
+export function simulateSlotSessions(params: {
+  config: SlotConfig;
+  bet: number;
+  startingBankroll: number;
+  /** Override from form.rounds */
+  maxSpins: number;
+  /** Number of Monte Carlo trials, default 1000 */
+  trials?: number;
+}): SlotSimulationResult {
+  const { config, bet, startingBankroll, maxSpins, trials = 1000 } = params;
+  const { hist, sorted: entries, cdf, bonusEntries, bonusCdf } = getCachedSlotData(config);
+
+  // Simple seeded PRNG for determinism
+  let seed = 42;
+  function rand(): number {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+
+  const survival: number[] = [];
+
+  // Per-tier "hit at least once" tracking (excluding Miss)
+  const tierHitCounts: Record<string, number> = {};
+  for (const t of SLOT_TIERS) {
+    if (t.label === 'Miss') continue;
+    tierHitCounts[t.label] = 0;
+  }
+  let fsTriggerCount = 0;
+
+  for (let t = 0; t < trials; t++) {
+    let br = startingBankroll;
+    let spins = 0;
+    const hitTiers = new Set<string>();
+
+    while (br > 0 && spins < maxSpins) {
+      const main = sampleFrom(rand(), entries, cdf);
+      let roundPayout = main.payout;
+      if (main.freeSpinsAwarded > 0) {
+        hitTiers.add('Free spins');
+        for (let f = 0; f < main.freeSpinsAwarded; f++) {
+          const bonus = sampleFrom(rand(), bonusEntries, bonusCdf);
+          roundPayout += bonus.payout;
+        }
+      }
+      const net = roundPayout > 0 ? roundPayout * bet - bet : -bet;
+      for (const t of SLOT_TIERS) {
+        if (t.label === 'Miss') continue;
+        if (roundPayout >= t.minPayout && roundPayout < t.maxPayout) {
+          hitTiers.add(t.label);
+          break;
+        }
+      }
+      br += net;
+      spins++;
+    }
+
+    survival.push(spins);
+    for (const label of hitTiers) {
+      if (label === 'Free spins') fsTriggerCount++;
+      else tierHitCounts[label]++;
+    }
+  }
+
+  survival.sort((a, b) => a - b);
+
+  const tierHitRates: Record<string, number> = {};
+  for (const [label, count] of Object.entries(tierHitCounts)) {
+    tierHitRates[label] = count / trials;
+  }
+  tierHitRates['Free spins'] = fsTriggerCount / trials;
+
+  const mid = survival.length >> 1;
+  const p90 = Math.floor(survival.length * 0.9);
+
+  const totalRtp = slotRtp(config);
+
+  return {
+    tierHitRates,
+    medianSurvival: survival[mid] ?? maxSpins,
+    p90BustBy: survival[p90] ?? maxSpins,
+    expectedLoss: maxSpins * bet * (1 - totalRtp),
+  };
+}
+
+/** Per-spin tier breakdown for Card 2 (what happens on each spin). */
+export function computeSlotTierBreakdown(config: SlotConfig): SlotPerSpinBreakdown {
+  const { hist } = getCachedSlotData(config);
+  const tierProbs = SLOT_TIERS.map((t) => {
+    let prob = 0;
+    for (const e of hist.entries) {
+      if (e.payout >= t.minPayout && e.payout < t.maxPayout) prob += e.probability;
+    }
+    return { ...t, probability: prob };
+  });
+
+  let triggerProb = 0;
+  for (const e of hist.entries) {
+    if (e.freeSpinsAwarded > 0) triggerProb += e.probability;
+  }
+
+  const fd = config.freeSpins;
+  const freeSpinsLabel = `Free spins: ${fd[3]}/${fd[4]}/${fd[5]} on 3/4/5 scatters`;
+
+  return {
+    tiers: tierProbs.map((t) => ({
+      label: t.label,
+      dollarRange: '',
+      probability: t.probability,
+      oneIn: t.probability > 0 ? Math.round(1 / t.probability) : Infinity,
+      color: t.color,
+      textColor: t.textColor,
+    })),
+    triggerProb,
+    freeSpinsLabel,
+  };
+}
+
+

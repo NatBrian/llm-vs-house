@@ -276,3 +276,71 @@ export function slotRtpBreakdown(config: SlotConfig): SlotRtpBreakdown {
 export function slotRtp(config: SlotConfig): number {
   return slotRtpBreakdown(config).totalRtp;
 }
+
+// ---------------------------------------------------------------- payout histogram
+
+export interface SlotHistogramEntry {
+  /** waysWin + scatterPayout, "for-one" multiplier of total bet */
+  payout: number;
+  /** Free spins awarded by this spin (0 if no trigger) */
+  freeSpinsAwarded: number;
+  /** Exact probability of this outcome */
+  probability: number;
+}
+
+/** Full per-spin payout histogram via signature-dedup enumeration.
+ *  Each entry records (payout, freeSpinsAwarded) with its exact probability.
+ *  This is the joint distribution: trigger frequency and payout are correlated
+ *  (scatter combos always have scatterPayout > 0 and freeSpinsAwarded > 0). */
+export function slotPayoutHistogram(config: SlotConfig): {
+  entries: SlotHistogramEntry[];
+  totalCombos: number;
+  hitFrequency: number;
+  baseRtp: number;
+} {
+  const perReel = config.reels.map(reelSignatures);
+  const n = config.reels.map((s) => s.length);
+  const totalCombos = n.reduce((a, b) => a * b, 1);
+
+  // {(payout,fsa) -> weight}
+  const map = new Map<string, number>();
+  let hitCombos = 0;
+
+  const recurse = (reelIdx: number, grid: string[][], weight: number): void => {
+    if (reelIdx === perReel.length) {
+      const evalResult = evaluateSlotGrid(config, grid);
+      const payout = Math.round((evalResult.waysWin + evalResult.scatterPayout) * 1e9) / 1e9;
+      const fsa = evalResult.freeSpinsAwarded;
+      const key = `${payout},${fsa}`;
+      map.set(key, (map.get(key) ?? 0) + weight);
+      if (evalResult.waysWin > 0 || evalResult.scatterPayout > 0) hitCombos += weight;
+      return;
+    }
+    for (const sig of perReel[reelIdx]!) {
+      grid.push(sig.multiset);
+      recurse(reelIdx + 1, grid, weight * sig.count);
+      grid.pop();
+    }
+  };
+  recurse(0, [], 1);
+
+  const entries: SlotHistogramEntry[] = [];
+  let waysRtpSum = 0;
+  for (const [key, weight] of map) {
+    const [pStr] = key.split(',');
+    const payout = Number(pStr);
+    const fsaIdx = key.indexOf(',');
+    const fsa = Number(key.slice(fsaIdx + 1));
+    const prob = weight / totalCombos;
+    entries.push({ payout, freeSpinsAwarded: fsa, probability: prob });
+    waysRtpSum += payout * weight;
+  }
+  entries.sort((a, b) => a.payout - b.payout);
+
+  return {
+    entries,
+    totalCombos,
+    hitFrequency: hitCombos / totalCombos,
+    baseRtp: waysRtpSum / totalCombos,
+  };
+}
