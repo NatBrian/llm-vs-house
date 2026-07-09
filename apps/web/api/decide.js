@@ -5311,7 +5311,7 @@ var rouletteAdapter = {
         },
         history: summarizeSpinHistory(priorPockets, variant),
         ownSession: ownSessionSummary(ctx),
-        note: "ownSession is YOUR OWN session ledger \u2014 starting money, running profit/deficit, and your own past rounds (each with your exact decision + reasoning, what the table actually accepted, win/lose, bankroll after) \u2014 separate from history's wheel results, this is your personal track record so far. This table is " + variant + " \u2014 legalBetTypes lists exactly what's on THIS felt; a bet type from the other table (e.g. American-only five/zeroCombo/series3/series6 at a European table) is refused, same as every other illegal-cell bet. boardLayout enumerates every real split/street/corner/sixline/column/dozen/series group on this table \u2014 you may freely choose ANY entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to the bankroll, exactly like a human standing at the table. history gives the actual spin record so far (recent results, hot/cold pocket counts, current color/parity/hi-lo streak) \u2014 you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is predictive (each spin is independent), it is only what a real player would see on the roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no la partage / en prison at this table). On American tables, series3/series6 are fixed wheel-sector bets covering the numbers listed in series3Groups/series6Groups. A stake below its bet's table minimum, or numbers/selectors that don't form a real felt cell, is refused."
+        note: "ownSession is YOUR OWN session ledger, starting money, running profit/deficit, and your own past rounds (each with your exact decision + reasoning, what the table actually accepted, win/lose, bankroll after), separate from history's wheel results, this is your personal track record so far. This table is " + variant + ", legalBetTypes lists exactly what's on THIS felt; a bet type from the other table (e.g. American-only five/zeroCombo/series3/series6 at a European table) is refused, same as every other illegal-cell bet. boardLayout enumerates every real split/street/corner/sixline/column/dozen/series group on this table, you may freely choose ANY entry, any bet type, any number of simultaneous bets (up to 10), any stake per bet up to the bankroll, exactly like a human standing at the table. history gives the actual spin record so far (recent results, hot/cold pocket counts, current color/parity/hi-lo streak) , you may play hunches, chase or fade streaks, or ignore it entirely; nothing here is predictive (each spin is independent), it is only what a real player would see on the roadmap board. Zero (and 00, on American tables) loses every non-zero bet outright (no la partage / en prison at this table). On American tables, series3/series6 are fixed wheel-sector bets covering the numbers listed in series3Groups/series6Groups. A stake below its bet's table minimum, or numbers/selectors that don't form a real felt cell, is refused."
       },
       schema: RouletteDecisionSchema,
       schemaName: "RouletteDecision"
@@ -5344,7 +5344,7 @@ var baccaratAdapter = {
         // Player/Banker cost 50; Tie/Pair side bets cost 10
         roadHistory: summarizeBaccaratHistory(priorCoups),
         ownSession: ownSessionSummary(ctx),
-        note: "roadHistory is the real Big Road / Bead Plate board: recent results (newest first), % player/banker/tie and % player-pair/banker-pair over every hand so far, and the current streak (ties never break or extend a streak, same as a real road) \u2014 purely descriptive (each coup is independent, nothing here predicts the next one), play hunches (e.g. ride or fade a banker streak) or ignore it, your call. ownSession is your own ledger \u2014 starting money, running profit/deficit, your own past hands (your exact decision + reasoning, what was actually accepted, win/lose). Banker commission is paid immediately per hand (mini-baccarat convention, confirmed by MBS/RWS rule sheets \u2014 no deferred marker). A stake below its bet's table minimum is refused."
+        note: "roadHistory is the real Big Road / Bead Plate board: recent results (newest first), % player/banker/tie and % player-pair/banker-pair over every hand so far, and the current streak (ties never break or extend a streak, same as a real road), purely descriptive (each coup is independent, nothing here predicts the next one), play hunches (e.g. ride or fade a banker streak) or ignore it, your call. ownSession is your own ledger, starting money, running profit/deficit, your own past hands (your exact decision + reasoning, what was actually accepted, win/lose). Banker commission is paid immediately per hand (mini-baccarat convention, confirmed by MBS/RWS rule sheets, no deferred marker). A stake below its bet's table minimum is refused."
       },
       schema: BaccaratDecisionSchema,
       schemaName: "BaccaratDecision"
@@ -5414,7 +5414,7 @@ var sicboAdapter = {
         },
         diceHistory: summarizeSicBoHistory(priorDice),
         ownSession: ownSessionSummary(ctx),
-        note: "boardLayout.threeFromFourGroups tells you exactly which 4 numbers each threeFromFour group covers; boardLayout.validDoubleAnyPairs lists every real doubleAny felt cell \u2014 a (face,partner) pair not in that list is refused. diceHistory is the real roadmap board: recent rolls (newest first), % small/big/odd/even and % any-triple over every roll so far, and hot/cold counts per face and per three-dice total \u2014 purely descriptive (each roll is independent, nothing here predicts the next one), play hunches or ignore it, your call. ownSession is your own ledger \u2014 starting money, running profit/deficit, your own past bets (your exact decision + reasoning, what was actually accepted, win/lose). A stake below its minimum, or a bet that does not describe a real felt cell (e.g. an invented doubleAny pair), is refused."
+        note: "boardLayout.threeFromFourGroups tells you exactly which 4 numbers each threeFromFour group covers; boardLayout.validDoubleAnyPairs lists every real doubleAny felt cell, a (face,partner) pair not in that list is refused. diceHistory is the real roadmap board: recent rolls (newest first), % small/big/odd/even and % any-triple over every roll so far, and hot/cold counts per face and per three-dice total, purely descriptive (each roll is independent, nothing here predicts the next one), play hunches or ignore it, your call. ownSession is your own ledger, starting money, running profit/deficit, your own past bets (your exact decision + reasoning, what was actually accepted, win/lose). A stake below its minimum, or a bet that does not describe a real felt cell (e.g. an invented doubleAny pair), is refused."
       },
       schema: SicBoDecisionSchema,
       schemaName: "SicBoDecision"
@@ -5465,9 +5465,9 @@ var slotAdapter = {
         paytable: config2.paytable,
         scatterPay: config2.scatterPay,
         freeSpins: config2.freeSpins,
-        machineNote: '243-ways video slot. Choose a denomination (coin value) and a bet level (credits per spin) \u2014 total stake = denomination x betLevel \u2014 or set betMax to slam the BET MAX button (highest denomination x highest level). paytable lists, per symbol, the "for-one" multiplier of your total bet for landing 3/4/5-of-a-kind anywhere on the grid (ways pay, not fixed lines) \u2014 wild substitutes for every paying symbol. scatterPay is the multiplier for 3/4/5 scatters landing anywhere regardless of ways; freeSpins is how many free spins that same scatter count also awards.',
+        machineNote: '243-ways video slot. Choose a denomination (coin value) and a bet level (credits per spin), total stake = denomination x betLevel, or set betMax to slam the BET MAX button (highest denomination x highest level). paytable lists, per symbol, the "for-one" multiplier of your total bet for landing 3/4/5-of-a-kind anywhere on the grid (ways pay, not fixed lines), wild substitutes for every paying symbol. scatterPay is the multiplier for 3/4/5 scatters landing anywhere regardless of ways; freeSpins is how many free spins that same scatter count also awards.',
         ownSession: ownSessionSummary(ctx),
-        note: "ownSession is your own session ledger \u2014 starting money, running profit/deficit, your own past spins (your exact decision + reasoning, stake actually spun, payout, bankroll after). denomination must be exactly one of the listed values. A resulting stake the bankroll cannot cover, or above the table max, is clamped down \u2014 a real cabinet would refuse an unaffordable or out-of-range bet the same way."
+        note: "ownSession is your own session ledger, starting money, running profit/deficit, your own past spins (your exact decision + reasoning, stake actually spun, payout, bankroll after). denomination must be exactly one of the listed values. A resulting stake the bankroll cannot cover, or above the table max, is clamped down, a real cabinet would refuse an unaffordable or out-of-range bet the same way."
       },
       schema: SlotDecisionSchema,
       schemaName: "SlotDecision"
@@ -5531,7 +5531,7 @@ var blackjackAdapter = {
         baseBet: ctx.baseBet,
         rules: { decks: rules.decks, dealerHitsSoft17: rules.dealerHitsSoft17, blackjackPayout: rules.blackjackPayout },
         ownSession: ownSessionSummary(ctx),
-        note: "ownSession is your own session ledger \u2014 starting money, running profit/deficit, your own past hands. Choose a stake; you then play the hand action by action."
+        note: "ownSession is your own session ledger, starting money, running profit/deficit, your own past hands. Choose a stake; you then play the hand action by action."
       },
       schema: BlackjackBetSchema,
       schemaName: "BlackjackBet"
@@ -5607,16 +5607,16 @@ function blackjackBasic(req) {
     if (pv === 8) return { action: "split", reasoning: "Always split eights." };
   }
   if (legal.includes("double") && !soft) {
-    if (total === 11) return { action: "double", reasoning: "Double hard 11 \u2014 strongest doubling spot." };
+    if (total === 11) return { action: "double", reasoning: "Double hard 11, strongest doubling spot." };
     if (total === 10 && up <= 9) return { action: "double", reasoning: `Double hard 10 vs dealer ${up}.` };
   }
   if (soft) {
     if (total >= 19) return pick(legal, "stand", `Stand soft ${total}.`);
-    if (total <= 17) return pick(legal, "hit", `Hit soft ${total} \u2014 free to improve.`);
+    if (total <= 17) return pick(legal, "hit", `Hit soft ${total}, free to improve.`);
     return pick(legal, "stand", `Stand soft ${total}.`);
   }
   if (total >= 17) return pick(legal, "stand", `Stand hard ${total}.`);
-  if (total <= 11) return pick(legal, "hit", `Hit hard ${total} \u2014 cannot bust.`);
+  if (total <= 11) return pick(legal, "hit", `Hit hard ${total}, cannot bust.`);
   if (up >= 7) return pick(legal, "hit", `Hit ${total} vs strong dealer ${up}.`);
   return pick(legal, "stand", `Stand ${total} vs weak dealer ${up}; let the dealer risk busting.`);
 }
@@ -5785,7 +5785,7 @@ function makeRuleBot(config2 = {}) {
         return recordAndReturn({
           denomination,
           betLevel,
-          reasoning: `${sizingLabel(cfg.sizing, amount2, unit)} \u2014 denomination ${denomination}, bet level ${betLevel}.`
+          reasoning: `${sizingLabel(cfg.sizing, amount2, unit)}, denomination ${denomination}, bet level ${betLevel}.`
         }, amount2);
       }
       case "blackjack": {
@@ -18500,11 +18500,11 @@ function buildPrompt(req) {
   const title = GAME_TITLES[req.game] ?? req.game;
   const system = [
     `You are an expert player of ${title}.`,
-    "All currency is simulated points \u2014 there is no real money and no real gambling.",
+    "All currency is simulated points, there is no real money and no real gambling.",
     "Each round you receive a structured game-state observation and must return a decision",
     "that STRICTLY matches the provided schema.",
     'Keep "reasoning" concise (1\u20133 sentences) and specific to this observation.',
-    req.kind === "action" ? "You are mid-hand: choose exactly ONE action from the legal actions listed." : 'Choose your bet(s). Do not stake more than the bankroll. You may optionally set "stop" to true to end the session after this round resolves \u2014 a real casino is walk-in-walk-out free, so leaving is always available on any round. Whether or when to do so is entirely your own decision; omitting it (or setting it false) simply continues the session as normal.'
+    req.kind === "action" ? "You are mid-hand: choose exactly ONE action from the legal actions listed." : 'Choose your bet(s). Do not stake more than the bankroll. You may optionally set "stop" to true to end the session after this round resolves, a real casino is walk-in-walk-out free, so leaving is always available on any round. Whether or when to do so is entirely your own decision; omitting it (or setting it false) simply continues the session as normal.'
   ].join(" ");
   const lines = [
     `Round #${req.index + 1}. Bankroll: ${req.bankroll} points. Base bet: ${req.baseBet}.`,
